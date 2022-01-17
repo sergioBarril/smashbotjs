@@ -1,0 +1,4 @@
+node_modules
+.env
+*.code-workspace
+config.json
