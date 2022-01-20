@@ -5,13 +5,52 @@ const playerDB = require("../db/player");
 const tierDB = require("../db/tier");
 const guildDB = require("../db/guild");
 
-const canSearchTier = (playerTier, targetTier) => {
-  if (!playerTier || !targetTier) return false;
-  return targetTier.weight == null || targetTier.weight >= playerTier.weight;
+const lobbyAPI = require("../api/lobby");
+
+EXCEPTION_MESSAGES = {
+  GUILD_NOT_FOUND: `__**ERROR**__: No se ha encontrado el servidor.`,
+  PLAYER_NOT_FOUND: `__**ERROR**__: No se ha encontrado al jugador.`,
+  TIER_NOT_FOUND: `__**ERROR**__: No se ha encontrado la tier.`,
+  NOT_SEARCHING:
+    `No puedes buscar partida porque ya has encontrado una.` +
+    `Espera a que tu rival confirme, o cierra la arena si ya habéis terminado de jugar.`,
+  LOBBY_NOT_FOUND: `__**ERROR**__: No se ha encontrado el lobby.`,
+  MESSAGES_NOT_FOUND: `__**ERROR**__: No se han encontrado mensajes.`,
+  TOO_MANY_PLAYERS: `__**ERROR**__: Aún no están listas las arenas de más de 2 players.`,
 };
 
-const sendConfirmation = async (player, player2) => {
-  const messageText = `¡Match encontrado! ${player}, te toca contra **${player2.displayName}**`;
+const exceptionHandler = async (interaction, exception) => {
+  const { name, args } = exception;
+
+  // Get message
+  let response = EXCEPTION_MESSAGES[name];
+  if (!response)
+    switch (name) {
+      case "TOO_NOOB":
+        const targetTier = await interaction.guild.roles.fetch(args.targetTier);
+        const playerTier = await interaction.guild.roles.fetch(args.playerTier);
+        response = `¡No puedes jugar en ${targetTier} siendo ${playerTier}!`;
+        break;
+
+      case "ALREADY_SEARCHING":
+        const targetTier = await interaction.guild.roles.fetch(args.targetTier);
+        response = `Ya estabas buscando en ${targetTier}!`;
+        break;
+    }
+
+  if (!response) throw exception;
+
+  // Send reply
+  return await interaction.reply({
+    content: response,
+    ephemeral: true,
+  });
+};
+
+const sendConfirmation = async (player, opponent) => {
+  // Sends a DM to player asking for confirmation
+  // about their match with opponent
+  const messageText = `¡Match encontrado! ${player}, te toca contra **${opponent.displayName}**`;
   const row = new MessageActionRow().addComponents(
     new MessageButton()
       .setCustomId("accept-confirmation")
@@ -22,115 +61,101 @@ const sendConfirmation = async (player, player2) => {
       .setLabel("Rechazar")
       .setStyle("DANGER")
   );
-  const message = await player.send({
+  const directMessage = await player.send({
     content: messageText,
     components: [row],
   });
 
-  await lobbyDB.setConfirmationDM(player.id, message.id, true);
+  await lobbyAPI.saveDirectMessage(player.id, directMessage.id);
+
+  return true;
 };
 
-const matchmaking = async (interaction, playerId, lobbyId, tierId) => {
-  const matchmakingResult = await lobbyDB.matchmaking(
-    playerId,
-    lobbyId,
-    tierId
-  );
+const matched = async (interaction, playerIdList) => {
+  // Actions to do after a match has been found
+  // This includes :
+  //   - sending the confirmation DMs
+  //   - editing existing #tier-X messages
 
-  if (!matchmakingResult) {
-    // @Tier in #tier-X
-    return false;
+  // Get players
+  const players = [];
+  for (playerDiscordId in playerIdList) {
+    const player = await interaction.guild.members.fetch(playerDiscordId);
+    players.push(player);
   }
 
-  const player = await interaction.guild.members.fetch(
-    matchmakingResult.playerDiscordId
-  );
-  const rivalPlayer = await interaction.guild.members.fetch(
-    matchmakingResult.rivalPlayerDiscordId
-  );
+  if (players.length > 2) throw { name: "TOO_MANY_PLAYERS" };
 
+  // Send DMs
+  const [player1, player2] = players;
   await Promise.all([
-    sendConfirmation(player, rivalPlayer),
-    sendConfirmation(rivalPlayer, player),
+    sendConfirmation(player1, player2),
+    sendConfirmation(player2, player1),
   ]);
 
-  await interaction.reply({
+  // Update all your #tier messages
+  const playerId = interaction.user.id;
+  const messages = await lobbyAPI.getTierMessages(playerId);
+
+  for (message of messages) {
+    const { messageId, channelId } = message;
+    const channel = await interaction.guild.channels.fetch(channelId);
+    const message = await channel.fetch(messageId);
+
+    await message.edit({
+      content: `¡**${interaction.member.displayName}** ha encontrado partida! Veamos si aceptan todos...`,
+    });
+  }
+
+  return await interaction.reply({
     content: "¡Te he encontrado rival! Mira tus MDs.",
     ephemeral: true,
   });
-  return true;
+};
+
+const notMatched = async (interaction, tierId, channelId) => {
+  // Actions to do after not finding a match
+  // This includes sending a message to #tier
+  const playerId = interaction.user.id;
+  const tierRole = await interaction.guild.roles.fetch(tierId);
+
+  if (channelId) {
+    const channel = await interaction.guild.channels.fetch(channelId);
+
+    const message = await channel.send({
+      content:
+        `Atención ${tierRole}: **${interaction.member.displayName}**` +
+        ` está buscando partida en **${tierRole.name}`,
+    });
+
+    await lobbyAPI.saveSearchTierMessage(playerId, tierId, message.id);
+  }
+
+  return await interaction.reply({
+    content: `A partir de ahora estás buscando en ${tierRole}`,
+    ephemeral: true,
+  });
+};
+
+const execute = async (interaction) => {
+  const guildId = interaction.guild.id;
+  const playerId = interaction.user.id;
+  const messageId = interaction.message.id;
+
+  try {
+    const searchResult = await lobbyAPI.search(playerId, guildId, messageId);
+    if (searchResult.matched) {
+      await matched(interaction, searchResult.players);
+    } else {
+      const { tierId, channelId } = searchResult;
+      await notMatched(interaction, tierId, channelId);
+    }
+  } catch (e) {
+    await exceptionHandler(interaction, e);
+  }
 };
 
 module.exports = {
   data: { name: "friendlies" },
-  async execute(interaction) {
-    const guildDiscordId = interaction.guild.id;
-    const playerDiscordId = interaction.user.id;
-    const messageDiscordId = interaction.message.id;
-
-    const guild = await guildDB.get(guildDiscordId, true);
-    if (!guild)
-      return await interaction.reply({
-        content: `No se ha encontrado el servidor.`,
-        ephemeral: true,
-      });
-
-    const player = await playerDB.get(playerDiscordId, true);
-    if (!player)
-      return await interaction.reply({
-        content: `No se ha encontrado tu ficha de jugador.`,
-        ephemeral: true,
-      });
-
-    const targetTier = await tierDB.getByMessage(messageDiscordId);
-    if (!targetTier)
-      return await interaction.reply({
-        content: `No se ha encontrado la tier.`,
-        ephemeral: true,
-      });
-
-    const playerTier = await playerDB.getTier(player.id);
-
-    const playerTierRole = await interaction.guild.roles.fetch(
-      playerTier.discord_id
-    );
-    const targetTierRole = await interaction.guild.roles.fetch(
-      targetTier.discord_id
-    );
-    const canSearch = canSearchTier(playerTier, targetTier);
-    if (!canSearch)
-      return await interaction.reply({
-        content: `¡No puedes jugar en ${targetTierRole} siendo ${playerTierRole}!`,
-        ephemeral: true,
-      });
-
-    let lobby = await lobbyDB.getByPlayer(player.id);
-    const isSearching = lobby?.status === "SEARCHING";
-    const hasTier = await lobbyDB.hasTier(lobby?.id, targetTier.id);
-
-    if (!lobby) {
-      await lobbyDB.create(guild.id, player.id, targetTier.id);
-      lobby = await lobbyDB.getByPlayer(player.id);
-    } else if (isSearching && !hasTier) {
-      await lobbyDB.addTier(lobby.id, targetTier.id);
-    } else
-      return await interaction.reply({
-        content: `O ya has encontrado partida, o ya estabas buscando en ${targetTierRole}.`,
-        ephemeral: true,
-      });
-
-    const matchFound = await matchmaking(
-      interaction,
-      player.id,
-      lobby.id,
-      targetTier.id
-    );
-
-    if (!matchFound) {
-      return await interaction.reply({
-        content: `Listo, a partir de ahora estás buscando partida en ${targetTierRole} `,
-        ephemeral: true,
-      });
-    }
-  },
+  execute,
 };
