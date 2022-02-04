@@ -1,42 +1,95 @@
-const playerDB = require("../db/player");
-const lobbyDB = require("../db/lobby");
+const lobbyAPI = require("../api/lobby");
+
 const { MessageActionRow, MessageButton } = require("discord.js");
+
+const row = new MessageActionRow().addComponents(
+  new MessageButton()
+    .setCustomId("accept-afk")
+    .setLabel("Sí, busca otra vez")
+    .setStyle("SUCCESS"),
+  new MessageButton()
+    .setCustomId("decline-afk")
+    .setLabel("No, me voy")
+    .setStyle("DANGER")
+);
+
+const editTierMessages = async (interaction, messagesInfo) => {
+  const playerDiscordId = interaction.user.id;
+
+  const declinerMessagesInfo = messagesInfo.filter(
+    (info) => info.player_id === playerDiscordId
+  );
+  const otherMessagesInfo = messagesInfo.filter(
+    (info) => info.player_id !== playerDiscordId
+  );
+
+  if (messagesInfo.length < 0) return false;
+  const guildId = messagesInfo[0].guild_id;
+  const guild = await interaction.client.guilds.fetch(guildId);
+
+  const declinerMessages = [];
+
+  for (messageInfo of declinerMessagesInfo) {
+    const channel = await guild.channels.fetch(messageInfo.channel_id);
+    const message = await channel.messages.fetch(messageInfo.message_id);
+
+    const player = await guild.members.fetch(messageInfo.player_id);
+    declinerMessages.push({ message, player });
+  }
+
+  const otherMessages = [];
+  for (messageInfo of otherMessagesInfo) {
+    const channel = await guild.channels.fetch(messageInfo.channel_id);
+    const message = await channel.messages.fetch(messageInfo.message_id);
+
+    const player = await guild.members.fetch(messageInfo.player_id);
+    otherMessages.push({ message, player });
+  }
+
+  // Edit messages
+  for ({ message, player } of declinerMessages) {
+    await message.edit({
+      content: `**${player.displayName}** rechazó la partida encontrada.`,
+    });
+  }
+
+  for ({ message, player } of otherMessages) {
+    await message.edit({
+      content: `**${player.displayName}** fue brutalmente rechazado.`,
+    });
+  }
+  return true;
+};
+
+const editDirectMessages = async (interaction, otherPlayersInfo) => {
+  for (info of otherPlayersInfo) {
+    const player = await interaction.client.users.fetch(info.discord_id);
+    const message = await player.dmChannel.messages.fetch(info.message_id);
+    await message.edit({
+      content: `Tu rival ha **rechazado** la partida. ¿Quieres volver a buscar partida, o mejor lo dejamos aquí?`,
+      components: [row],
+    });
+  }
+
+  return await interaction.update({
+    content:
+      `Has rechazado la partida, y te he sacado de todas las búsquedas de partida.\n` +
+      `¡Espero volver a verte pronto!`,
+    components: [],
+  });
+};
+
+const execute = async (interaction) => {
+  const playerDiscordId = interaction.user.id;
+  const playersInfo = await lobbyAPI.declineMatch(playerDiscordId);
+
+  // Messages
+  const messagesInfo = playersInfo.messagesInfo;
+  await editTierMessages(interaction, messagesInfo);
+  await editDirectMessages(interaction, playersInfo.others);
+};
 
 module.exports = {
   data: { name: "decline-confirmation" },
-  async execute(interaction) {
-    const clickedPlayer = await playerDB.get(interaction.user.id, true);
-    const playersInfo = await lobbyDB.rejectConfirmation(
-      clickedPlayer.id,
-      false
-    );
-
-    const otherPlayersInfo = playersInfo.others;
-
-    const row = new MessageActionRow().addComponents(
-      new MessageButton()
-        .setCustomId("accept-afk")
-        .setLabel("Sí, busca otra vez")
-        .setStyle("SUCCESS"),
-      new MessageButton()
-        .setCustomId("decline-afk")
-        .setLabel("No, me voy")
-        .setStyle("DANGER")
-    );
-    for (info of otherPlayersInfo) {
-      const player = await interaction.client.users.fetch(info.discord_id);
-      const message = await player.dmChannel.messages.fetch(info.message_id);
-      await message.edit({
-        content: `Tu rival ha **rechazado** la partida. ¿Quieres volver a buscar partida, o mejor lo dejamos aquí?`,
-        components: [row],
-      });
-    }
-
-    await interaction.update({
-      content:
-        `Has rechazado la partida, y te he sacado de todas las búsquedas de partida.\n` +
-        `¡Espero volver a verte pronto!`,
-      components: [],
-    });
-  },
+  execute,
 };

@@ -4,7 +4,7 @@ const playerDB = require("./player");
 const updateStatus = async (lobbyId, playerId, status, client = null) => {
   const updateStatusQuery = {
     text: `
-    UPDATE FROM lobby_player
+    UPDATE lobby_player
     SET status = $1
     WHERE lobby_id = $2
     AND player_id = $3
@@ -57,9 +57,58 @@ const getMessage = async (playerId, client = null) => {
   else return null;
 };
 
+const getLobbyPlayers = async (lobbyId, client = null) => {
+  const getLobbyPlayersQuery = {
+    text: `
+    SELECT player_id, status, discord_id, message_id
+    FROM lobby_player INNER JOIN player
+    ON lobby_player.player_id = player.id
+    WHERE lobby_id = $1
+    `,
+    values: [lobbyId],
+  };
+
+  const getLobbyPlayersResult = await (client ?? db).query(
+    getLobbyPlayersQuery
+  );
+
+  return getLobbyPlayersResult.rows;
+};
+
+const updateAllStatus = async (lobbyId, status, client = null) => {
+  const updateAllStatusQuery = {
+    text: `
+    UPDATE lobby_player
+    SET status = $1
+    WHERE lobby_id = $2
+    `,
+    values: [status, lobbyId],
+  };
+
+  await (client ?? db).query(updateAllStatusQuery);
+  return true;
+};
+
+const removeOtherPlayers = async (lobbyId, playerId, client = null) => {
+  // Deletes all lobby_players from lobbyId except playerId
+  const removeOtherPlayersQuery = {
+    text: `
+    DELETE FROM lobby_player
+    WHERE lobby_id = $1
+    AND player_id <> $2
+    `,
+    values: [lobbyId, playerId],
+  };
+
+  await (client ?? db).query(removeOtherPlayersQuery);
+};
+
 module.exports = {
   updateStatus,
+  updateAllStatus,
   insert,
   getMessage,
   setMessage,
+  getLobbyPlayers,
+  removeOtherPlayers,
 };

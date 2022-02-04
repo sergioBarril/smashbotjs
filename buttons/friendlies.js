@@ -7,35 +7,36 @@ const guildDB = require("../db/guild");
 
 const lobbyAPI = require("../api/lobby");
 
-EXCEPTION_MESSAGES = {
-  GUILD_NOT_FOUND: `__**ERROR**__: No se ha encontrado el servidor.`,
-  PLAYER_NOT_FOUND: `__**ERROR**__: No se ha encontrado al jugador.`,
-  TIER_NOT_FOUND: `__**ERROR**__: No se ha encontrado la tier.`,
-  NOT_SEARCHING:
-    `No puedes buscar partida porque ya has encontrado una.` +
-    `Espera a que tu rival confirme, o cierra la arena si ya habéis terminado de jugar.`,
-  LOBBY_NOT_FOUND: `__**ERROR**__: No se ha encontrado el lobby.`,
-  MESSAGES_NOT_FOUND: `__**ERROR**__: No se han encontrado mensajes.`,
-  TOO_MANY_PLAYERS: `__**ERROR**__: Aún no están listas las arenas de más de 2 players.`,
-};
-
 const exceptionHandler = async (interaction, exception) => {
+  EXCEPTION_MESSAGES = {
+    GUILD_NOT_FOUND: `__**ERROR**__: No se ha encontrado el servidor.`,
+    PLAYER_NOT_FOUND: `__**ERROR**__: No se ha encontrado al jugador.`,
+    TIER_NOT_FOUND: `__**ERROR**__: No se ha encontrado la tier.`,
+    NOT_SEARCHING:
+      `No puedes buscar partida porque ya has encontrado una.\n` +
+      `Espera a que tu rival confirme, o cierra la arena si ya habéis terminado de jugar.`,
+    LOBBY_NOT_FOUND: `__**ERROR**__: No se ha encontrado el lobby.`,
+    MESSAGES_NOT_FOUND: `__**ERROR**__: No se han encontrado mensajes.`,
+    TOO_MANY_PLAYERS: `__**ERROR**__: Aún no están listas las arenas de más de 2 players.`,
+  };
+
   const { name, args } = exception;
 
   // Get message
   let response = EXCEPTION_MESSAGES[name];
   if (!response)
     switch (name) {
-      case "TOO_NOOB":
+      case "TOO_NOOB": {
         const targetTier = await interaction.guild.roles.fetch(args.targetTier);
         const playerTier = await interaction.guild.roles.fetch(args.playerTier);
         response = `¡No puedes jugar en ${targetTier} siendo ${playerTier}!`;
         break;
-
-      case "ALREADY_SEARCHING":
+      }
+      case "ALREADY_SEARCHING": {
         const targetTier = await interaction.guild.roles.fetch(args.targetTier);
         response = `Ya estabas buscando en ${targetTier}!`;
         break;
+      }
     }
 
   if (!response) throw exception;
@@ -57,7 +58,7 @@ const sendConfirmation = async (player, opponent) => {
       .setLabel("Aceptar")
       .setStyle("SUCCESS"),
     new MessageButton()
-      .setCustomId("cancel-confirmation")
+      .setCustomId("decline-confirmation")
       .setLabel("Rechazar")
       .setStyle("DANGER")
   );
@@ -79,7 +80,7 @@ const matched = async (interaction, playerIdList) => {
 
   // Get players
   const players = [];
-  for (playerDiscordId in playerIdList) {
+  for (playerDiscordId of playerIdList) {
     const player = await interaction.guild.members.fetch(playerDiscordId);
     players.push(player);
   }
@@ -97,13 +98,14 @@ const matched = async (interaction, playerIdList) => {
   const playerId = interaction.user.id;
   const messages = await lobbyAPI.getTierMessages(playerId);
 
-  for (message of messages) {
-    const { messageId, channelId } = message;
+  for (messageInfo of messages) {
+    const { messageId, channelId, authorId } = messageInfo;
     const channel = await interaction.guild.channels.fetch(channelId);
-    const message = await channel.fetch(messageId);
+    const message = await channel.messages.fetch(messageId);
+    const player = await interaction.guild.members.fetch(authorId);
 
     await message.edit({
-      content: `¡**${interaction.member.displayName}** ha encontrado partida! Veamos si aceptan todos...`,
+      content: `¡**${player.displayName}** ha encontrado partida! Esperando confirmación...`,
     });
   }
 
@@ -124,8 +126,8 @@ const notMatched = async (interaction, tierId, channelId) => {
 
     const message = await channel.send({
       content:
-        `Atención ${tierRole}: **${interaction.member.displayName}**` +
-        ` está buscando partida en **${tierRole.name}`,
+        `${tierRole} - **${interaction.member.displayName}**` +
+        ` está buscando partida en **${tierRole.name}**`,
     });
 
     await lobbyAPI.saveSearchTierMessage(playerId, tierId, message.id);

@@ -22,36 +22,38 @@ const getByPlayer = async (playerId, discord = false, client = null) => {
   return getResult.rows ? getResult.rows[0] : null;
 };
 
-const getConfirmationLobbyByPlayer = async (
+const getByPlayerStatus = async (
   playerId,
+  status,
   discord = false,
   client = null
 ) => {
+  // Get lobby info where the player is, and with a certain status
+
+  if (!playerId || !status) return null;
+
   if (discord) {
-    const player = await playerDB.get(playerId, discord, client);
+    const player = await playerDB.get(playerId, true, client);
     playerId = player.id;
   }
 
-  const getAcceptedLobbyQuery = {
+  const getLobbyQuery = {
     text: `
     SELECT lobby.* FROM lobby
     INNER JOIN lobby_player
-    ON lobby_player.lobby_id = lobby.id
-    WHERE lobby.status = 'CONFIRMATION'
-    AND lobby_player.player_id = $1`,
-    values: [playerId],
+      ON lobby_player.lobby_id = lobby.id
+    WHERE lobby.status = $1
+    AND lobby_player.player_id = $2
+    `,
+    values: [status, playerId],
   };
 
-  const getAcceptedLobbyResult = await (client ?? db).query(
-    getAcceptedLobbyQuery
-  );
-
-  if (getAcceptedLobbyResult.rows?.length === 1)
-    return getAcceptedLobbyResult.rows[0];
+  const getLobbyResult = await (client ?? db).query(getLobbyQuery);
+  if (getLobbyResult.rows.length > 0) return getLobbyResult.rows[0];
   else return null;
 };
 
-const hasTier = async (lobbyId, tierId) => {
+const hasTier = async (lobbyId, tierId, client = null) => {
   if (!lobbyId || !tierId) return false;
 
   const tiersQuery = {
@@ -63,17 +65,17 @@ const hasTier = async (lobbyId, tierId) => {
     values: [lobbyId, tierId],
   };
 
-  const isTier = await db.query(tiersQuery);
+  const isTier = await (client ?? db).query(tiersQuery);
   return isTier.rows?.length > 0;
 };
 
-const addTier = async (lobbyId, tierId) => {
+const addTier = async (lobbyId, tierId, client = null) => {
   const addTierQuery = {
     text: `INSERT INTO lobby_tier(lobby_id, tier_id) VALUES ($1, $2)`,
     values: [lobbyId, tierId],
   };
 
-  await db.query(addTierQuery);
+  await (client ?? db).query(addTierQuery);
   return true;
 };
 
@@ -123,7 +125,7 @@ const create = async (
     await client.query("ROLLBACK");
     throw e;
   } finally {
-    await client.end();
+    client.release();
   }
 };
 
@@ -142,7 +144,7 @@ const removeByPlayer = async (playerId, discord = false, client = null) => {
     text: discord ? discordQuery : tableQuery,
     values: [playerId],
   };
-  await db.query(removeQuery);
+  await (client ?? db).query(removeQuery);
   return true;
 };
 
@@ -161,39 +163,6 @@ const removeOtherLobbies = async (lobbyId, client = null) => {
 
   await (client ?? db).query(removeOtherQuery);
   return true;
-};
-
-const removeTier = async (lobbyId, tierId, client = null) => {
-  if (!lobbyId || !tierId) return false;
-  client = client ?? (await db.getClient());
-
-  try {
-    await client.query("BEGIN");
-    const removeTierQuery = {
-      text: `DELETE FROM lobby_tier WHERE lobby_id = $1 AND tier_id = $2`,
-      values: [lobbyId, tierId],
-    };
-
-    await client.query(removeTierQuery);
-
-    const tiersSearchingQuery = {
-      text: `SELECT * FROM lobby_tier WHERE lobby_id = $1`,
-      values: [lobbyId],
-    };
-
-    const res = await client.query(tiersSearchingQuery);
-    const hasTiersLeft = res.rows?.length > 0;
-
-    if (!hasTiersLeft) await remove(lobbyId, false, client);
-
-    await client.query("COMMIT");
-    return true;
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    await client.end();
-  }
 };
 
 const matchmaking = async (lobbyId, tierId = null, client = null) => {
@@ -230,36 +199,23 @@ const matchmaking = async (lobbyId, tierId = null, client = null) => {
   else return null;
 };
 
-const acceptMatch = async (playerDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const lobby = await getByPlayer(player.id, false);
+const allAccepted = async (lobbyId, client = null) => {
+  const lobby = await get(lobbyId, false, client);
 
-  const updateLobbyPlayer = {
+  const checkAcceptedQuery = {
     text: `
-    UPDATE lobby_player SET status = 'ACCEPTED'
-    WHERE lobby_id = $1 AND player_id = $2
+    SELECT NOT EXISTS(
+      SELECT 1 FROM lobby_player
+      WHERE lobby_id = $1
+      AND status <> 'ACCEPTED'
+    )
     `,
-    values: [lobby.id, player.id],
-  };
-  await db.query(updateLobbyPlayer);
-
-  // Check if all accepted
-  const allLobbyPlayersQuery = {
-    text: `
-    SELECT status, discord_id
-    FROM lobby_player INNER JOIN player
-    ON lobby_player.player_id = player.id
-    WHERE lobby_id = $1
-    `,
-    values: [lobby.id],
+    values: [lobbyId],
   };
 
-  const lobbyPlayers = await db.query(allLobbyPlayersQuery);
+  const checkAcceptedResult = await (client ?? db).query(checkAcceptedQuery);
 
-  if (lobbyPlayers.rows.length === 0) return null;
-  return lobbyPlayers.rows
-    .filter((x) => x.status !== "ACCEPTED")
-    .map((x) => x.discord_id);
+  return checkAcceptedResult.rows[0];
 };
 
 const updateLobbyChannels = async (
@@ -291,92 +247,18 @@ const updateStatus = async (lobbyId, status, client = null) => {
   return true;
 };
 
-const rejectConfirmation = async (playerId, discord = false) => {
-  if (discord) {
-    const player = await playerDB.get(playerId, discord);
-    playerId = player.id;
-  }
-  const lobby = await getConfirmationLobbyByPlayer(playerId, false, client);
-
-  const client = await db.getClient();
-
-  try {
-    await client.query("BEGIN");
-
-    // Get all players
-    const getPlayersQuery = {
-      text: `
-      SELECT lobby_player.player_id AS player_id,
-        player.discord_id AS discord_id,
-        lobby_player.message_id AS message_id 
-      FROM lobby_player INNER JOIN player
-        ON player.id = lobby_player.player_id
-      WHERE lobby_id = $1
-      `,
-      values: [lobby.id],
-    };
-
-    const getPlayersResult = await client.query(getPlayersQuery);
-
-    const otherPlayers = getPlayersResult.rows.filter(
-      (player) => player.player_id !== playerId
-    );
-
-    const otherPlayerIds = otherPlayers.map((player) => player.player_id);
-
-    // Update their lobbies status
-    for (otherPlayerId in otherPlayerIds) {
-      const playerLobby = await getByPlayer(otherPlayerId, false, client);
-      await updateStatus(playerLobby.id, "AFK", client);
-    }
-
-    // Remove Lobby Players
-    if (lobby.created_by !== playerId) {
-      const removeLobbyPlayers = {
-        text: `
-        DELETE FROM lobby_player
-        WHERE lobby_id = $1 
-        AND player_id <> $2`,
-        values: [lobby.id, lobby.created_by],
-      };
-
-      await client.query(removeLobbyPlayers);
-    }
-
-    // Remove the lobby
-    await removeByPlayer(playerId, false, client);
-    await client.query("COMMIT");
-
-    return {
-      declined: getPlayersResult.rows.filter(
-        (player) => player.id === playerId
-      ),
-      others: otherPlayers,
-    };
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    await client.end();
-  }
-};
-
 module.exports = {
   get,
   getByPlayer,
-  getConfirmationLobbyByPlayer,
+  getByPlayerStatus,
   create,
   remove,
   removeByPlayer,
   removeOtherLobbies,
   hasTier,
   addTier,
-  removeTier,
   matchmaking,
-  acceptMatch,
-  getConfirmationDM,
-  setConfirmationDM,
   updateLobbyChannels,
   updateStatus,
-  rejectConfirmation,
+  allAccepted,
 };

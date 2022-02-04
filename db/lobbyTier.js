@@ -17,7 +17,7 @@ const get = async (lobbyId, tierId, client = null) => {
 const updateMessage = async (lobbyId, tierId, messageId, client = null) => {
   const updateMessageQuery = {
     text: `
-    UPDATE FROM lobby_tier
+    UPDATE lobby_tier
     SET message_id = $1
     WHERE lobby_id = $2
     AND tier_id = $3
@@ -38,13 +38,44 @@ const getMessages = async (playerId, client = null) => {
       ON lobby.id = lobby_tier.lobby_id
     INNER JOIN tier
       ON lobby_tier.tier_id = tier.id
-    WHERE lobby.created_by = $1`,
+    WHERE lobby.created_by = $1
+    AND lobby_tier.message_id IS NOT NULL`,
     values: [playerId],
   };
 
   const getMessagesResult = await (client ?? db).query(getMessagesQuery);
-  if (getMessagesResult.rows?.length > 0) return getMessagesResult.rows;
-  else return null;
+  return getMessagesResult.rows;
+};
+
+const getAllMessages = async (lobbyId, client = null) => {
+  // Get information about the messages sent to #tier channels
+  // by all lobby_players in the lobbyId
+  //  {guild_id, player_id, lobby_id, discord_id (tier), channel_id (tier), message_id}
+  const getAllMessagesQuery = {
+    text: `
+    SELECT guild.discord_id as guild_id, 
+      player.discord_id as player_id, lobby_tier.*,
+      tier.discord_id, tier.channel_id
+    FROM lobby_tier INNER JOIN tier
+      ON lobby_tier.tier_id = tier.id
+    INNER JOIN lobby
+      ON lobby.id = lobby_tier.lobby_id
+    INNER JOIN player
+      ON lobby.created_by = player.id
+    INNER JOIN guild
+      ON lobby.guild_id = guild.id
+    WHERE lobby_tier.message_id IS NOT NULL
+    AND lobby.created_by IN (
+      SELECT player_id FROM lobby_player
+      WHERE lobby_player.lobby_id = $1
+    )
+    `,
+    values: [lobbyId],
+  };
+
+  const getAllMessagesResult = await (client ?? db).query(getAllMessagesQuery);
+
+  return getAllMessagesResult.rows;
 };
 
 const remove = async (lobbyId, tierId, client = null) => {
@@ -65,7 +96,7 @@ const hasAnyTier = async (lobbyId, client = null) => {
   const hasAnyTierQuery = {
     text: `
     SELECT EXISTS (
-      SELECT 1 FROM lobby_player
+      SELECT 1 FROM lobby_tier
       WHERE lobby_id = $1
     ) AS "exists"
     `,
@@ -94,6 +125,7 @@ module.exports = {
   get,
   updateMessage,
   getMessages,
+  getAllMessages,
   remove,
   hasAnyTier,
 };

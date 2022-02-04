@@ -1,15 +1,15 @@
 const lobbyAPI = require("../api/lobby");
 
-EXCEPTION_MESSAGES = {
-  LOBBY_NOT_FOUND: "¡No estabas buscando partida!",
-  TIER_NOT_FOUND: "__**ERROR**__: No se ha encontrado la tier.",
-  ALREADY_PLAYING: "Ya estás jugando. ¡Cierra la arena desde allí!",
-  ALREADY_CONFIRMATION:
-    "Ya has encontrado partida. Acéptala (o espera a que tu rival la acepte)",
-  ERROR_MESSAGE_MODIF: "Ha habido un problema con la gestión de mensajes.",
-};
-
 const exceptionHandler = async (interaction, exception) => {
+  EXCEPTION_MESSAGES = {
+    LOBBY_NOT_FOUND: "¡No estabas buscando partida!",
+    TIER_NOT_FOUND: "__**ERROR**__: No se ha encontrado la tier.",
+    ALREADY_PLAYING: "Ya estás jugando. ¡Cierra la arena desde allí!",
+    ALREADY_CONFIRMATION:
+      "Ya has encontrado partida. Acéptala (o espera a que tu rival la acepte)",
+    ERROR_MESSAGE_MODIF: "Ha habido un problema con la gestión de mensajes.",
+  };
+
   const { name, args } = exception;
   let response = EXCEPTION_MESSAGES[name];
 
@@ -47,15 +47,14 @@ const successfulReply = async (interaction, isSearching, tierId) => {
 const editMessage = async (interaction, channelId, messageId) => {
   if (!channelId || !messageId) throw { name: "ERROR_MESSAGE_MODIF" };
   const channel = await interaction.guild.channels.fetch(channelId);
-  const message = await channel.fetch(messageId);
+  const message = await channel.messages.fetch(messageId);
 
   if (message) {
     const timestamp = new Date();
-    await message.edit({
-      content:
-        `**${interaction.member.displayName}** ha dejado de buscar` +
-        ` en este canal a las ${timestamp.getHours()}:${timestamp.getMinutes()}.`,
-    });
+    const x = await message.edit(
+      `**${interaction.member.displayName}** ha dejado de buscar` +
+        ` en este canal a las ${timestamp.getHours()}:${timestamp.getMinutes()}.`
+    );
   }
 };
 
@@ -76,7 +75,7 @@ module.exports = {
       await editMessage(interaction, channelId, tierMessageId);
       await successfulReply(interaction, isSearching, tierId);
     } catch (e) {
-      await exceptionHandler(interaction, exception);
+      await exceptionHandler(interaction, e);
     }
   },
 };
