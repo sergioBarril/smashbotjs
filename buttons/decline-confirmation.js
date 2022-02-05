@@ -1,17 +1,7 @@
 const lobbyAPI = require("../api/lobby");
+const discordMatchingUtils = require("../utils/discordMatching");
 
 const { MessageActionRow, MessageButton } = require("discord.js");
-
-const row = new MessageActionRow().addComponents(
-  new MessageButton()
-    .setCustomId("accept-afk")
-    .setLabel("Sí, busca otra vez")
-    .setStyle("SUCCESS"),
-  new MessageButton()
-    .setCustomId("decline-afk")
-    .setLabel("No, me voy")
-    .setStyle("DANGER")
-);
 
 const editTierMessages = async (interaction, messagesInfo) => {
   const playerDiscordId = interaction.user.id;
@@ -66,8 +56,8 @@ const editDirectMessages = async (interaction, otherPlayersInfo) => {
     const player = await interaction.client.users.fetch(info.discord_id);
     const message = await player.dmChannel.messages.fetch(info.message_id);
     await message.edit({
-      content: `Tu rival ha **rechazado** la partida. ¿Quieres volver a buscar partida, o mejor lo dejamos aquí?`,
-      components: [row],
+      content: `Tu rival ha **rechazado** la partida. Te he vuelto a poner a buscar partida.`,
+      components: [],
     });
   }
 
@@ -82,11 +72,27 @@ const editDirectMessages = async (interaction, otherPlayersInfo) => {
 const execute = async (interaction) => {
   const playerDiscordId = interaction.user.id;
   const playersInfo = await lobbyAPI.declineMatch(playerDiscordId);
+  const guildId = playersInfo.guild;
+
+  const guild = await interaction.client.guilds.fetch(guildId);
 
   // Messages
   const messagesInfo = playersInfo.messagesInfo;
   await editTierMessages(interaction, messagesInfo);
   await editDirectMessages(interaction, playersInfo.others);
+
+  for (player of playersInfo.others) {
+    const rivalPlayer = await lobbyAPI.matchmaking(
+      player.player_id,
+      player.lobby_id
+    );
+    if (rivalPlayer) {
+      const playerIdList = [player.discord_id, rivalPlayer.discord_id];
+      await discordMatchingUtils.matched(guild, playerIdList);
+    } else {
+      await discordMatchingUtils.notMatched(player.discord_id, guild);
+    }
+  }
 };
 
 module.exports = {

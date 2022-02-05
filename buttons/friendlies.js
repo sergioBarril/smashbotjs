@@ -1,9 +1,8 @@
-const { MessageActionRow, MessageButton } = require("discord.js");
-
 const lobbyDB = require("../db/lobby");
 const playerDB = require("../db/player");
 const tierDB = require("../db/tier");
 const guildDB = require("../db/guild");
+const discordMatchingUtils = require("../utils/discordMatching");
 
 const lobbyAPI = require("../api/lobby");
 
@@ -48,66 +47,9 @@ const exceptionHandler = async (interaction, exception) => {
   });
 };
 
-const sendConfirmation = async (player, opponent) => {
-  // Sends a DM to player asking for confirmation
-  // about their match with opponent
-  const messageText = `¡Match encontrado! ${player}, te toca contra **${opponent.displayName}**`;
-  const row = new MessageActionRow().addComponents(
-    new MessageButton()
-      .setCustomId("accept-confirmation")
-      .setLabel("Aceptar")
-      .setStyle("SUCCESS"),
-    new MessageButton()
-      .setCustomId("decline-confirmation")
-      .setLabel("Rechazar")
-      .setStyle("DANGER")
-  );
-  const directMessage = await player.send({
-    content: messageText,
-    components: [row],
-  });
-
-  await lobbyAPI.saveDirectMessage(player.id, directMessage.id);
-
-  return true;
-};
-
 const matched = async (interaction, playerIdList) => {
-  // Actions to do after a match has been found
-  // This includes :
-  //   - sending the confirmation DMs
-  //   - editing existing #tier-X messages
-
-  // Get players
-  const players = [];
-  for (playerDiscordId of playerIdList) {
-    const player = await interaction.guild.members.fetch(playerDiscordId);
-    players.push(player);
-  }
-
-  if (players.length > 2) throw { name: "TOO_MANY_PLAYERS" };
-
-  // Send DMs
-  const [player1, player2] = players;
-  await Promise.all([
-    sendConfirmation(player1, player2),
-    sendConfirmation(player2, player1),
-  ]);
-
-  // Update all your #tier messages
-  const playerId = interaction.user.id;
-  const messages = await lobbyAPI.getTierMessages(playerId);
-
-  for (messageInfo of messages) {
-    const { messageId, channelId, authorId } = messageInfo;
-    const channel = await interaction.guild.channels.fetch(channelId);
-    const message = await channel.messages.fetch(messageId);
-    const player = await interaction.guild.members.fetch(authorId);
-
-    await message.edit({
-      content: `¡**${player.displayName}** ha encontrado partida! Esperando confirmación...`,
-    });
-  }
+  const guild = interaction.guild;
+  await discordMatchingUtils.matched(guild, playerIdList);
 
   return await interaction.reply({
     content: "¡Te he encontrado rival! Mira tus MDs.",
@@ -119,19 +61,12 @@ const notMatched = async (interaction, tierId, channelId) => {
   // Actions to do after not finding a match
   // This includes sending a message to #tier
   const playerId = interaction.user.id;
-  const tierRole = await interaction.guild.roles.fetch(tierId);
+  const guild = interaction.guild;
+  const tierInfo = { tier_id: tierId, channel_id: channelId };
 
-  if (channelId) {
-    const channel = await interaction.guild.channels.fetch(channelId);
+  await discordMatchingUtils.notMatched(playerId, guild, tierInfo);
 
-    const message = await channel.send({
-      content:
-        `${tierRole} - **${interaction.member.displayName}**` +
-        ` está buscando partida en **${tierRole.name}**`,
-    });
-
-    await lobbyAPI.saveSearchTierMessage(playerId, tierId, message.id);
-  }
+  const tierRole = await guild.roles.fetch(tierId);
 
   return await interaction.reply({
     content: `A partir de ahora estás buscando en ${tierRole}`,

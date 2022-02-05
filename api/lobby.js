@@ -14,7 +14,83 @@ const canSearchTier = (playerTier, targetTier) => {
   return targetTier.weight == null || targetTier.weight >= playerTier.weight;
 };
 
-const matchmaking = async (playerId, lobbyId, targetTierId) => {
+const matchNotAccepted = async (declinePlayer, isTimeout) => {
+  // Handles a match not being accepted, whether by direct 'Decline' or timeout.
+
+  const lobby = await lobbyDB.getByPlayerStatus(
+    declinePlayer.id,
+    "CONFIRMATION",
+    false
+  );
+
+  const guildId = lobby.guild_id;
+  const guild = await guildDB.get(guildId, false);
+
+  const client = await db.getClient();
+  try {
+    await client.query("BEGIN");
+
+    // Get all tier messages
+    const allMessages = await lobbyTierDB.getAllMessages(lobby.id, client);
+
+    // Get all players
+    const allPlayers = await lobbyPlayerDB.getLobbyPlayers(lobby.id, client);
+    const otherPlayers = allPlayers.filter(
+      (player) => player.player_id !== declinePlayer.id
+    );
+
+    const otherPlayerIds = otherPlayers.map((player) => player.player_id);
+
+    // Update their lobbies status
+    for (otherPlayerId of otherPlayerIds) {
+      const playerLobby = await lobbyDB.getByPlayer(
+        otherPlayerId,
+        false,
+        client
+      );
+      await lobbyDB.updateStatus(playerLobby.id, "SEARCHING", client);
+      await lobbyPlayerDB.updateStatus(
+        playerLobby.id,
+        otherPlayerId,
+        "SEARCHING",
+        client
+      );
+    }
+
+    // Remove Lobby Players
+    await lobbyPlayerDB.removeOtherPlayers(lobby.id, lobby.created_by, client);
+
+    // Remove / AFK the lobby
+    if (isTimeout) {
+      const afkLobby = await lobbyDB.getByPlayer(
+        declinePlayer.id,
+        false,
+        client
+      );
+      await lobbyDB.updateStatus(afkLobby.id, "AFK", client);
+      await lobbyPlayerDB.updateAllStatus(afkLobby.id, "AFK", client);
+    } else await lobbyDB.removeByPlayer(declinePlayer.id, false, client);
+    await client.query("COMMIT");
+
+    return {
+      declined: allPlayers.filter(
+        (info) => info.player_id === declinePlayer.id
+      ),
+      others: otherPlayers,
+      messagesInfo: allMessages,
+      guild: guild.discord_id,
+    };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
+// PUBLIC WITH INTERNAL DATA
+
+const matchmaking = async (playerId, lobbyId, targetTierId = null) => {
   const opponent = await lobbyDB.matchmaking(lobbyId, targetTierId);
   if (!opponent) return null;
 
@@ -31,7 +107,7 @@ const matchmaking = async (playerId, lobbyId, targetTierId) => {
     await lobbyPlayerDB.insert(lobbyId, rivalPlayerId, "CONFIRMATION", client);
     await client.query("COMMIT");
 
-    return rivalPlayerId;
+    return await playerDB.get(rivalPlayerId, false);
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
@@ -88,20 +164,16 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
     };
   } else await lobbyDB.addTier(lobby.id, targetTier.id);
 
-  const rivalPlayerId = await matchmaking(player.id, lobby.id, targetTier.id);
+  const rivalPlayer = await matchmaking(player.id, lobby.id, targetTier.id);
 
   // Unmatched, return info to send @Tier
-  if (!rivalPlayerId) {
+  if (!rivalPlayer) {
     return {
       matched: false,
       tierId: targetTier.discord_id,
       channelId: targetTier.channel_id,
     };
   }
-
-  // Matched, return info to send confirmation DMs
-  const rivalPlayer = await playerDB.get(rivalPlayerId, false);
-  if (!rivalPlayer) throw { name: "ERROR", args: "rivalPlayer not found" };
 
   return {
     matched: true,
@@ -183,6 +255,14 @@ const getTierMessages = async (playerDiscordId) => {
   });
 };
 
+const getTierChannels = async (playerDiscordId) => {
+  // Given a player, returns all the channels where he's looking for games
+  const lobby = await lobbyDB.getByPlayer(playerDiscordId, true);
+  const channelsInfo = await lobbyTierDB.getChannels(lobby.id);
+
+  return channelsInfo;
+};
+
 const saveSearchTierMessage = async (
   playerDiscordId,
   tierDiscordId,
@@ -218,58 +298,30 @@ const acceptMatch = async (playerDiscordId) => {
   }
 };
 
-const declineMatch = async (playerDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
+const timeoutMatch = async (playerDiscordId) => {
+  const acceptedPlayer = await playerDB.get(playerDiscordId, true);
   const lobby = await lobbyDB.getByPlayerStatus(
-    player.id,
+    acceptedPlayer.id,
     "CONFIRMATION",
     false
   );
 
-  const client = await db.getClient();
-  try {
-    await client.query("BEGIN");
+  const lobbyPlayers = await lobbyPlayerDB.getLobbyPlayers(lobby.id);
+  const rejectedPlayers = lobbyPlayers.filter(
+    (player) => player.status != "ACCEPTED"
+  );
 
-    // Get all tier messages
-    const allMessages = await lobbyTierDB.getAllMessages(lobby.id, client);
+  const rejectedPlayer = await playerDB.get(
+    rejectedPlayers[0].player_id,
+    false
+  );
 
-    // Get all players
-    const allPlayers = await lobbyPlayerDB.getLobbyPlayers(lobby.id, client);
-    const otherPlayers = allPlayers.filter(
-      (player) => player.player_id !== player.id
-    );
+  return await matchNotAccepted(rejectedPlayer, true);
+};
 
-    const otherPlayerIds = otherPlayers.map((player) => player.player_id);
-
-    // Update their lobbies status
-    for (otherPlayerId of otherPlayerIds) {
-      const playerLobby = await lobbyDB.getByPlayer(
-        otherPlayerId,
-        false,
-        client
-      );
-      await lobbyDB.updateStatus(playerLobby.id, "AFK", client);
-    }
-
-    // Remove Lobby Players
-    if (lobby.created_by !== player.id)
-      await lobbyPlayerDB.removeOtherPlayers(lobby.id, player.id, client);
-
-    // Remove the lobby
-    await lobbyDB.removeByPlayer(player.id, false, client);
-    await client.query("COMMIT");
-
-    return {
-      declined: allPlayers.filter((info) => info.id === player.id),
-      others: otherPlayers,
-      messagesInfo: allMessages,
-    };
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
+const declineMatch = async (playerDiscordId) => {
+  const declinePlayer = await playerDB.get(playerDiscordId, true);
+  return await matchNotAccepted(declinePlayer, false);
 };
 
 const afterConfirmation = async (
@@ -311,6 +363,30 @@ const afterConfirmation = async (
   }
 };
 
+const unAFK = async (playerDiscordId) => {
+  // Removes the status of "AFK" to the lobby, and starts searching again
+  const player = await playerDB.get(playerDiscordId, true);
+  const lobby = await lobbyDB.getByPlayer(player.id, false);
+
+  const client = await db.getClient();
+  try {
+    await client.query("BEGIN");
+    await lobbyPlayerDB.updateStatus(lobby.id, player.id, "SEARCHING", client);
+    await lobbyDB.updateStatus(lobby.id, "SEARCHING");
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+
+  const rivalPlayer = await matchmaking(player.id, lobby.id);
+  const guild = await guildDB.get(lobby.guild_id, false);
+
+  return { rival: rivalPlayer, guild: guild.discord_id };
+};
+
 module.exports = {
   getByPlayer,
   getGuild,
@@ -319,7 +395,11 @@ module.exports = {
   saveSearchTierMessage,
   saveDirectMessage,
   getTierMessages,
+  getTierChannels,
   acceptMatch,
   declineMatch,
+  timeoutMatch,
   afterConfirmation,
+  matchmaking,
+  unAFK,
 };

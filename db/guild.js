@@ -1,7 +1,7 @@
 const db = require("./index");
 
-const get = async (guildId, discord = false) =>
-  await db.basicGet("guild", guildId, discord);
+const get = async (guildId, discord = false, client = null) =>
+  await db.basicGet("guild", guildId, discord, client);
 
 const getByLobby = async (lobbyId, client = null) => {
   const getGuildQuery = {

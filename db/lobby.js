@@ -168,9 +168,13 @@ const removeOtherLobbies = async (lobbyId, client = null) => {
 const matchmaking = async (lobbyId, tierId = null, client = null) => {
   // Get someone to match to. If tierId is null, check all tiers
 
-  const tierCondition = tierId
-    ? `AND tier.id = $2`
-    : `
+  let tierCondition = "";
+  const values = [lobbyId];
+  if (tierId) {
+    tierCondition = "AND tier.id = $2";
+    values.push(tierId);
+  } else
+    tierCondition = `
       AND tier.id IN (
       SELECT id FROM tier t
       INNER JOIN lobby_tier lt
@@ -191,7 +195,7 @@ const matchmaking = async (lobbyId, tierId = null, client = null) => {
     ${tierCondition}
     ORDER BY tier.weight ASC, lobby_tier.created_at ASC
     `,
-    values: [lobbyId, tierId],
+    values,
   };
 
   const matchmakingResult = await (client ?? db).query(matchmakingQuery);

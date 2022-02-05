@@ -19,6 +19,13 @@ const row = new MessageActionRow().addComponents(
     .setDisabled()
 );
 
+const timeoutButtons = new MessageActionRow().addComponents(
+  new MessageButton()
+    .setCustomId("rival-is-afk")
+    .setLabel("Buscar nuevo oponente")
+    .setStyle("DANGER")
+);
+
 const createArena = async (interaction, players) => {
   const playerDiscordId = players[0].id;
   const lobby = await lobbyAPI.getByPlayer(playerDiscordId);
@@ -119,6 +126,15 @@ const editTierMessages = async (interaction, tierMessages, players) => {
   }
 };
 
+const timeOutMessage = async (message) => {
+  await new Promise((r) => setTimeout(r, 5000));
+
+  await message.edit({
+    content: `Parece que tu rival no contesta... Cuando te canses de esperar, pulsa el botón para buscar un nuevo oponente.`,
+    components: [timeoutButtons],
+  });
+};
+
 const allAccepted = async (interaction, lobbyPlayers) => {
   const players = [];
   const messages = [];
@@ -133,8 +149,8 @@ const allAccepted = async (interaction, lobbyPlayers) => {
   const channels = await createArena(interaction, players);
   const { messages: tierMessages } = await lobbyAPI.afterConfirmation(
     interaction.user.id,
-    textChannel.id,
-    voiceChannel.id
+    channels.text.id,
+    channels.voice.id
   );
 
   await editDMs(channels, messages);
@@ -144,6 +160,7 @@ const allAccepted = async (interaction, lobbyPlayers) => {
 const notAllAccepted = async (interaction, notAcceptedPlayers) => {
   // If there's someone who hasn't accepted yet, disable buttons
   // and edit the message
+  // Launch timeout button promise
   const notAcceptedPlayersNames = [];
   for (playerInfo of notAcceptedPlayers) {
     const player = await interaction.client.users.fetch(playerInfo.discord_id);
@@ -151,10 +168,12 @@ const notAllAccepted = async (interaction, notAcceptedPlayers) => {
   }
   const missingNames = notAcceptedPlayersNames.join(", ");
 
-  return await interaction.update({
+  await interaction.update({
     content: `Has aceptado, pero todavía falta que acepte ${missingNames}.`,
     components: [row],
   });
+
+  timeOutMessage(interaction.message);
 };
 
 const execute = async (interaction) => {

@@ -108,24 +108,28 @@ const hasAnyTier = async (lobbyId, client = null) => {
     return hasAnyTierResult.rows[0].exists;
   return false;
 };
-// const insert = async (lobbyId, playerId, status, client = null) => {
-//   const insertLobbyPlayerQuery = {
-//     text: `
-//     INSERT INTO lobby_tier(lobby_id, player_id, status)
-//     VALUES ($1, $2, $3)
-//     `,
-//     values: [lobbyId, playerId, status],
-//   };
 
-//   await (client ?? db).query(insertLobbyPlayerQuery);
-//   return true;
-// };
+const getChannels = async (lobbyId, client = null) => {
+  // Returns all the channels this lobby is searching at
 
+  const getChannelsQuery = {
+    text: `
+    SELECT discord_id AS tier_id, channel_id FROM lobby_tier
+    INNER JOIN tier
+      ON lobby_tier.tier_id = tier.id
+    WHERE lobby_id = $1`,
+    values: [lobbyId],
+  };
+
+  const channelsInfo = await (client ?? db).query(getChannelsQuery);
+  return channelsInfo.rows;
+};
 module.exports = {
   get,
   updateMessage,
   getMessages,
   getAllMessages,
+  getChannels,
   remove,
   hasAnyTier,
 };
