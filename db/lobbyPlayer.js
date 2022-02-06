@@ -60,7 +60,7 @@ const getMessage = async (playerId, client = null) => {
 const getLobbyPlayers = async (lobbyId, client = null) => {
   const getLobbyPlayersQuery = {
     text: `
-    SELECT player_id, status, discord_id, message_id
+    SELECT player_id, status, discord_id, message_id, lobby_id
     FROM lobby_player INNER JOIN player
     ON lobby_player.player_id = player.id
     WHERE lobby_id = $1

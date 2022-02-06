@@ -126,13 +126,25 @@ const editTierMessages = async (interaction, tierMessages, players) => {
   }
 };
 
-const timeOutMessage = async (message) => {
+const timeOutMessage = async (
+  message,
+  lobbyId,
+  acceptedPlayerId,
+  notAcceptedPlayerId
+) => {
   await new Promise((r) => setTimeout(r, 5000));
 
-  await message.edit({
-    content: `Parece que tu rival no contesta... Cuando te canses de esperar, pulsa el botón para buscar un nuevo oponente.`,
-    components: [timeoutButtons],
-  });
+  const isAfk = await lobbyAPI.timeOutCheck(
+    lobbyId,
+    acceptedPlayerId,
+    notAcceptedPlayerId
+  );
+
+  if (isAfk)
+    await message.edit({
+      content: `Parece que tu rival no contesta... Cuando te canses de esperar, pulsa el botón para buscar un nuevo oponente.`,
+      components: [timeoutButtons],
+    });
 };
 
 const allAccepted = async (interaction, lobbyPlayers) => {
@@ -173,7 +185,12 @@ const notAllAccepted = async (interaction, notAcceptedPlayers) => {
     components: [row],
   });
 
-  timeOutMessage(interaction.message);
+  timeOutMessage(
+    interaction.message,
+    notAcceptedPlayers[0].lobby_id,
+    interaction.user.id,
+    notAcceptedPlayers[0].discord_id
+  );
 };
 
 const execute = async (interaction) => {

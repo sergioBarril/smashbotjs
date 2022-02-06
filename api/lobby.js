@@ -438,6 +438,26 @@ const closeArena = async (playerDiscordId) => {
   }
 };
 
+const timeOutCheck = async (lobbyId, acceptedPlayerId, afkPlayerId) => {
+  const lobby = await lobbyDB.get(lobbyId, false);
+  if (!lobby) return false;
+
+  const lobbyPlayers = await lobbyPlayerDB.getLobbyPlayers(lobby.id);
+  const isAccepted =
+    lobbyPlayers.filter(
+      (player) =>
+        player.discord_id == acceptedPlayerId && player.status == "ACCEPTED"
+    ).length > 0;
+
+  const isConfirmation =
+    lobbyPlayers.filter(
+      (player) =>
+        player.discord_id == afkPlayerId && player.status == "CONFIRMATION"
+    ).length > 0;
+
+  return isAccepted && isConfirmation;
+};
+
 module.exports = {
   getByPlayer,
   getGuild,
@@ -456,4 +476,5 @@ module.exports = {
   matchmaking,
   unAFK,
   closeArena,
+  timeOutCheck,
 };
