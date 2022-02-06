@@ -3,6 +3,7 @@ const db = require("../db/index");
 const lobbyDB = require("../db/lobby");
 const lobbyPlayerDB = require("../db/lobbyPlayer");
 const lobbyTierDB = require("../db/lobbyTier");
+const lobbyMessageDB = require("../db/lobbyMessage");
 const guildDB = require("../db/guild");
 const playerDB = require("../db/player");
 const tierDB = require("../db/tier");
@@ -232,13 +233,21 @@ const saveDirectMessage = async (playerDiscordId, messageId) => {
   return true;
 };
 
-const getTierMessages = async (playerDiscordId) => {
+const getMessages = async (playerDiscordId) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const lobby = await lobbyDB.getByPlayerStatus(player.id, "PLAYING", false);
+
+  const messages = await lobbyMessageDB.getMessages(lobby.id);
+  return messages;
+};
+
+const getTierMessages = async (playerDiscordId, status = "CONFIRMATION") => {
   const player = await playerDB.get(playerDiscordId, true);
   if (!player) throw { name: "PLAYER_NOT_FOUND" };
 
   const matchedLobby = await lobbyDB.getByPlayerStatus(
     player.id,
-    "CONFIRMATION",
+    status,
     false
   );
 
@@ -261,6 +270,18 @@ const getTierChannels = async (playerDiscordId) => {
   const channelsInfo = await lobbyTierDB.getChannels(lobby.id);
 
   return channelsInfo;
+};
+
+const getPlayingPlayers = async (playerDiscordId) => {
+  const lobby = await lobbyDB.getByPlayerStatus(
+    playerDiscordId,
+    "PLAYING",
+    true
+  );
+  if (!lobby) throw { name: "NOT_PLAYING" };
+
+  const lobbyPlayers = await lobbyPlayerDB.getLobbyPlayers(lobby.id);
+  return lobbyPlayers;
 };
 
 const saveSearchTierMessage = async (
@@ -354,6 +375,11 @@ const afterConfirmation = async (
     const lobbyPlayers = await lobbyPlayerDB.getLobbyPlayers(lobby.id, client);
     await client.query("COMMIT");
 
+    // Store tier messages
+    for (message of allMessages) {
+      lobbyMessageDB.insert(lobby.id, message.message_id, message.channel_id);
+    }
+
     return { messages: allMessages, players: lobbyPlayers };
   } catch (e) {
     client.query("ROLLBACK");
@@ -387,6 +413,31 @@ const unAFK = async (playerDiscordId) => {
   return { rival: rivalPlayer, guild: guild.discord_id };
 };
 
+const closeArena = async (playerDiscordId) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const lobby = await lobbyDB.getByPlayerStatus(player.id, "PLAYING", false);
+
+  if (!lobby) throw { name: "NOT_PLAYING" };
+
+  const client = await db.getClient();
+
+  // Send guild discord Id
+  const guild = await guildDB.get(lobby.guild_id, false);
+  lobby.guild_id = guild.discord_id;
+
+  try {
+    await client.query("BEGIN");
+    await lobbyDB.remove(lobby.id, false, client);
+    await client.query("COMMIT");
+    return lobby;
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   getByPlayer,
   getGuild,
@@ -394,6 +445,8 @@ module.exports = {
   stopSearch,
   saveSearchTierMessage,
   saveDirectMessage,
+  getPlayingPlayers,
+  getMessages,
   getTierMessages,
   getTierChannels,
   acceptMatch,
@@ -402,4 +455,5 @@ module.exports = {
   afterConfirmation,
   matchmaking,
   unAFK,
+  closeArena,
 };
