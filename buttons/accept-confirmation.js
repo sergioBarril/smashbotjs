@@ -122,6 +122,7 @@ const editTierMessages = async (interaction, tierMessages, players) => {
 
     await message.edit({
       content: updatedText,
+      components: [],
     });
   }
 };

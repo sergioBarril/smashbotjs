@@ -40,33 +40,46 @@ const editTierMessages = async (interaction, messagesInfo) => {
   for ({ message, player } of declinerMessages) {
     await message.edit({
       content: `**${player.displayName}** rechazó la partida encontrada.`,
+      components: [],
     });
   }
 
   for ({ message, player } of otherMessages) {
     await message.edit({
       content: `**${player.displayName}** fue brutalmente rechazado.`,
+      components: [],
     });
   }
   return true;
 };
 
 const editDirectMessages = async (interaction, otherPlayersInfo) => {
+  let rejectedHasTiers;
+
   for (info of otherPlayersInfo) {
     const player = await interaction.client.users.fetch(info.discord_id);
     const message = await player.dmChannel.messages.fetch(info.message_id);
+
+    rejectedHasTiers = await lobbyAPI.hasLobbyTiers(player.id);
+
+    let rejectedText = `Tu rival ha **rechazado** la partida.`;
+    if (rejectedHasTiers)
+      rejectedText += ` Te he vuelto a poner a buscar partida.`;
+    else rejectedText += ` Ahora no estás buscando partida.`;
     await message.edit({
-      content: `Tu rival ha **rechazado** la partida. Te he vuelto a poner a buscar partida.`,
+      content: rejectedText,
       components: [],
     });
   }
 
-  return await interaction.update({
+  await interaction.update({
     content:
       `Has rechazado la partida, y te he sacado de todas las búsquedas de partida.\n` +
       `¡Espero volver a verte pronto!`,
     components: [],
   });
+
+  return rejectedHasTiers;
 };
 
 const execute = async (interaction) => {
@@ -82,6 +95,9 @@ const execute = async (interaction) => {
   await editDirectMessages(interaction, playersInfo.others);
 
   for (player of playersInfo.others) {
+    const hasTierToSearch = await lobbyAPI.hasLobbyTiers(player.discord_id);
+    if (!hasTierToSearch) continue;
+
     const rivalPlayer = await lobbyAPI.matchmaking(
       player.player_id,
       player.lobby_id

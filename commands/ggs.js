@@ -38,6 +38,7 @@ const editTierMessages = async (guild, messages, playerNames) => {
 
     message.edit({
       content: `${playerString} han terminado de jugar a las ${timestamp.getHours()}:${timestamp.getMinutes()}`,
+      components: [],
     });
   }
 };

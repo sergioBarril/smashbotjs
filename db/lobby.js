@@ -53,6 +53,23 @@ const getByPlayerStatus = async (
   else return null;
 };
 
+const getByTierChannelMessage = async (messageId, client = null) => {
+  const getByMessageQuery = {
+    text: `
+    SELECT lobby.*
+    FROM lobby INNER JOIN lobby_tier
+    ON lobby_tier.lobby_id = lobby.id
+    WHERE lobby_tier.message_id = $1
+    `,
+    values: [messageId],
+  };
+
+  const lobby = await (client ?? db).query(getByMessageQuery);
+
+  if (lobby.rows.length === 1) return lobby.rows[0];
+  else return null;
+};
+
 const hasTier = async (lobbyId, tierId, client = null) => {
   if (!lobbyId || !tierId) return false;
 
@@ -82,7 +99,7 @@ const addTier = async (lobbyId, tierId, client = null) => {
 const create = async (
   guildId,
   playerId,
-  tierId,
+  tierId = null,
   mode = "FRIENDLIES",
   status = "SEARCHING"
 ) => {
@@ -110,17 +127,20 @@ const create = async (
       values: [lobby.id, playerId, status],
     };
 
-    const insertLobbyTier = {
-      text: `
+    await client.query(insertLobbyPlayer);
+
+    if (tierId) {
+      const insertLobbyTier = {
+        text: `
         INSERT INTO lobby_tier(lobby_id, tier_id)
         VALUES ($1, $2)
       `,
-      values: [lobby.id, tierId],
-    };
-
-    await client.query(insertLobbyPlayer);
-    await client.query(insertLobbyTier);
+        values: [lobby.id, tierId],
+      };
+      await client.query(insertLobbyTier);
+    }
     await client.query("COMMIT");
+    return lobby;
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
@@ -255,6 +275,7 @@ module.exports = {
   get,
   getByPlayer,
   getByPlayerStatus,
+  getByTierChannelMessage,
   create,
   remove,
   removeByPlayer,

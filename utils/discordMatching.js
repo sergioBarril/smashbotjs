@@ -57,6 +57,14 @@ const matched = async (guild, playerIdList) => {
   // Update all your #tier messages
   const messages = await lobbyAPI.getTierMessages(player1.id);
 
+  const button = new MessageActionRow().addComponents(
+    new MessageButton()
+      .setCustomId("direct-match")
+      .setLabel("Jugar")
+      .setStyle("SUCCESS")
+      .setDisabled(true)
+  );
+
   for (messageInfo of messages) {
     const { messageId, channelId, authorId } = messageInfo;
     const channel = await guild.channels.fetch(channelId);
@@ -65,6 +73,7 @@ const matched = async (guild, playerIdList) => {
 
     await message.edit({
       content: `¡**${player.displayName}** ha encontrado partida! Esperando confirmación...`,
+      components: [button],
     });
   }
 };
@@ -72,6 +81,13 @@ const matched = async (guild, playerIdList) => {
 const notMatched = async (playerId, guild, tierInfo = null) => {
   // Actions to do after not finding a match
   // This includes sending a message to #tier
+
+  const button = new MessageActionRow().addComponents(
+    new MessageButton()
+      .setCustomId("direct-match")
+      .setLabel("Jugar")
+      .setStyle("SUCCESS")
+  );
 
   const member = await guild.members.fetch(playerId);
 
@@ -88,6 +104,7 @@ const notMatched = async (playerId, guild, tierInfo = null) => {
       content:
         `${tierRole} - **${member.displayName}**` +
         ` está buscando partida en **${tierRole.name}**`,
+      components: [button],
     });
 
     await lobbyAPI.saveSearchTierMessage(playerId, tierId, message.id);

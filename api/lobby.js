@@ -49,13 +49,18 @@ const matchNotAccepted = async (declinePlayer, isTimeout) => {
         false,
         client
       );
-      await lobbyDB.updateStatus(playerLobby.id, "SEARCHING", client);
-      await lobbyPlayerDB.updateStatus(
-        playerLobby.id,
-        otherPlayerId,
-        "SEARCHING",
-        client
-      );
+
+      const hasTier = await lobbyTierDB.hasAnyTier(playerLobby.id, client);
+      if (!hasTier) await lobbyDB.remove(playerLobby.id, false, client);
+      else {
+        await lobbyDB.updateStatus(playerLobby.id, "SEARCHING", client);
+        await lobbyPlayerDB.updateStatus(
+          playerLobby.id,
+          otherPlayerId,
+          "SEARCHING",
+          client
+        );
+      }
     }
 
     // Remove Lobby Players
@@ -91,8 +96,14 @@ const matchNotAccepted = async (declinePlayer, isTimeout) => {
 
 // PUBLIC WITH INTERNAL DATA
 
-const matchmaking = async (playerId, lobbyId, targetTierId = null) => {
-  const opponent = await lobbyDB.matchmaking(lobbyId, targetTierId);
+const matchmaking = async (
+  playerId,
+  lobbyId,
+  targetTierId = null,
+  opponent = null
+) => {
+  if (opponent === null)
+    opponent = await lobbyDB.matchmaking(lobbyId, targetTierId);
   if (!opponent) return null;
 
   const { player_id: rivalPlayerId, lobby_id: rivalLobbyId } = opponent;
@@ -125,6 +136,16 @@ const getByPlayer = async (playerDiscordId) => {
 
 const getGuild = async (lobbyId) => {
   return await guildDB.getByLobby(lobbyId);
+};
+
+const hasLobbyTiers = async (playerDiscordId) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const lobby = await lobbyDB.getByPlayer(player.id, false);
+
+  if (!lobby) return false;
+  const hasAnyTier = await lobbyTierDB.hasAnyTier(lobby.id);
+
+  return hasAnyTier;
 };
 
 const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
@@ -179,6 +200,50 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   return {
     matched: true,
     players: [player.discord_id, rivalPlayer.discord_id],
+  };
+};
+
+const directMatch = async (
+  playerDiscordId,
+  guildDiscordId,
+  messageDiscordId
+) => {
+  const guild = await guildDB.get(guildDiscordId, true);
+  if (!guild) throw { name: "GUILD_NOT_FOUND" };
+
+  const newPlayer = await playerDB.get(playerDiscordId, true);
+  if (!newPlayer) throw { name: "PLAYER_NOT_FOUND" };
+
+  // Checks rival lobby
+  const rivalLobby = await lobbyDB.getByTierChannelMessage(messageDiscordId);
+  if (!rivalLobby) throw { name: "NO_RIVAL_LOBBY" };
+  if (rivalLobby.status != "SEARCHING") throw { name: "RIVAL_NOT_SEARCHING" };
+  if (rivalLobby.created_by === newPlayer.id) throw { name: "SAME_PLAYER" };
+
+  // Checks player lobby
+  let newPlayerLobby = await lobbyDB.getByPlayer(newPlayer.id, false);
+  if (newPlayerLobby) {
+    if (newPlayerLobby.status == "PLAYING") throw { name: "ALREADY_PLAYING" };
+    if (["CONFIRMATION", "WAITING"].includes(newPlayerLobby.status))
+      throw { name: "IN_CONFIRMATION" };
+  } else {
+    newPlayerLobby = await lobbyDB.create(
+      guild.id,
+      newPlayer.id,
+      null,
+      "FRIENDLIES",
+      "WAITING"
+    );
+  }
+
+  const player = { player_id: newPlayer.id, lobby_id: newPlayerLobby.id };
+  await matchmaking(rivalLobby.created_by, rivalLobby.id, null, player);
+
+  const rivalPlayer = await playerDB.get(rivalLobby.created_by, false);
+
+  return {
+    matched: true,
+    players: [newPlayer.discord_id, rivalPlayer.discord_id],
   };
 };
 
@@ -461,6 +526,7 @@ const timeOutCheck = async (lobbyId, acceptedPlayerId, afkPlayerId) => {
 module.exports = {
   getByPlayer,
   getGuild,
+  hasLobbyTiers,
   search,
   stopSearch,
   saveSearchTierMessage,
@@ -474,6 +540,7 @@ module.exports = {
   timeoutMatch,
   afterConfirmation,
   matchmaking,
+  directMatch,
   unAFK,
   closeArena,
   timeOutCheck,

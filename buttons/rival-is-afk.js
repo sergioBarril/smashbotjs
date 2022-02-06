@@ -52,12 +52,14 @@ const editTierMessages = async (interaction, messagesInfo) => {
   for ({ message, player } of declinerMessages) {
     await message.edit({
       content: `**${player.displayName}** se durmió en los laureles.`,
+      components: [],
     });
   }
 
   for ({ message, player } of otherMessages) {
     await message.edit({
       content: `**${player.displayName}** fue brutalmente ignorado.`,
+      components: [],
     });
   }
   return true;
@@ -66,15 +68,38 @@ const editTierMessages = async (interaction, messagesInfo) => {
 const editDirectMessages = async (interaction, afkInfo) => {
   const player = await interaction.client.users.fetch(afkInfo.discord_id);
   const message = await player.dmChannel.messages.fetch(afkInfo.message_id);
+
+  const afkHasTiers = await lobbyAPI.hasLobbyTiers(player.id);
+  const acceptedHasTiers = await lobbyAPI.hasLobbyTiers(interaction.user.id);
+
+  let afkText;
+  const component = [];
+
+  if (afkHasTiers) {
+    afkText = `¿Hola? ¿Hay alguien ahí? No contestaste a un match... ¿Quieres volver a buscar partida?`;
+    component.push(row);
+  } else
+    afkText =
+      `¿Hola? ¿Hay alguien ahí? No contestaste al match que tú mismo propusiste... ` +
+      `Ya no estás buscando partida.`;
+
   await message.edit({
-    content: `¿Hola? ¿Hay alguien ahí? No contestaste a un match... ¿Quieres volver a buscar partida?`,
-    components: [row],
+    content: afkText,
+    components: component,
   });
 
-  return await interaction.update({
-    content: `Como tu rival no respondía, te he vuelto a poner a buscar partida.`,
+  let acceptedText;
+  if (acceptedHasTiers)
+    acceptedText = `Como tu rival no respondía, te he vuelto a poner a buscar partida.`;
+  else
+    acceptedText = `Parece que tu rival no estaba... ¡Otra vez será! No estás buscando partida.`;
+
+  await interaction.update({
+    content: acceptedText,
     components: [],
   });
+
+  return acceptedHasTiers;
 };
 
 module.exports = {
@@ -90,19 +115,23 @@ module.exports = {
     // Messages
     const messagesInfo = timeoutInfo.messagesInfo;
     await editTierMessages(interaction, messagesInfo);
-    await editDirectMessages(interaction, timeoutInfo.declined[0]);
+    const acceptedHasTiers = await editDirectMessages(
+      interaction,
+      timeoutInfo.declined[0]
+    );
 
-    for (player of timeoutInfo.others) {
-      const rivalPlayer = await lobbyAPI.matchmaking(
-        player.player_id,
-        player.lobby_id
-      );
-      if (rivalPlayer) {
-        const playerIdList = [player.discord_id, rivalPlayer.discord_id];
-        await discordMatchingUtils.matched(guild, playerIdList);
-      } else {
-        await discordMatchingUtils.notMatched(player.discord_id, guild);
+    if (acceptedHasTiers)
+      for (player of timeoutInfo.others) {
+        const rivalPlayer = await lobbyAPI.matchmaking(
+          player.player_id,
+          player.lobby_id
+        );
+        if (rivalPlayer) {
+          const playerIdList = [player.discord_id, rivalPlayer.discord_id];
+          await discordMatchingUtils.matched(guild, playerIdList);
+        } else {
+          await discordMatchingUtils.notMatched(player.discord_id, guild);
+        }
       }
-    }
   },
 };
