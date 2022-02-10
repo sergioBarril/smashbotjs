@@ -55,22 +55,22 @@ const { REST } = require("@discordjs/rest");
 
 const rest = new REST({ version: "9" }).setToken(token);
 
-(async () => {
-  try {
-    console.log("Started refreshing application (/) commands.");
+// (async () => {
+//   try {
+//     console.log("Started refreshing application (/) commands.");
 
-    await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
-      body: commandFiles.map((file) => {
-        const command = require(`./commands/${file}`);
-        return command.data.toJSON();
-      }),
-    });
+//     await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
+//       body: commandFiles.map((file) => {
+//         const command = require(`./commands/${file}`);
+//         return command.data.toJSON();
+//       }),
+//     });
 
-    console.log("Successfully reloaded application (/) commands");
-  } catch (error) {
-    console.error(error);
-  }
-})();
+//     console.log("Successfully reloaded application (/) commands");
+//   } catch (error) {
+//     console.error(error);
+//   }
+// })();
 
 // Login to Discord with your client's token
 client.login(token);

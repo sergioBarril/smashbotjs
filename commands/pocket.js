@@ -8,6 +8,7 @@ const data = new SlashCommandBuilder()
     option
       .setName("character")
       .setDescription("El personaje que pondrás como pocket")
+      .setRequired(true)
   );
 
 module.exports = {

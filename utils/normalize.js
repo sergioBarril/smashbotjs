@@ -1,4 +1,5 @@
-const SmashCharacters = require("../params/smashCharacters.json");
+const smashCharacters = require("../params/smashCharacters.json");
+const spanishRegions = require("../params/spanishRegions.json");
 
 const normalizeText = (text) =>
   text
@@ -12,7 +13,7 @@ const normalizeCharacter = (characterName) => {
   const key = normalizeText(characterName);
 
   // Check for exact name
-  const normalizedCharNames = Object.keys(SmashCharacters).map((charName) => {
+  const normalizedCharNames = Object.keys(smashCharacters).map((charName) => {
     return { original: charName, normalized: normalizeText(charName) };
   });
 
@@ -236,7 +237,7 @@ const normalizeCharacter = (characterName) => {
     case "rob":
     case "robot":
     case "peonza":
-      return "R.O.B";
+      return "R.O.B.";
 
     // Toon Link
     case "atun":
@@ -468,6 +469,71 @@ const normalizeCharacter = (characterName) => {
   }
 };
 
+const normalizeRegion = (regionName) => {
+  const key = normalizeText(regionName);
+
+  const normalizedRegionNames = Object.keys(spanishRegions).map(
+    (regionName) => {
+      return { original: regionName, normalized: normalizeText(regionName) };
+    }
+  );
+
+  let original = normalizedRegionNames.find(
+    (regionName) => regionName.normalized === key
+  );
+
+  if (original) return original.original;
+
+  switch (key) {
+    // Albacete
+    case "ab":
+      return "Albacete";
+    // Baleares
+    case "islas baleares":
+    case "illes balears":
+    case "ses illes":
+    case "mallorca":
+    case "ibiza":
+    case "menorca":
+    case "eivissa":
+      return "Baleares";
+    // Canarias
+    case "islas canarias":
+      return "Canarias";
+    // Catalunya
+    case "cataluna":
+    case "cat":
+    case "girona":
+    case "tarragona":
+    case "lleida":
+    case "lerida":
+      return "Catalunya";
+    // Castellón
+    case "castello":
+      return "Castellón";
+    // Euskadi
+    case "pais vasco":
+    case "vasco":
+    case "eusk":
+      return "Euskadi";
+    // Galicia
+    case "galiza":
+    case "gal":
+      return "Galicia";
+    case "rioja":
+    case "rio":
+      return "La Rioja";
+    case "comunidad valenciana":
+    case "comunitat valenciana":
+    case "pais valencia":
+    case "val":
+      return "Valencia";
+    default:
+      return null;
+  }
+};
+
 module.exports = {
   normalizeCharacter,
+  normalizeRegion,
 };

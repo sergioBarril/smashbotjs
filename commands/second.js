@@ -8,6 +8,7 @@ const data = new SlashCommandBuilder()
     option
       .setName("character")
       .setDescription("El personaje que pondrás como second")
+      .setRequired(true)
   );
 
 module.exports = {
