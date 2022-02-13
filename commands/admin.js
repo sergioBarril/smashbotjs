@@ -2,14 +2,16 @@ const { SlashCommandBuilder } = require("@discordjs/builders");
 const discordRolesUtils = require("../utils/discordRoles");
 
 const { upsert } = require("./admin/roles/upsert");
+const { add } = require("./admin/tiers/add");
 
 const data = new SlashCommandBuilder()
   .setName("admin")
   .setDescription("[ADMIN] Roles de administración del servidor.")
-  .addSubcommandGroup((rolesCommands) =>
-    rolesCommands
+  .addSubcommandGroup((rolesCommandGroup) =>
+    rolesCommandGroup
       .setName("roles")
       .setDescription("Comandos relacionados con los roles")
+      // Upsert
       .addSubcommand((subcommand) =>
         subcommand
           .setName("upsert")
@@ -25,6 +27,38 @@ const data = new SlashCommandBuilder()
               ])
           )
       )
+  )
+  .addSubcommandGroup((tierCommandGroup) =>
+    tierCommandGroup
+      .setName("tiers")
+      .setDescription("Comandos relacionados con las tiers")
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("add")
+          .setDescription("Add a tier or pseudo-tier role")
+          .addStringOption((option) =>
+            option
+              .setName("name")
+              .setDescription("Name of the tier")
+              .setRequired(true)
+          )
+          .addIntegerOption((option) =>
+            option
+              .setName("weight")
+              .setDescription(
+                "Weight of the tier. The lower, the better (Tier 1 > Tier 2)."
+              )
+          )
+          .addIntegerOption((option) =>
+            option
+              .setName("threshold")
+              .setDescription("Starting points for this tier.")
+              .setMinValue(0)
+          )
+          .addStringOption((option) =>
+            option.setName("color").setDescription("Color of the tier role")
+          )
+      )
   );
 
 module.exports = {
@@ -34,6 +68,11 @@ module.exports = {
     if (interaction.options.getSubcommandGroup() === "roles") {
       if (interaction.options.getSubcommand() === "upsert") {
         await upsert(interaction);
+      }
+    }
+    if (interaction.options.getSubcommandGroup() === "tiers") {
+      if (interaction.options.getSubcommand() === "add") {
+        await add(interaction);
       }
     }
   },

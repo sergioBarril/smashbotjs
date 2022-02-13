@@ -29,8 +29,28 @@ const getByChannel = async (channelDiscordId, client = null) => {
   return getResult.rows?.length > 0 ? getResult.rows[0] : null;
 };
 
+const create = async (
+  roleDiscordId,
+  channelDiscordId,
+  guildId,
+  weight,
+  threshold,
+  client = null
+) => {
+  const insertQuery = {
+    text: `
+    INSERT INTO tier(discord_id, channel_id, guild_id, weight, threshold)
+    VALUES ($1, $2, $3, $4, $5)
+  `,
+    values: [roleDiscordId, channelDiscordId, guildId, weight, threshold],
+  };
+
+  await (client ?? db).query(insertQuery);
+};
+
 module.exports = {
   get,
   getByMessage,
   getByChannel,
+  create,
 };
