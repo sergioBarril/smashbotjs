@@ -17,8 +17,16 @@ const add = async (interaction) => {
   });
 
   // Add Channel
+  await guild.fetch();
+  const category = await guild.channels.cache.find(
+    (chan) => chan.name === "MATCHMAKING" && chan.type === "GUILD_CATEGORY"
+  );
+
   // PERMISSIONS MISSING
-  const channel = await guild.channels.create(name);
+  let channel;
+  if (category) {
+    channel = await guild.channels.create(name, { parent: category.id });
+  } else channel = await guild.channels.create(name);
 
   // Add it to the DB
   await tierAPI.addTier(role.id, guild.id, channel.id, weight, threshold);

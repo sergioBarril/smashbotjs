@@ -32,6 +32,11 @@ const createArena = async (interaction, players) => {
   const guild = await lobbyAPI.getGuild(lobby.id);
 
   const discordGuild = await interaction.client.guilds.fetch(guild.discord_id);
+  if (!discordGuild)
+    throw { name: "NO_GUILD", args: { discordId: guild.discord_id } };
+  const arenaCategory = discordGuild.channels.cache.find(
+    (chan) => chan.type === "GUILD_CATEGORY" && chan.name === "ARENAS"
+  );
 
   // Needs arena name
   const textPermission = players.map((player) => {
@@ -50,6 +55,7 @@ const createArena = async (interaction, players) => {
 
   const channel = await discordGuild.channels.create("arena", {
     type: "GUILD_TEXT",
+    parent: arenaCategory.id,
     permissionOverwrites: [
       {
         id: discordGuild.id,
@@ -61,6 +67,7 @@ const createArena = async (interaction, players) => {
 
   const voiceChannel = await discordGuild.channels.create("arena", {
     type: "GUILD_VOICE",
+    parent: arenaCategory.id,
     permissionOverwrites: [
       {
         id: discordGuild.id,
