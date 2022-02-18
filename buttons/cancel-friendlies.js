@@ -51,10 +51,17 @@ const editMessage = async (interaction, channelId, messageId) => {
 
   if (message) {
     const timestamp = new Date();
+
+    const hours = timestamp.getHours();
+    const minutes = timestamp.getMinutes();
+
+    const hoursText = String(hours).padStart(2, "0");
+    const minutesText = String(minutes).padStart(2, "0");
+
     await message.edit({
       content:
         `**${interaction.member.displayName}** ha dejado de buscar` +
-        ` en este canal a las ${timestamp.getHours()}:${timestamp.getMinutes()}.`,
+        ` en este canal a las ${hoursText}:${minutesText}.`,
       components: [],
     });
   }

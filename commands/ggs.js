@@ -36,8 +36,14 @@ const editTierMessages = async (guild, messages, playerNames) => {
     const channel = await guild.channels.fetch(messageInfo.channel_id);
     const message = await channel.messages.fetch(messageInfo.message_id);
 
+    const hours = timestamp.getHours();
+    const minutes = timestamp.getMinutes();
+
+    const hoursText = String(hours).padStart(2, "0");
+    const minutesText = String(minutes).padStart(2, "0");
+
     message.edit({
-      content: `${playerString} han terminado de jugar a las ${timestamp.getHours()}:${timestamp.getMinutes()}`,
+      content: `${playerString} han terminado de jugar a las ${hoursText}:${minutesText}`,
       components: [],
     });
   }
