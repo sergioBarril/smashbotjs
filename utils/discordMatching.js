@@ -1,6 +1,7 @@
 const { MessageActionRow, MessageButton } = require("discord.js");
 
 const lobbyAPI = require("../api/lobby");
+const guildAPI = require("../api/guild");
 
 // This module is composed of Discord functionality that's
 // recurring in different buttons or commands
@@ -111,7 +112,48 @@ const notMatched = async (playerId, guild, tierInfo = null) => {
   }
 };
 
+const newSearchMessageText = (message, tier, playerNames) => {
+  const memberFormatter = new Intl.ListFormat("es", {
+    style: "long",
+    type: "conjunction",
+  });
+  const memberNames = memberFormatter.format(
+    playerNames.map((name) => `*${name}*`)
+  );
+
+  let messageText = `**${tier.name}**`;
+  if (playerNames.length > 0) messageText += `\n${memberNames}`;
+
+  return messageText;
+};
+
+const updateSearch = async (guild) => {
+  const groupedTiers = await guildAPI.getCurrentList(guild.id);
+  const searchChannelId = await guildAPI.getMatchmakingChannel(guild.id);
+
+  const searchChannel = await guild.channels.fetch(searchChannelId);
+
+  for (const [key, value] of Object.entries(groupedTiers)) {
+    const [tierId, messageId] = key.split(",");
+    const tier = await guild.roles.fetch(tierId);
+    const message = await searchChannel.messages.fetch(messageId);
+
+    const playerNames = await Promise.all(
+      value.map(async (playerId) => {
+        const player = await guild.members.fetch(playerId);
+        return player.displayName;
+      })
+    );
+
+    const newText = newSearchMessageText(message, tier, playerNames);
+
+    await message.edit({ content: newText });
+    console.log(`Updated ${tier.name}`);
+  }
+};
+
 module.exports = {
   matched,
   notMatched,
+  updateSearch,
 };

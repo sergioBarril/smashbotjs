@@ -1,7 +1,3 @@
-const lobbyDB = require("../db/lobby");
-const playerDB = require("../db/player");
-const tierDB = require("../db/tier");
-const guildDB = require("../db/guild");
 const discordMatchingUtils = require("../utils/discordMatching");
 
 const lobbyAPI = require("../api/lobby");

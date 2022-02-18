@@ -51,14 +51,14 @@ const matchmaking = async (interaction) => {
   await oldSearchChannel.delete();
   await guildAPI.setMatchmakingChannel(guild.id, searchChannel.id);
 
-  if (weighted.length > 0) await searchChannel.send("**CABLE LAN**");
+  if (weighted.length > 0) await searchChannel.send("__**CABLE LAN**__");
   for (tierInfo of weighted) {
     const tier = await guild.roles.fetch(tierInfo.discord_id);
     const message = await sendMessage(searchChannel, tier.name);
     await tierAPI.setSearchMessage(tier.id, message.id);
   }
 
-  if (open.length > 0) await searchChannel.send("**OTROS**");
+  if (open.length > 0) await searchChannel.send("__**OTROS**__");
   for (tierInfo of open) {
     const tier = await guild.roles.fetch(tierInfo.discord_id);
     const message = await sendMessage(searchChannel, tier.name);

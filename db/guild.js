@@ -30,8 +30,33 @@ const setMatchmakingChannel = async (guildId, channelId, client = null) => {
   await (client ?? db).query(updateQuery);
 };
 
+const getCurrentList = async (guildId, client = null) => {
+  const getQuery = {
+    text: `
+    SELECT tier.discord_id AS tier_id, player.discord_id AS player_id, 
+      tier.search_message_id AS message_id
+    FROM tier
+    INNER JOIN lobby_tier lt
+      ON tier.id = lt.tier_id
+    INNER JOIN lobby l
+      ON l.id = lt.lobby_id
+    INNER JOIN lobby_player lp
+      ON lp.player_id = l.created_by
+    INNER JOIN player
+      ON player.id = lp.player_id
+    WHERE tier.guild_id = $1
+    `,
+    values: [guildId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+
+  return getResult.rows;
+};
+
 module.exports = {
   get,
   getByLobby,
+  getCurrentList,
   setMatchmakingChannel,
 };
