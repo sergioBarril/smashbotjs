@@ -1,4 +1,5 @@
 const db = require("./index");
+const guildDB = require("./guild");
 
 const get = async (tierId, discord = false) =>
   await db.basicGet("tier", tierId, discord);
@@ -29,6 +30,26 @@ const getByChannel = async (channelDiscordId, client = null) => {
   return getResult.rows?.length > 0 ? getResult.rows[0] : null;
 };
 
+const getByGuild = async (guildId, discord = false, client = null) => {
+  if (discord) {
+    const guild = await guildDB.get(guildId, true, client);
+    guildId = guild.id;
+  }
+
+  const getQuery = {
+    text: `
+    SELECT * FROM tier
+    WHERE guild_id = $1
+    ORDER BY weight ASC
+  `,
+    values: [guildId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+
+  return getResult.rows;
+};
+
 const create = async (
   roleDiscordId,
   channelDiscordId,
@@ -48,9 +69,24 @@ const create = async (
   await (client ?? db).query(insertQuery);
 };
 
+const setSearchMessage = async (tierId, searchMessageId, client = null) => {
+  const updateQuery = {
+    text: `
+    UPDATE tier
+    SET search_message_id = $1
+    WHERE id = $2
+    `,
+    values: [searchMessageId, tierId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
 module.exports = {
   get,
   getByMessage,
   getByChannel,
+  getByGuild,
   create,
+  setSearchMessage,
 };

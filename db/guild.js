@@ -18,7 +18,20 @@ const getByLobby = async (lobbyId, client = null) => {
   if (getGuildResult.rows?.length > 0) return getGuildResult.rows[0];
   else return null;
 };
+
+const setMatchmakingChannel = async (guildId, channelId, client = null) => {
+  const updateQuery = {
+    text: `UPDATE guild
+    SET search_channel_id = $1
+    WHERE id = $2`,
+    values: [channelId, guildId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
 module.exports = {
   get,
   getByLobby,
+  setMatchmakingChannel,
 };

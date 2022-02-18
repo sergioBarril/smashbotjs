@@ -20,4 +20,19 @@ const addTier = async (
   );
 };
 
-module.exports = { addTier };
+const getTiers = async (guildDiscordId) => {
+  const tiers = await tierDB.getByGuild(guildDiscordId, true);
+
+  const weighted = tiers.filter((tier) => tier.weight !== null);
+  const open = tiers.filter((tier) => tier.weight === null);
+
+  return { weighted, open };
+};
+
+const setSearchMessage = async (tierDiscordId, searchMessageId) => {
+  const tier = await tierDB.get(tierDiscordId, true);
+
+  await tierDB.setSearchMessage(tier.id, searchMessageId);
+};
+
+module.exports = { addTier, getTiers, setSearchMessage };

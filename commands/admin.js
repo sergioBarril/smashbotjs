@@ -3,6 +3,7 @@ const discordRolesUtils = require("../utils/discordRoles");
 
 const { upsert } = require("./admin/roles/upsert");
 const { add } = require("./admin/tiers/add");
+const { matchmaking } = require("./admin/tiers/matchmaking");
 
 const data = new SlashCommandBuilder()
   .setName("admin")
@@ -59,6 +60,11 @@ const data = new SlashCommandBuilder()
             option.setName("color").setDescription("Color of the tier role")
           )
       )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("matchmaking")
+          .setDescription("Remakes the search channel.")
+      )
   );
 
 module.exports = {
@@ -73,6 +79,9 @@ module.exports = {
     if (interaction.options.getSubcommandGroup() === "tiers") {
       if (interaction.options.getSubcommand() === "add") {
         await add(interaction);
+      }
+      if (interaction.options.getSubcommand() === "matchmaking") {
+        await matchmaking(interaction);
       }
     }
   },
