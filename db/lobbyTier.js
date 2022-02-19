@@ -47,6 +47,19 @@ const getMessages = async (playerId, client = null) => {
   return getMessagesResult.rows;
 };
 
+const clearMessages = async (lobbyId, client = null) => {
+  // Remove #tier messages from every lobbyTier of this lobby
+
+  const updateQuery = {
+    text: `UPDATE lobby_tier
+    SET message_id = NULL
+    WHERE lobby_id = $1`,
+    values: [lobbyId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
 const getAllMessages = async (lobbyId, client = null) => {
   // Get information about the messages sent to #tier channels
   // by all lobby_players in the lobbyId
@@ -128,6 +141,7 @@ module.exports = {
   get,
   updateMessage,
   getMessages,
+  clearMessages,
   getAllMessages,
   getChannels,
   remove,

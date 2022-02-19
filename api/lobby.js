@@ -73,8 +73,13 @@ const matchNotAccepted = async (declinePlayer, isTimeout) => {
         false,
         client
       );
-      await lobbyDB.updateStatus(afkLobby.id, "AFK", client);
-      await lobbyPlayerDB.updateAllStatus(afkLobby.id, "AFK", client);
+      const hasAnyTier = await lobbyTierDB.hasAnyTier(afkLobby.id);
+
+      if (hasAnyTier) {
+        await lobbyDB.updateStatus(afkLobby.id, "AFK", client);
+        await lobbyTierDB.clearMessages(afkLobby.id, client);
+        await lobbyPlayerDB.updateAllStatus(afkLobby.id, "AFK", client);
+      } else await lobbyDB.removeByPlayer(declinePlayer.id, false, client);
     } else await lobbyDB.removeByPlayer(declinePlayer.id, false, client);
     await client.query("COMMIT");
 
