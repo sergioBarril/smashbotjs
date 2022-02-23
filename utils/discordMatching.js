@@ -2,6 +2,7 @@ const { MessageActionRow, MessageButton } = require("discord.js");
 
 const lobbyAPI = require("../api/lobby");
 const guildAPI = require("../api/guild");
+const rolesAPI = require("../api/roles");
 
 // This module is composed of Discord functionality that's
 // recurring in different buttons or commands
@@ -97,18 +98,30 @@ const notMatched = async (playerId, guild, tierInfo = null) => {
   else tiersInfo = await lobbyAPI.getTierChannels(playerId);
 
   for (tierInfo of tiersInfo) {
-    const { tier_id: tierId, channel_id: channelId } = tierInfo;
+    const { tier_id: tierId, channel_id: channelId, yuzu } = tierInfo;
     const channel = await guild.channels.fetch(channelId);
-    const tierRole = await guild.roles.fetch(tierId);
 
-    const message = await channel.send({
-      content:
+    let messageContent = "";
+
+    if (yuzu) {
+      const roleIds = await rolesAPI.getYuzuMessageRoles(member.id, guild.id);
+      for (roleId of roleIds) {
+        const role = await guild.roles.fetch(roleId);
+        messageContent += `${role} `;
+      }
+      messageContent += `- **${member.displayName}** está buscando partida en **Yuzu**.`;
+    } else {
+      const tierRole = await guild.roles.fetch(tierId);
+      messageContent =
         `${tierRole} - **${member.displayName}**` +
-        ` está buscando partida en **${tierRole.name}**`,
+        ` está buscando partida en **${tierRole.name}**.`;
+    }
+    const message = await channel.send({
+      content: messageContent,
       components: [button],
     });
 
-    await lobbyAPI.saveSearchTierMessage(playerId, tierId, message.id);
+    await lobbyAPI.saveSearchTierMessage(playerId, tierId, message.id, yuzu);
   }
 };
 

@@ -12,7 +12,8 @@ const exceptionHandler = async (interaction, exception) => {
     SAME_PLAYER: `Oye, que esta es **TU** partida. Ya aparecerá alguien para jugarte...`,
     ALREADY_PLAYING: `Ya estás jugando otra partida. Si has acabado, cierra la sala con /ggs`,
     IN_CONFIRMATION: `Ya has encontrado otra partida. Acéptala y juégala, o recházala y vuelve a pulsar el botón.`,
-
+    YUZU_INCOMPATIBLE: `No eres compatible con este jugador. Ambos tenéis el mismo rol (host o cliente).`,
+    NO_YUZU_PLAYER: `Uno de los dos no tiene el Yuzu Player configurado.`,
     MESSAGES_NOT_FOUND: `__**ERROR**__: No se han encontrado mensajes.`,
     TOO_MANY_PLAYERS: `__**ERROR**__: Aún no están listas las arenas de más de 2 players.`,
   };
@@ -45,12 +46,14 @@ const execute = async (interaction) => {
   const guildId = interaction.guild.id;
   const playerId = interaction.user.id;
   const messageId = interaction.message.id;
+  const channelId = interaction.message.channel.id;
 
   try {
     const searchResult = await lobbyAPI.directMatch(
       playerId,
       guildId,
-      messageId
+      messageId,
+      channelId
     );
     await matched(interaction, searchResult.players);
   } catch (e) {

@@ -168,7 +168,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   const player = await playerDB.get(playerDiscordId, true);
   if (!player) throw { name: "PLAYER_NOT_FOUND" };
 
-  const targetTier = await tierDB.getByMessage(messageDiscordId);
+  const targetTier = await tierDB.getBySearchMessage(messageDiscordId);
   if (!targetTier) throw { name: "TIER_NOT_FOUND" };
 
   const isYuzu = targetTier.yuzu;
@@ -203,7 +203,6 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   if (!lobby) {
     await lobbyDB.create(guild.id, player.id, targetTier.id);
     lobby = await lobbyDB.getByPlayer(player.id);
-    if (targetTier.yuzu) await lobbyDB.addTier(lobby.id, targetTier.id);
   } else if (!isSearching) {
     throw { name: "NOT_SEARCHING" };
   } else if (hasTier) {
@@ -225,6 +224,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
     return {
       matched: false,
       tierId: targetTier.discord_id,
+      yuzu: targetTier.yuzu,
       channelId: targetTier.channel_id,
     };
   }
@@ -251,6 +251,16 @@ const directMatch = async (
   if (!rivalLobby) throw { name: "NO_RIVAL_LOBBY" };
   if (rivalLobby.status != "SEARCHING") throw { name: "RIVAL_NOT_SEARCHING" };
   if (rivalLobby.created_by === newPlayer.id) throw { name: "SAME_PLAYER" };
+
+  // Check tier in case of yuzu
+  const tier = await tierDB.getByTierMessage(messageDiscordId);
+  if (tier.yuzu) {
+    const yp = await yuzuPlayerDB.get(newPlayer.id, guild.id);
+    const rivalYp = await yuzuPlayerDB.get(rivalLobby.created_by, guild.id);
+    if (!yp || !rivalYp) throw { name: "NO_YUZU_PLAYER" };
+    if (!((yp.parsec && rivalYp.yuzu) || (yp.yuzu && rivalYp.parsec)))
+      throw { name: "YUZU_INCOMPATIBLE" };
+  }
 
   // Checks player lobby
   let newPlayerLobby = await lobbyDB.getByPlayer(newPlayer.id, false);
@@ -287,7 +297,7 @@ const directMatch = async (
 
 const stopSearch = async (playerDiscordId, messageId) => {
   const lobby = await lobbyDB.getByPlayer(playerDiscordId, true);
-  const tier = await tierDB.getByMessage(messageId);
+  const tier = await tierDB.getBySearchMessage(messageId);
 
   //  Checks
   if (!lobby) throw { name: "LOBBY_NOT_FOUND" };
@@ -295,7 +305,10 @@ const stopSearch = async (playerDiscordId, messageId) => {
 
   let hasTier = await lobbyDB.hasTier(lobby.id, tier.id);
   if (!hasTier)
-    throw { name: "NOT_SEARCHING_HERE", args: { tierId: tier.discord_id } };
+    throw {
+      name: "NOT_SEARCHING_HERE",
+      args: { tierId: tier.discord_id, yuzu: tier.yuzu },
+    };
 
   if (lobby.status === "PLAYING") throw { name: "ALREADY_PLAYING" };
   if (lobby.status === "CONFIRMATION" || lobby.status === "WAITING")
@@ -390,10 +403,15 @@ const getPlayingPlayers = async (playerDiscordId) => {
 const saveSearchTierMessage = async (
   playerDiscordId,
   tierDiscordId,
-  messageId
+  messageId,
+  yuzu
 ) => {
   const lobby = await lobbyDB.getByPlayer(playerDiscordId, true);
-  const tier = await tierDB.get(tierDiscordId, true);
+
+  let tier;
+  if (yuzu) {
+    tier = await tierDB.getYuzu(lobby.guild_id);
+  } else tier = await tierDB.get(tierDiscordId, true);
   await lobbyTierDB.updateMessage(lobby.id, tier.id, messageId);
   return true;
 };

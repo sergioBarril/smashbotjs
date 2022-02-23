@@ -59,19 +59,21 @@ const matched = async (interaction, playerIdList) => {
   });
 };
 
-const notMatched = async (interaction, tierId, channelId) => {
+const notMatched = async (interaction, tierId, channelId, yuzu) => {
   // Actions to do after not finding a match
   // This includes sending a message to #tier
   const playerId = interaction.user.id;
   const guild = interaction.guild;
-  const tierInfo = { tier_id: tierId, channel_id: channelId };
+  const tierInfo = { tier_id: tierId, channel_id: channelId, yuzu };
 
   await discordMatchingUtils.notMatched(playerId, guild, tierInfo);
 
   const tierRole = await guild.roles.fetch(tierId);
 
   return await interaction.reply({
-    content: `A partir de ahora estás buscando en ${tierRole}`,
+    content: `A partir de ahora estás buscando en ${
+      yuzu ? "**Yuzu**" : tierRole
+    }`,
     ephemeral: true,
   });
 };
@@ -86,8 +88,8 @@ const execute = async (interaction) => {
     if (searchResult.matched) {
       await matched(interaction, searchResult.players);
     } else {
-      const { tierId, channelId } = searchResult;
-      await notMatched(interaction, tierId, channelId);
+      const { tierId, channelId, yuzu } = searchResult;
+      await notMatched(interaction, tierId, channelId, yuzu);
     }
   } catch (e) {
     await exceptionHandler(interaction, e);

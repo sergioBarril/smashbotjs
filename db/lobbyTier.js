@@ -127,7 +127,7 @@ const getChannels = async (lobbyId, client = null) => {
 
   const getChannelsQuery = {
     text: `
-    SELECT discord_id AS tier_id, channel_id FROM lobby_tier
+    SELECT discord_id AS tier_id, channel_id, yuzu FROM lobby_tier
     INNER JOIN tier
       ON lobby_tier.tier_id = tier.id
     WHERE lobby_id = $1`,

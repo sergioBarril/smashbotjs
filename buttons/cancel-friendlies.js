@@ -16,10 +16,13 @@ const exceptionHandler = async (interaction, exception) => {
   if (!response)
     switch (name) {
       case "NOT_SEARCHING_HERE":
-        const { tierId } = args;
-        const tierRole = await interaction.guild.roles.fetch(tierId);
+        const { tierId, yuzu } = args;
 
-        response = `¡No estabas buscando partida en ${tierRole}!`;
+        if (yuzu) response = `¡No estabas buscando partida en **Yuzu**!`;
+        else {
+          const tierRole = await interaction.guild.roles.fetch(tierId);
+          response = `¡No estabas buscando partida en ${tierRole}!`;
+        }
         break;
     }
 

@@ -4,7 +4,7 @@ const guildDB = require("./guild");
 const get = async (tierId, discord = false) =>
   await db.basicGet("tier", tierId, discord);
 
-const getByMessage = async (messageDiscordId) => {
+const getBySearchMessage = async (messageDiscordId) => {
   const getQuery = {
     text: `
     SELECT * FROM tier
@@ -64,6 +64,20 @@ const getYuzu = async (guildId, client = null) => {
   return getResult.rows[0];
 };
 
+const getByTierMessage = async (messageDiscordId, client = null) => {
+  const getQuery = {
+    text: `SELECT t.*
+    FROM lobby_tier lt
+    INNER JOIN tier t
+      ON t.id = lt.tier_id
+    WHERE lt.message_id = $1`,
+    values: [messageDiscordId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows[0];
+};
+
 const create = async (
   roleDiscordId,
   channelDiscordId,
@@ -100,7 +114,8 @@ const setSearchMessage = async (tierId, searchMessageId, client = null) => {
 module.exports = {
   get,
   getYuzu,
-  getByMessage,
+  getBySearchMessage,
+  getByTierMessage,
   getByChannel,
   getByGuild,
   create,

@@ -111,8 +111,21 @@ const assignYuzu = async (playerDiscordId, guildDiscordId, yuzuRoleName) => {
   return { roleId, newStatus };
 };
 
+const getYuzuMessageRoles = async (playerDiscordId, guildDiscordId) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const guild = await guildDB.get(guildDiscordId, true);
+
+  const yuzuPlayer = await yuzuPlayerDB.get(player.id, guild.id);
+  const roles = [];
+  if (yuzuPlayer.parsec) roles.push(guild.yuzu_role_id);
+  if (yuzuPlayer.yuzu) roles.push(guild.parsec_role_id);
+
+  return roles;
+};
+
 module.exports = {
   assignCharacter,
   assignRegion,
   assignYuzu,
+  getYuzuMessageRoles,
 };
