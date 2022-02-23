@@ -6,6 +6,16 @@ const getGuild = async (guildDiscordId) => {
   return guild;
 };
 
+const getRolesChannel = async (guildDiscordId) => {
+  const guild = await guildDB.get(guildDiscordId, true);
+  return guild.roles_channel_id;
+};
+
+const setRolesChannel = async (guildDiscordId, channelId) => {
+  const guild = await guildDB.get(guildDiscordId, true);
+  await guildDB.setRolesChannel(guild.id, channelId);
+};
+
 const getMatchmakingChannel = async (guildDiscordId) => {
   const guild = await guildDB.get(guildDiscordId, true);
   return guild.search_channel_id;
@@ -36,6 +46,8 @@ const getCurrentList = async (guildDiscordId) => {
 
 module.exports = {
   getGuild,
+  getRolesChannel,
+  setRolesChannel,
   getMatchmakingChannel,
   setMatchmakingChannel,
   getCurrentList,

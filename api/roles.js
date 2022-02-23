@@ -10,6 +10,8 @@ const regionDB = require("../db/region");
 const regionRoleDB = require("../db/regionRole");
 const regionPlayerDB = require("../db/regionPlayer");
 
+const yuzuPlayerDB = require("../db/yuzuPlayer");
+
 const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
   // Assigns a player a role
   const player = await playerDB.get(playerDiscordId, true);
@@ -85,7 +87,32 @@ const assignCharacter = async (
   return { roleId: characterRole.discord_id, action };
 };
 
+const assignYuzu = async (playerDiscordId, guildDiscordId, yuzuRoleName) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const guild = await guildDB.get(guildDiscordId, true);
+
+  if (!["YUZU", "PARSEC"].includes(yuzuRoleName))
+    throw { name: "WRONG_YUZU_TOGGLE", args: { yuzuRoleName } };
+
+  const isYuzu = yuzuRoleName == "YUZU";
+  let newStatus;
+
+  const yuzuPlayer = await yuzuPlayerDB.get(player.id, guild.id);
+  if (!yuzuPlayer) {
+    await yuzuPlayerDB.create(player.id, guild.id, isYuzu, !isYuzu);
+    newStatus = true;
+  } else {
+    newStatus = !yuzuPlayer[yuzuRoleName.toLowerCase()];
+    await yuzuPlayerDB.setRole(player.id, guild.id, yuzuRoleName, newStatus);
+  }
+
+  const roleId = isYuzu ? guild.yuzu_role_id : guild.parsec_role_id;
+
+  return { roleId, newStatus };
+};
+
 module.exports = {
   assignCharacter,
   assignRegion,
+  assignYuzu,
 };

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const discordRolesUtils = require("../utils/discordRoles");
+const { channel } = require("./admin/roles/channel");
 
 const { upsert } = require("./admin/roles/upsert");
 const { add } = require("./admin/tiers/add");
@@ -27,6 +28,9 @@ const data = new SlashCommandBuilder()
                 ["Regions", "REGIONS"],
               ])
           )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand.setName("channel").setDescription("Remake the roles channel")
       )
   )
   .addSubcommandGroup((tierCommandGroup) =>
@@ -77,6 +81,9 @@ module.exports = {
     if (interaction.options.getSubcommandGroup() === "roles") {
       if (interaction.options.getSubcommand() === "upsert") {
         await upsert(interaction);
+      }
+      if (interaction.options.getSubcommand() === "channel") {
+        await channel(interaction);
       }
     }
     if (interaction.options.getSubcommandGroup() === "tiers") {
