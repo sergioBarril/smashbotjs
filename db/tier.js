@@ -50,20 +50,35 @@ const getByGuild = async (guildId, discord = false, client = null) => {
   return getResult.rows;
 };
 
+const getYuzu = async (guildId, client = null) => {
+  const getQuery = {
+    text: `
+    SELECT * FROM tier
+    WHERE guild_id = $1
+    AND yuzu
+    `,
+    values: [guildId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows[0];
+};
+
 const create = async (
   roleDiscordId,
   channelDiscordId,
   guildId,
   weight,
   threshold,
+  yuzu,
   client = null
 ) => {
   const insertQuery = {
     text: `
-    INSERT INTO tier(discord_id, channel_id, guild_id, weight, threshold)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO tier(discord_id, channel_id, guild_id, weight, threshold, yuzu)
+    VALUES ($1, $2, $3, $4, $5, $6)
   `,
-    values: [roleDiscordId, channelDiscordId, guildId, weight, threshold],
+    values: [roleDiscordId, channelDiscordId, guildId, weight, threshold, yuzu],
   };
 
   await (client ?? db).query(insertQuery);
@@ -84,6 +99,7 @@ const setSearchMessage = async (tierId, searchMessageId, client = null) => {
 
 module.exports = {
   get,
+  getYuzu,
   getByMessage,
   getByChannel,
   getByGuild,

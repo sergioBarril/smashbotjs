@@ -7,6 +7,7 @@ const lobbyMessageDB = require("../db/lobbyMessage");
 const guildDB = require("../db/guild");
 const playerDB = require("../db/player");
 const tierDB = require("../db/tier");
+const yuzuPlayerDB = require("../db/yuzuPlayer");
 
 const canSearchTier = (playerTier, targetTier) => {
   // Compares two tiers, and returns true if someone
@@ -104,11 +105,12 @@ const matchNotAccepted = async (declinePlayer, isTimeout) => {
 const matchmaking = async (
   playerId,
   lobbyId,
+  guildId,
   targetTierId = null,
   opponent = null
 ) => {
   if (opponent === null)
-    opponent = await lobbyDB.matchmaking(lobbyId, targetTierId);
+    opponent = await lobbyDB.matchmaking(lobbyId, guildId, targetTierId);
   if (!opponent) return null;
 
   const { player_id: rivalPlayerId, lobby_id: rivalLobbyId } = opponent;
@@ -153,6 +155,12 @@ const hasLobbyTiers = async (playerDiscordId) => {
   return hasAnyTier;
 };
 
+const canSearchYuzu = async (playerId, guildId) => {
+  const yuzuPlayer = await yuzuPlayerDB.get(playerId, guildId);
+
+  return yuzuPlayer && (yuzuPlayer.yuzu || yuzuPlayer.parsec);
+};
+
 const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   const guild = await guildDB.get(guildDiscordId, true);
   if (!guild) throw { name: "GUILD_NOT_FOUND" };
@@ -163,17 +171,30 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   const targetTier = await tierDB.getByMessage(messageDiscordId);
   if (!targetTier) throw { name: "TIER_NOT_FOUND" };
 
-  const playerTier = await playerDB.getTier(player.id);
-  const canSearch = canSearchTier(playerTier, targetTier);
+  const isYuzu = targetTier.yuzu;
 
-  if (!canSearch)
-    throw {
-      name: "TOO_NOOB",
-      args: {
-        targetTier: targetTier.discord_id,
-        playerTier: playerTier.discord_id,
-      },
-    };
+  const playerTier = await playerDB.getTier(player.id);
+  if (isYuzu) {
+    const canSearch = await canSearchYuzu(player.id, guild.id);
+    if (!canSearch)
+      throw {
+        name: "NO_YUZU",
+        args: {
+          yuzuRole: guild.yuzu_role_id,
+          parsecRole: guild.parsec_role_id,
+        },
+      };
+  } else {
+    const canSearch = canSearchTier(playerTier, targetTier);
+    if (!canSearch)
+      throw {
+        name: "TOO_NOOB",
+        args: {
+          targetTier: targetTier.discord_id,
+          playerTier: playerTier.discord_id,
+        },
+      };
+  }
 
   let lobby = await lobbyDB.getByPlayer(player.id);
   const isSearching = lobby?.status === "SEARCHING";
@@ -182,6 +203,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   if (!lobby) {
     await lobbyDB.create(guild.id, player.id, targetTier.id);
     lobby = await lobbyDB.getByPlayer(player.id);
+    if (targetTier.yuzu) await lobbyDB.addTier(lobby.id, targetTier.id);
   } else if (!isSearching) {
     throw { name: "NOT_SEARCHING" };
   } else if (hasTier) {
@@ -191,7 +213,12 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
     };
   } else await lobbyDB.addTier(lobby.id, targetTier.id);
 
-  const rivalPlayer = await matchmaking(player.id, lobby.id, targetTier.id);
+  const rivalPlayer = await matchmaking(
+    player.id,
+    lobby.id,
+    guild.id,
+    targetTier.id
+  );
 
   // Unmatched, return info to send @Tier
   if (!rivalPlayer) {
@@ -242,7 +269,13 @@ const directMatch = async (
   }
 
   const player = { player_id: newPlayer.id, lobby_id: newPlayerLobby.id };
-  await matchmaking(rivalLobby.created_by, rivalLobby.id, null, player);
+  await matchmaking(
+    rivalLobby.created_by,
+    rivalLobby.id,
+    guild.id,
+    null,
+    player
+  );
 
   const rivalPlayer = await playerDB.get(rivalLobby.created_by, false);
 
@@ -477,7 +510,7 @@ const unAFK = async (playerDiscordId) => {
     client.release();
   }
 
-  const rivalPlayer = await matchmaking(player.id, lobby.id);
+  const rivalPlayer = await matchmaking(player.id, lobby.id, lobby.guild_id);
   const guild = await guildDB.get(lobby.guild_id, false);
 
   return { rival: rivalPlayer, guild: guild.discord_id };

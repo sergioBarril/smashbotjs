@@ -54,9 +54,33 @@ const getCurrentList = async (guildId, client = null) => {
   return getResult.rows;
 };
 
+const setYuzuRole = async (guildId, yuzuRoleId, client = null) => {
+  const setQuery = {
+    text: `UPDATE guild
+    SET yuzu_role_id = $1
+    WHERE id = $2`,
+    values: [yuzuRoleId, guildId],
+  };
+
+  await (client ?? db).query(setQuery);
+};
+
+const setParsecRole = async (guildId, parsecRoleId, client = null) => {
+  const setQuery = {
+    text: `UPDATE guild
+    SET parsec_role_id = $1
+    WHERE id = $2`,
+    values: [parsecRoleId, guildId],
+  };
+
+  await (client ?? db).query(setQuery);
+};
+
 module.exports = {
   get,
   getByLobby,
   getCurrentList,
   setMatchmakingChannel,
+  setYuzuRole,
+  setParsecRole,
 };

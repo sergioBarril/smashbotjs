@@ -27,6 +27,12 @@ const exceptionHandler = async (interaction, exception) => {
         response = `¡No puedes jugar en ${targetTier} siendo ${playerTier}!`;
         break;
       }
+      case "NO_YUZU": {
+        const yuzuRole = await interaction.guild.roles.fetch(args.yuzuRole);
+        const parsecRole = await interaction.guild.roles.fetch(args.parsecRole);
+        response = `¡No puedes jugar Yuzu sin los roles de ${yuzuRole} o ${parsecRole}!`;
+        break;
+      }
       case "ALREADY_SEARCHING": {
         const targetTier = await interaction.guild.roles.fetch(args.targetTier);
         response = `Ya estabas buscando en ${targetTier}!`;

@@ -16,8 +16,25 @@ const addTier = async (
     channelDiscordId,
     guild.id,
     weight,
-    threshold
+    threshold,
+    false
   );
+};
+
+const addYuzuTier = async (
+  yuzuDiscordId,
+  parsecDiscordId,
+  guildDiscordId,
+  channelDiscordId
+) => {
+  const guild = await guildDB.get(guildDiscordId, true);
+
+  // General yuzu tier
+  await tierDB.create(null, channelDiscordId, guild.id, null, null, true);
+
+  // Guild yuzu role
+  await guildDB.setYuzuRole(guild.id, yuzuDiscordId);
+  await guildDB.setParsecRole(guild.id, parsecDiscordId);
 };
 
 const getTiers = async (guildDiscordId) => {
@@ -35,4 +52,17 @@ const setSearchMessage = async (tierDiscordId, searchMessageId) => {
   await tierDB.setSearchMessage(tier.id, searchMessageId);
 };
 
-module.exports = { addTier, getTiers, setSearchMessage };
+const setYuzuSearchMessage = async (guildDiscordId, searchMessageId) => {
+  const guild = await guildDB.get(guildDiscordId, true);
+  const tier = await tierDB.getYuzu(guild.id);
+
+  await tierDB.setSearchMessage(tier.id, searchMessageId);
+};
+
+module.exports = {
+  addTier,
+  addYuzuTier,
+  getTiers,
+  setSearchMessage,
+  setYuzuSearchMessage,
+};

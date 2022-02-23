@@ -60,9 +60,14 @@ const matchmaking = async (interaction) => {
 
   if (open.length > 0) await searchChannel.send("__**OTROS**__");
   for (tierInfo of open) {
-    const tier = await guild.roles.fetch(tierInfo.discord_id);
-    const message = await sendMessage(searchChannel, tier.name);
-    await tierAPI.setSearchMessage(tier.id, message.id);
+    if (tierInfo.yuzu) {
+      const message = await sendMessage(searchChannel, "Yuzu");
+      await tierAPI.setYuzuSearchMessage(guild.id, message.id);
+    } else {
+      const tier = await guild.roles.fetch(tierInfo.discord_id);
+      const message = await sendMessage(searchChannel, tier.name);
+      await tierAPI.setSearchMessage(tier.id, message.id);
+    }
   }
 
   await interaction.editReply({

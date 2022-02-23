@@ -185,13 +185,25 @@ const removeOtherLobbies = async (lobbyId, client = null) => {
   return true;
 };
 
-const matchmaking = async (lobbyId, tierId = null, client = null) => {
+const matchmaking = async (lobbyId, guildId, tierId = null, client = null) => {
   // Get someone to match to. If tierId is null, check all tiers
 
+  // Check YuzuPlayer
+  const ypResult = await (client ?? db).query({
+    text: `SELECT yp.* FROM yuzu_player yp
+      INNER JOIN lobby l
+        ON l.created_by = yp.player_id
+      WHERE l.id = $1 AND yp.guild_id = $2`,
+    values: [lobbyId, guildId],
+  });
+  const yp = ypResult.rows[0];
+  const values = [guildId, lobbyId, !!yp?.yuzu, !!yp?.parsec];
+
+  // Tier Conditions
   let tierCondition = "";
-  const values = [lobbyId];
+
   if (tierId) {
-    tierCondition = "AND tier.id = $2";
+    tierCondition = "AND tier.id = $5";
     values.push(tierId);
   } else
     tierCondition = `
@@ -199,19 +211,27 @@ const matchmaking = async (lobbyId, tierId = null, client = null) => {
       SELECT id FROM tier t
       INNER JOIN lobby_tier lt
         ON t.id = lt.tier_id
-      WHERE lt.lobby_id = $1
+      WHERE lt.lobby_id = $2
       )`;
 
   const matchmakingQuery = {
     text: `
     SELECT lobby_player.lobby_id AS lobby_id, lobby_player.player_id AS player_id
     FROM lobby_player
+    INNER JOIN lobby
+      ON lobby.id = lobby_player.lobby_id
     INNER JOIN lobby_tier
       ON lobby_tier.lobby_id = lobby_player.lobby_id
     INNER JOIN tier
       ON lobby_tier.tier_id = tier.id
-    WHERE lobby_player.lobby_id <> $1
+    LEFT JOIN yuzu_player
+      ON yuzu_player.player_id = lobby_player.player_id
+        AND yuzu_player.guild_id = $1
+        AND tier.yuzu
+    WHERE lobby.guild_id = $1
+    AND lobby_player.lobby_id <> $2
     AND lobby_player.status = 'SEARCHING'
+    AND (NOT tier.yuzu OR yuzu_player.parsec = $3 OR yuzu_player.yuzu = $4)
     ${tierCondition}
     ORDER BY tier.weight ASC, lobby_tier.created_at ASC
     `,

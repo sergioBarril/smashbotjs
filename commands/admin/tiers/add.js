@@ -5,16 +5,37 @@ const add = async (interaction) => {
   const weight = interaction.options.getInteger("weight");
   const threshold = interaction.options.getInteger("threshold");
   const color = interaction.options.getString("color");
+  const yuzu = interaction.options.getBoolean("yuzu");
 
-  // Add tier role
   const guild = interaction.guild;
 
-  const role = await guild.roles.create({
-    name,
-    color,
-    mentionable: true,
-    hoist: true,
-  });
+  // Add tier role
+  let parsecRole;
+  let yuzuRole;
+  let role;
+
+  if (yuzu) {
+    parsecRole = await guild.roles.create({
+      name: "Parsec",
+      color: "0xF50049",
+      mentionable: true,
+      hoist: false,
+    });
+    yuzuRole = await guild.roles.create({
+      name: "Yuzu",
+      color: "0x02BAE7",
+      mentionable: true,
+      hoist: false,
+    });
+  }
+  if (!yuzu) {
+    role = await guild.roles.create({
+      name,
+      color,
+      mentionable: true,
+      hoist: true,
+    });
+  }
 
   // Add Channel
   await guild.fetch();
@@ -29,10 +50,17 @@ const add = async (interaction) => {
   } else channel = await guild.channels.create(name);
 
   // Add it to the DB
-  await tierAPI.addTier(role.id, guild.id, channel.id, weight, threshold);
+  let responseText;
+  if (yuzu) {
+    await tierAPI.addYuzuTier(yuzuRole.id, parsecRole.id, guild.id, channel.id);
+    responseText = `Los roles ${yuzuRole} y ${parsecRole} han sido creados y guardados en la BDD.`;
+  } else {
+    await tierAPI.addTier(role.id, guild.id, channel.id, weight, threshold);
+    responseText = `El rol ${role} ha sido creado y guardado en la BDD.`;
+  }
 
   await interaction.reply({
-    content: `El rol ${role} ha sido creado y añadido a la base de datos.`,
+    content: responseText,
     ephehemral: true,
   });
 };

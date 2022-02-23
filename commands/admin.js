@@ -59,6 +59,9 @@ const data = new SlashCommandBuilder()
           .addStringOption((option) =>
             option.setName("color").setDescription("Color of the tier role")
           )
+          .addBooleanOption((option) =>
+            option.setName("yuzu").setDescription("Is this a tier for yuzu?")
+          )
       )
       .addSubcommand((subcommand) =>
         subcommand
