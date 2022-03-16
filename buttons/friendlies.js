@@ -34,8 +34,11 @@ const exceptionHandler = async (interaction, exception) => {
         break;
       }
       case "ALREADY_SEARCHING": {
-        const targetTier = await interaction.guild.roles.fetch(args.targetTier);
-        response = `Ya estabas buscando en ${targetTier}!`;
+        if (args.isYuzu) response = `¡Ya estabas buscando en **Yuzu**!`;
+        else {
+          const targetTier = await interaction.guild.roles.fetch(args.targetTier);
+          response = `Ya estabas buscando en ${targetTier}!`;
+        }
         break;
       }
     }

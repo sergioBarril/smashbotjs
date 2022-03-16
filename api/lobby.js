@@ -180,7 +180,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   } else if (hasTier) {
     throw {
       name: "ALREADY_SEARCHING",
-      args: { targetTier: targetTier.discord_id },
+      args: { targetTier: targetTier.discord_id, isYuzu },
     };
   } else await lobbyDB.addTier(lobby.id, targetTier.id);
 

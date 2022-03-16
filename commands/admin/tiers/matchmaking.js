@@ -3,9 +3,15 @@ const guildAPI = require("../../../api/guild");
 const { MessageActionRow, MessageButton } = require("discord.js");
 
 const searchButtons = new MessageActionRow().addComponents(
-  new MessageButton().setCustomId("friendlies").setLabel("Friendlies").setStyle("SUCCESS"),
-  new MessageButton().setCustomId("cancel-friendlies").setLabel("Cancel").setStyle("DANGER")
+  new MessageButton().setCustomId("friendlies").setLabel("Jugar").setStyle("SUCCESS"),
+  new MessageButton().setCustomId("cancel-friendlies").setLabel("Cancelar").setStyle("DANGER")
 );
+
+const searchAllButtons = new MessageActionRow().addComponents(
+  new MessageButton().setCustomId("friendlies").setLabel("Jugar").setStyle("SUCCESS"),
+  new MessageButton().setCustomId("cancel-friendlies").setLabel("Cancelar").setStyle("DANGER")
+);
+
 const sendMessage = async (channel, name) => {
   return await channel.send({
     content: `**${name}**`,
@@ -49,6 +55,11 @@ const matchmaking = async (interaction) => {
     const message = await sendMessage(searchChannel, tier.name);
     await tierAPI.setSearchMessage(tier.id, message.id);
   }
+
+  await searchChannel.send({
+    content: `**Todas las tiers**`,
+    components: [searchAllButtons],
+  });
 
   if (open.length > 0) await searchChannel.send("__**OTROS**__");
   for (tierInfo of open) {
