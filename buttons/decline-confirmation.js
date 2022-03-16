@@ -6,12 +6,8 @@ const { MessageActionRow, MessageButton } = require("discord.js");
 const editTierMessages = async (interaction, messagesInfo) => {
   const playerDiscordId = interaction.user.id;
 
-  const declinerMessagesInfo = messagesInfo.filter(
-    (info) => info.player_id === playerDiscordId
-  );
-  const otherMessagesInfo = messagesInfo.filter(
-    (info) => info.player_id !== playerDiscordId
-  );
+  const declinerMessagesInfo = messagesInfo.filter((info) => info.player_id === playerDiscordId);
+  const otherMessagesInfo = messagesInfo.filter((info) => info.player_id !== playerDiscordId);
 
   if (messagesInfo.length < 0) return false;
   const guildId = messagesInfo[0].guild_id;
@@ -63,8 +59,7 @@ const editDirectMessages = async (interaction, otherPlayersInfo) => {
     rejectedHasTiers = await lobbyAPI.hasLobbyTiers(player.id);
 
     let rejectedText = `Tu rival ha **rechazado** la partida.`;
-    if (rejectedHasTiers)
-      rejectedText += ` Te he vuelto a poner a buscar partida.`;
+    if (rejectedHasTiers) rejectedText += ` Te he vuelto a poner a buscar partida.`;
     else rejectedText += ` Ahora no estás buscando partida.`;
     await message.edit({
       content: rejectedText,
@@ -98,10 +93,7 @@ const execute = async (interaction) => {
     const hasTierToSearch = await lobbyAPI.hasLobbyTiers(player.discord_id);
     if (!hasTierToSearch) continue;
 
-    const rivalPlayer = await lobbyAPI.matchmaking(
-      player.player_id,
-      player.lobby_id
-    );
+    const rivalPlayer = await lobbyAPI.matchmaking(player.player_id, player.lobby_id);
     if (rivalPlayer) {
       const playerIdList = [player.discord_id, rivalPlayer.discord_id];
       await discordMatchingUtils.matched(guild, playerIdList);

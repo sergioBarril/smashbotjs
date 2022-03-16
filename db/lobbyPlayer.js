@@ -52,8 +52,7 @@ const getMessage = async (playerId, client = null) => {
   };
 
   const getMessageResult = await (client ?? db).query(getMessageQuery);
-  if (getMessageResult.rows?.length > 0)
-    return getMessageResult.rows[0].message_id;
+  if (getMessageResult.rows?.length > 0) return getMessageResult.rows[0].message_id;
   else return null;
 };
 
@@ -68,9 +67,7 @@ const getLobbyPlayers = async (lobbyId, client = null) => {
     values: [lobbyId],
   };
 
-  const getLobbyPlayersResult = await (client ?? db).query(
-    getLobbyPlayersQuery
-  );
+  const getLobbyPlayersResult = await (client ?? db).query(getLobbyPlayersQuery);
 
   return getLobbyPlayersResult.rows;
 };

@@ -1,6 +1,6 @@
 {
-    "Tier 1": {"emoji": "", "color": "0xE74C3C", "weight": 1},
-    "Tier 2": {"emoji": "", "color": "0x3498DB", "weight": 2},
-    "Tier 3": {"emoji": "", "color": "0xF1C40F", "weight": 3},
-    "Tier 4": {"emoji": "", "color": "0xE91E63", "weight": 4}
+  "Tier 1": { "emoji": "", "color": "0xE74C3C", "weight": 1 },
+  "Tier 2": { "emoji": "", "color": "0x3498DB", "weight": 2 },
+  "Tier 3": { "emoji": "", "color": "0xF1C40F", "weight": 3 },
+  "Tier 4": { "emoji": "", "color": "0xE91E63", "weight": 4 }
 }

@@ -15,8 +15,7 @@ const upsert = async (interaction) => {
   const adminChannel = await interaction.guild.channels.fetch(adminChannelId);
 
   await adminChannel.send(
-    `**Role Update:** ${type}\n` +
-      `**Triggered by**: ${interaction.member.displayName}`
+    `**Role Update:** ${type}\n` + `**Triggered by**: ${interaction.member.displayName}`
   );
 
   // Get current roles
@@ -71,13 +70,10 @@ const upsert = async (interaction) => {
 
   // Database Role update
   await guild.roles.fetch();
-  currentRoles = guild.roles.cache.filter((role) =>
-    keyNames.includes(role.name)
-  );
+  currentRoles = guild.roles.cache.filter((role) => keyNames.includes(role.name));
 
   const roleList = Array.from(currentRoles.values());
-  const { baseInserted, rolesInserted, rolesUpdated } =
-    await adminAPI.upsertRoles(roleList, type);
+  const { baseInserted, rolesInserted, rolesUpdated } = await adminAPI.upsertRoles(roleList, type);
 
   // Output results
   await adminChannel.send(

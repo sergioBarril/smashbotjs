@@ -1,9 +1,7 @@
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const discordRolesUtils = require("../utils/discordRoles");
 
-const data = new SlashCommandBuilder()
-  .setName("profile")
-  .setDescription("Visualiza tu perfil");
+const data = new SlashCommandBuilder().setName("profile").setDescription("Visualiza tu perfil");
 
 module.exports = {
   data: data,

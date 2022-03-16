@@ -71,9 +71,7 @@ const notMatched = async (interaction, tierId, channelId, yuzu) => {
   const tierRole = await guild.roles.fetch(tierId);
 
   return await interaction.reply({
-    content: `A partir de ahora estás buscando en ${
-      yuzu ? "**Yuzu**" : tierRole
-    }`,
+    content: `A partir de ahora estás buscando en ${yuzu ? "**Yuzu**" : tierRole}`,
     ephemeral: true,
   });
 };

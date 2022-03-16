@@ -22,12 +22,7 @@ const getByPlayer = async (playerId, discord = false, client = null) => {
   return getResult.rows ? getResult.rows[0] : null;
 };
 
-const getByPlayerStatus = async (
-  playerId,
-  status,
-  discord = false,
-  client = null
-) => {
+const getByPlayerStatus = async (playerId, status, discord = false, client = null) => {
   // Get lobby info where the player is, and with a certain status
 
   if (!playerId || !status) return null;
@@ -262,12 +257,7 @@ const allAccepted = async (lobbyId, client = null) => {
   return checkAcceptedResult.rows[0];
 };
 
-const updateLobbyChannels = async (
-  lobbyId,
-  textChannelId,
-  voiceChannelId,
-  client = null
-) => {
+const updateLobbyChannels = async (lobbyId, textChannelId, voiceChannelId, client = null) => {
   const updateChannelsQuery = {
     text: `UPDATE lobby SET
     text_channel_id = $1,

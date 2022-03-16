@@ -11,9 +11,7 @@ const deleteDirectMessages = async (guild, players) => {
 
   for (player of players) {
     const member = await guild.members.fetch(player.discord_id);
-    const message = await member.user.dmChannel.messages.fetch(
-      player.message_id
-    );
+    const message = await member.user.dmChannel.messages.fetch(player.message_id);
     message.delete();
     playerNames.push(member.displayName);
   }
@@ -26,9 +24,7 @@ const editTierMessages = async (guild, messages, playerNames) => {
     style: "long",
     type: "conjunction",
   });
-  const playerString = memberFormatter.format(
-    playerNames.map((name) => `**${name}**`)
-  );
+  const playerString = memberFormatter.format(playerNames.map((name) => `**${name}**`));
 
   const timestamp = new Date();
 

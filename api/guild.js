@@ -33,9 +33,7 @@ const getCurrentList = async (guildDiscordId) => {
 
   const groupedList = {};
 
-  allTiers.forEach(
-    (tier) => (groupedList[[tier.discord_id, tier.search_message_id]] = [])
-  );
+  allTiers.forEach((tier) => (groupedList[[tier.discord_id, tier.search_message_id]] = []));
 
   playerList.forEach(({ tier_id, player_id, message_id }) => {
     groupedList[[tier_id, message_id]].push(player_id);

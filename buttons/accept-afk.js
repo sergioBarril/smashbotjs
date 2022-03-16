@@ -5,9 +5,7 @@ module.exports = {
   data: { name: "accept-afk" },
   async execute(interaction) {
     const player = interaction.user;
-    const { rival: rivalPlayer, guild: guildId } = await lobbyAPI.unAFK(
-      player.id
-    );
+    const { rival: rivalPlayer, guild: guildId } = await lobbyAPI.unAFK(player.id);
 
     const guild = await interaction.client.guilds.fetch(guildId);
 

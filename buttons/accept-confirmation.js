@@ -32,8 +32,7 @@ const createArena = async (interaction, players) => {
   const guild = await lobbyAPI.getGuild(lobby.id);
 
   const discordGuild = await interaction.client.guilds.fetch(guild.discord_id);
-  if (!discordGuild)
-    throw { name: "NO_GUILD", args: { discordId: guild.discord_id } };
+  if (!discordGuild) throw { name: "NO_GUILD", args: { discordId: guild.discord_id } };
   const arenaCategory = discordGuild.channels.cache.find(
     (chan) => chan.type === "GUILD_CATEGORY" && chan.name === "ARENAS"
   );
@@ -117,9 +116,7 @@ const editTierMessages = async (interaction, tierMessages, players) => {
     style: "long",
     type: "conjunction",
   });
-  const memberNames = memberFormatter.format(
-    members.map((member) => `**${member.displayName}**`)
-  );
+  const memberNames = memberFormatter.format(members.map((member) => `**${member.displayName}**`));
 
   updatedText = `${memberNames} están jugando.`;
 
@@ -134,19 +131,10 @@ const editTierMessages = async (interaction, tierMessages, players) => {
   }
 };
 
-const timeOutMessage = async (
-  message,
-  lobbyId,
-  acceptedPlayerId,
-  notAcceptedPlayerId
-) => {
+const timeOutMessage = async (message, lobbyId, acceptedPlayerId, notAcceptedPlayerId) => {
   await new Promise((r) => setTimeout(r, 5000));
 
-  const isAfk = await lobbyAPI.timeOutCheck(
-    lobbyId,
-    acceptedPlayerId,
-    notAcceptedPlayerId
-  );
+  const isAfk = await lobbyAPI.timeOutCheck(lobbyId, acceptedPlayerId, notAcceptedPlayerId);
 
   if (isAfk)
     await message.edit({
@@ -204,9 +192,7 @@ const notAllAccepted = async (interaction, notAcceptedPlayers) => {
 const execute = async (interaction) => {
   const playerDiscordId = interaction.user.id;
   const lobbyPlayers = await lobbyAPI.acceptMatch(playerDiscordId);
-  const notAcceptedPlayers = lobbyPlayers.filter(
-    (player) => player.status !== "ACCEPTED"
-  );
+  const notAcceptedPlayers = lobbyPlayers.filter((player) => player.status !== "ACCEPTED");
 
   if (notAcceptedPlayers.length > 0) {
     await notAllAccepted(interaction, notAcceptedPlayers);

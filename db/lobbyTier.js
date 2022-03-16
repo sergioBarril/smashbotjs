@@ -117,8 +117,7 @@ const hasAnyTier = async (lobbyId, client = null) => {
   };
 
   const hasAnyTierResult = await (client ?? db).query(hasAnyTierQuery);
-  if (hasAnyTierResult?.rows?.length > 0)
-    return hasAnyTierResult.rows[0].exists;
+  if (hasAnyTierResult?.rows?.length > 0) return hasAnyTierResult.rows[0].exists;
   return false;
 };
 

@@ -1,8 +1,7 @@
 const db = require("./index");
 const guildDB = require("./guild");
 
-const get = async (tierId, discord = false) =>
-  await db.basicGet("tier", tierId, discord);
+const get = async (tierId, discord = false) => await db.basicGet("tier", tierId, discord);
 
 const getBySearchMessage = async (messageDiscordId) => {
   const getQuery = {

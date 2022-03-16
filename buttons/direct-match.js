@@ -49,12 +49,7 @@ const execute = async (interaction) => {
   const channelId = interaction.message.channel.id;
 
   try {
-    const searchResult = await lobbyAPI.directMatch(
-      playerId,
-      guildId,
-      messageId,
-      channelId
-    );
+    const searchResult = await lobbyAPI.directMatch(playerId, guildId, messageId, channelId);
     await matched(interaction, searchResult.players);
   } catch (e) {
     await exceptionHandler(interaction, e);

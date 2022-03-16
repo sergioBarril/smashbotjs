@@ -30,8 +30,7 @@ const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
     await regionPlayerDB.remove(region.id, player.id);
     action = "REMOVE";
   } else {
-    if (regions.length >= 2)
-      throw { name: "TOO_MANY_REGIONS", args: { current: regions } };
+    if (regions.length >= 2) throw { name: "TOO_MANY_REGIONS", args: { current: regions } };
     await regionPlayerDB.create(region.id, player.id);
     action = "CREATE";
   }
@@ -41,12 +40,7 @@ const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
   return { roleId: regionRole.discord_id, action };
 };
 
-const assignCharacter = async (
-  playerDiscordId,
-  characterName,
-  guildDiscordId,
-  type
-) => {
+const assignCharacter = async (playerDiscordId, characterName, guildDiscordId, type) => {
   // Assigns a player a role
   const player = await playerDB.get(playerDiscordId, true);
   const guild = await guildDB.get(guildDiscordId, true);

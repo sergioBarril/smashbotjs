@@ -5,8 +5,7 @@ const exceptionHandler = async (interaction, exception) => {
     LOBBY_NOT_FOUND: "¡No estabas buscando partida!",
     TIER_NOT_FOUND: "__**ERROR**__: No se ha encontrado la tier.",
     ALREADY_PLAYING: "Ya estás jugando. ¡Cierra la arena desde allí!",
-    ALREADY_CONFIRMATION:
-      "Ya has encontrado partida. Acéptala (o espera a que tu rival la acepte)",
+    ALREADY_CONFIRMATION: "Ya has encontrado partida. Acéptala (o espera a que tu rival la acepte)",
     ERROR_MESSAGE_MODIF: "Ha habido un problema con la gestión de mensajes.",
   };
 
@@ -38,8 +37,7 @@ const successfulReply = async (interaction, isSearching, tierId) => {
   const tierRole = await interaction.guild.roles.fetch(tierId);
   let responseText = `A partir de ahora **no** estás buscando partida en ${tierRole}`;
 
-  if (!isSearching)
-    responseText = `Ya no estás buscando partida. ¡Hasta pronto!`;
+  if (!isSearching) responseText = `Ya no estás buscando partida. ¡Hasta pronto!`;
 
   return await interaction.reply({
     content: responseText,
@@ -78,12 +76,7 @@ module.exports = {
 
     try {
       const stopSearchResult = await lobbyAPI.stopSearch(playerId, messageId);
-      const {
-        isSearching,
-        tierId,
-        channelId,
-        messageId: tierMessageId,
-      } = stopSearchResult;
+      const { isSearching, tierId, channelId, messageId: tierMessageId } = stopSearchResult;
       await editMessage(interaction, channelId, tierMessageId);
       await successfulReply(interaction, isSearching, tierId);
     } catch (e) {

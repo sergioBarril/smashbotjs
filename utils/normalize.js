@@ -17,9 +17,7 @@ const normalizeCharacter = (characterName) => {
     return { original: charName, normalized: normalizeText(charName) };
   });
 
-  let original = normalizedCharNames.find(
-    (charName) => charName.normalized === key
-  );
+  let original = normalizedCharNames.find((charName) => charName.normalized === key);
 
   if (original) return original.original;
 
@@ -472,15 +470,11 @@ const normalizeCharacter = (characterName) => {
 const normalizeRegion = (regionName) => {
   const key = normalizeText(regionName);
 
-  const normalizedRegionNames = Object.keys(spanishRegions).map(
-    (regionName) => {
-      return { original: regionName, normalized: normalizeText(regionName) };
-    }
-  );
+  const normalizedRegionNames = Object.keys(spanishRegions).map((regionName) => {
+    return { original: regionName, normalized: normalizeText(regionName) };
+  });
 
-  let original = normalizedRegionNames.find(
-    (regionName) => regionName.normalized === key
-  );
+  let original = normalizedRegionNames.find((regionName) => regionName.normalized === key);
 
   if (original) return original.original;
 

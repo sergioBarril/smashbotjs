@@ -4,26 +4,16 @@ const lobbyAPI = require("../api/lobby");
 const discordMatchingUtils = require("../utils/discordMatching");
 
 const row = new MessageActionRow().addComponents(
-  new MessageButton()
-    .setCustomId("accept-afk")
-    .setLabel("Sí, buscar otra vez")
-    .setStyle("SUCCESS"),
-  new MessageButton()
-    .setCustomId("decline-afk")
-    .setLabel("No, me voy")
-    .setStyle("DANGER")
+  new MessageButton().setCustomId("accept-afk").setLabel("Sí, buscar otra vez").setStyle("SUCCESS"),
+  new MessageButton().setCustomId("decline-afk").setLabel("No, me voy").setStyle("DANGER")
 );
 
 // This assumes 1 vs 1. Check for others
 const editTierMessages = async (interaction, messagesInfo) => {
   const playerDiscordId = interaction.user.id;
 
-  const declinerMessagesInfo = messagesInfo.filter(
-    (info) => info.player_id !== playerDiscordId
-  );
-  const otherMessagesInfo = messagesInfo.filter(
-    (info) => info.player_id === playerDiscordId
-  );
+  const declinerMessagesInfo = messagesInfo.filter((info) => info.player_id !== playerDiscordId);
+  const otherMessagesInfo = messagesInfo.filter((info) => info.player_id === playerDiscordId);
 
   if (messagesInfo.length < 0) return false;
   const guildId = messagesInfo[0].guild_id;
@@ -91,8 +81,7 @@ const editDirectMessages = async (interaction, afkInfo) => {
   let acceptedText;
   if (acceptedHasTiers)
     acceptedText = `Como tu rival no respondía, te he vuelto a poner a buscar partida.`;
-  else
-    acceptedText = `Parece que tu rival no estaba... ¡Otra vez será! No estás buscando partida.`;
+  else acceptedText = `Parece que tu rival no estaba... ¡Otra vez será! No estás buscando partida.`;
 
   await interaction.update({
     content: acceptedText,
@@ -115,17 +104,11 @@ module.exports = {
     // Messages
     const messagesInfo = timeoutInfo.messagesInfo;
     await editTierMessages(interaction, messagesInfo);
-    const acceptedHasTiers = await editDirectMessages(
-      interaction,
-      timeoutInfo.declined[0]
-    );
+    const acceptedHasTiers = await editDirectMessages(interaction, timeoutInfo.declined[0]);
 
     if (acceptedHasTiers)
       for (player of timeoutInfo.others) {
-        const rivalPlayer = await lobbyAPI.matchmaking(
-          player.player_id,
-          player.lobby_id
-        );
+        const rivalPlayer = await lobbyAPI.matchmaking(player.player_id, player.lobby_id);
         if (rivalPlayer) {
           const playerIdList = [player.discord_id, rivalPlayer.discord_id];
           await discordMatchingUtils.matched(guild, playerIdList);

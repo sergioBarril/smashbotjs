@@ -3,14 +3,8 @@ const guildAPI = require("../../../api/guild");
 const { MessageActionRow, MessageButton } = require("discord.js");
 
 const searchButtons = new MessageActionRow().addComponents(
-  new MessageButton()
-    .setCustomId("friendlies")
-    .setLabel("Friendlies")
-    .setStyle("SUCCESS"),
-  new MessageButton()
-    .setCustomId("cancel-friendlies")
-    .setLabel("Cancel")
-    .setStyle("DANGER")
+  new MessageButton().setCustomId("friendlies").setLabel("Friendlies").setStyle("SUCCESS"),
+  new MessageButton().setCustomId("cancel-friendlies").setLabel("Cancel").setStyle("DANGER")
 );
 const sendMessage = async (channel, name) => {
   return await channel.send({
@@ -45,9 +39,7 @@ const matchmaking = async (interaction) => {
   const { weighted, open } = await tierAPI.getTiers(interaction.guild.id);
 
   // Swap channels
-  const oldSearchChannel = await guild.channels.fetch(
-    guildInfo.search_channel_id
-  );
+  const oldSearchChannel = await guild.channels.fetch(guildInfo.search_channel_id);
   await oldSearchChannel.delete();
   await guildAPI.setMatchmakingChannel(guild.id, searchChannel.id);
 

@@ -12,14 +12,8 @@ const sendConfirmation = async (player, opponent) => {
   // about their match with opponent
   const messageText = `¡Match encontrado! ${player}, te toca contra **${opponent.displayName}**`;
   const row = new MessageActionRow().addComponents(
-    new MessageButton()
-      .setCustomId("accept-confirmation")
-      .setLabel("Aceptar")
-      .setStyle("SUCCESS"),
-    new MessageButton()
-      .setCustomId("decline-confirmation")
-      .setLabel("Rechazar")
-      .setStyle("DANGER")
+    new MessageButton().setCustomId("accept-confirmation").setLabel("Aceptar").setStyle("SUCCESS"),
+    new MessageButton().setCustomId("decline-confirmation").setLabel("Rechazar").setStyle("DANGER")
   );
   const directMessage = await player.send({
     content: messageText,
@@ -51,10 +45,7 @@ const matched = async (guild, playerIdList) => {
 
   // Send DMs
   const [player1, player2] = players;
-  await Promise.all([
-    sendConfirmation(player1, player2),
-    sendConfirmation(player2, player1),
-  ]);
+  await Promise.all([sendConfirmation(player1, player2), sendConfirmation(player2, player1)]);
 
   // Update all your #tier messages
   const messages = await lobbyAPI.getTierMessages(player1.id);
@@ -85,10 +76,7 @@ const notMatched = async (playerId, guild, tierInfo = null) => {
   // This includes sending a message to #tier
 
   const button = new MessageActionRow().addComponents(
-    new MessageButton()
-      .setCustomId("direct-match")
-      .setLabel("Jugar")
-      .setStyle("SUCCESS")
+    new MessageButton().setCustomId("direct-match").setLabel("Jugar").setStyle("SUCCESS")
   );
 
   const member = await guild.members.fetch(playerId);
@@ -130,9 +118,7 @@ const newSearchMessageText = (message, tier, playerNames) => {
     style: "long",
     type: "conjunction",
   });
-  const memberNames = memberFormatter.format(
-    playerNames.map((name) => `*${name}*`)
-  );
+  const memberNames = memberFormatter.format(playerNames.map((name) => `*${name}*`));
 
   let messageText = `**${tier.name}**`;
   if (playerNames.length > 0) messageText += `\n${memberNames}`;

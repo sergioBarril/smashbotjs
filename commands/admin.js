@@ -42,17 +42,12 @@ const data = new SlashCommandBuilder()
           .setName("add")
           .setDescription("Add a tier or pseudo-tier role")
           .addStringOption((option) =>
-            option
-              .setName("name")
-              .setDescription("Name of the tier")
-              .setRequired(true)
+            option.setName("name").setDescription("Name of the tier").setRequired(true)
           )
           .addIntegerOption((option) =>
             option
               .setName("weight")
-              .setDescription(
-                "Weight of the tier. The lower, the better (Tier 1 > Tier 2)."
-              )
+              .setDescription("Weight of the tier. The lower, the better (Tier 1 > Tier 2).")
           )
           .addIntegerOption((option) =>
             option
@@ -68,9 +63,7 @@ const data = new SlashCommandBuilder()
           )
       )
       .addSubcommand((subcommand) =>
-        subcommand
-          .setName("matchmaking")
-          .setDescription("Remakes the search channel.")
+        subcommand.setName("matchmaking").setDescription("Remakes the search channel.")
       )
   );
 
