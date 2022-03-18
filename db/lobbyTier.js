@@ -14,6 +14,22 @@ const get = async (lobbyId, tierId, client = null) => {
   return null;
 };
 
+const getByLobby = async (lobbyId, client = null) => {
+  const getQuery = {
+    text: `
+    SELECT tier.* FROM lobby_tier lt
+    INNER JOIN tier
+      ON tier.id = lt.tier_id
+    WHERE lt.lobby_id = $1
+    ORDER BY tier.weight ASC
+    `,
+    values: [lobbyId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows;
+};
+
 const updateMessage = async (lobbyId, tierId, messageId, client = null) => {
   const updateMessageQuery = {
     text: `
@@ -138,6 +154,7 @@ const getChannels = async (lobbyId, client = null) => {
 };
 module.exports = {
   get,
+  getByLobby,
   updateMessage,
   getMessages,
   clearMessages,

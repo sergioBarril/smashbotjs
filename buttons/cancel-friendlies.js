@@ -7,6 +7,7 @@ const exceptionHandler = async (interaction, exception) => {
     ALREADY_PLAYING: "Ya estás jugando. ¡Cierra la arena desde allí!",
     ALREADY_CONFIRMATION: "Ya has encontrado partida. Acéptala (o espera a que tu rival la acepte)",
     ERROR_MESSAGE_MODIF: "Ha habido un problema con la gestión de mensajes.",
+    NOT_SEARCHING_LAN: "No estás buscando en ningún canal de Cable LAN. ",
   };
 
   const { name, args } = exception;
@@ -33,9 +34,24 @@ const exceptionHandler = async (interaction, exception) => {
   });
 };
 
-const successfulReply = async (interaction, isSearching, tierId) => {
-  const tierRole = await interaction.guild.roles.fetch(tierId);
-  let responseText = `A partir de ahora **no** estás buscando partida en ${tierRole}`;
+const successfulReply = async (interaction, isSearching, tiers) => {
+  const roles = [];
+
+  for (tier of tiers) {
+    if (tier.yuzu) roles.push(`**Yuzu**`);
+    else {
+      const tierRole = await interaction.guild.roles.fetch(tier.discord_id);
+      roles.push(`${tierRole}`);
+    }
+  }
+
+  const rolesFormatter = new Intl.ListFormat("es", {
+    style: "long",
+    type: "conjunction",
+  });
+  const rolesNames = rolesFormatter.format(roles);
+
+  let responseText = `A partir de ahora **no** estás buscando partida en ${rolesNames}`;
 
   if (!isSearching) responseText = `Ya no estás buscando partida. ¡Hasta pronto!`;
 
@@ -72,13 +88,15 @@ module.exports = {
   data: { name: "cancel-friendlies" },
   async execute(interaction) {
     const playerId = interaction.user.id;
-    const messageId = interaction.message.id;
+    const messageId = interaction.customId === "cancel-friendlies" ? interaction.message.id : null;
 
     try {
       const stopSearchResult = await lobbyAPI.stopSearch(playerId, messageId);
-      const { isSearching, tierId, channelId, messageId: tierMessageId } = stopSearchResult;
-      await editMessage(interaction, channelId, tierMessageId);
-      await successfulReply(interaction, isSearching, tierId);
+      const { isSearching, tiers } = stopSearchResult;
+      for (tier of tiers) {
+        await editMessage(interaction, tier.channel_id, tier.lobbyTier.message_id);
+      }
+      await successfulReply(interaction, isSearching, tiers);
     } catch (e) {
       await exceptionHandler(interaction, e);
     }

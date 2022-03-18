@@ -81,20 +81,22 @@ const hasTier = async (lobbyId, tierId, client = null) => {
   return isTier.rows?.length > 0;
 };
 
-const addTier = async (lobbyId, tierId, client = null) => {
-  const addTierQuery = {
-    text: `INSERT INTO lobby_tier(lobby_id, tier_id) VALUES ($1, $2)`,
-    values: [lobbyId, tierId],
-  };
+const addTiers = async (lobbyId, tiers, client = null) => {
+  for (tier of tiers) {
+    const addTierQuery = {
+      text: `INSERT INTO lobby_tier(lobby_id, tier_id) VALUES ($1, $2)`,
+      values: [lobbyId, tier.id],
+    };
 
-  await (client ?? db).query(addTierQuery);
+    await (client ?? db).query(addTierQuery);
+  }
   return true;
 };
 
 const create = async (
   guildId,
   playerId,
-  tierId = null,
+  targetTiers = null,
   mode = "FRIENDLIES",
   status = "SEARCHING"
 ) => {
@@ -124,13 +126,14 @@ const create = async (
 
     await client.query(insertLobbyPlayer);
 
-    if (tierId) {
+    if (targetTiers === null) targetTiers = [];
+    for (tier of targetTiers) {
       const insertLobbyTier = {
         text: `
         INSERT INTO lobby_tier(lobby_id, tier_id)
         VALUES ($1, $2)
       `,
-        values: [lobby.id, tierId],
+        values: [lobby.id, tier.id],
       };
       await client.query(insertLobbyTier);
     }
@@ -291,7 +294,7 @@ module.exports = {
   removeByPlayer,
   removeOtherLobbies,
   hasTier,
-  addTier,
+  addTiers,
   matchmaking,
   updateLobbyChannels,
   updateStatus,

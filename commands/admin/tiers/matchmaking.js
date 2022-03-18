@@ -8,8 +8,11 @@ const searchButtons = new MessageActionRow().addComponents(
 );
 
 const searchAllButtons = new MessageActionRow().addComponents(
-  new MessageButton().setCustomId("friendlies").setLabel("Jugar").setStyle("SUCCESS"),
-  new MessageButton().setCustomId("cancel-friendlies").setLabel("Cancelar").setStyle("DANGER")
+  new MessageButton().setCustomId("friendlies-all-tiers").setLabel("Jugar").setStyle("SUCCESS"),
+  new MessageButton()
+    .setCustomId("cancel-friendlies-all-tiers")
+    .setLabel("Cancelar")
+    .setStyle("DANGER")
 );
 
 const sendMessage = async (channel, name) => {

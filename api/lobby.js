@@ -134,6 +134,8 @@ const canSearchYuzu = async (playerId, guildId) => {
 };
 
 const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
+  const isSearchAll = messageDiscordId === null;
+
   const guild = await guildDB.get(guildDiscordId, true);
   if (!guild) throw { name: "GUILD_NOT_FOUND" };
 
@@ -141,11 +143,15 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   if (!player) throw { name: "PLAYER_NOT_FOUND" };
 
   const targetTier = await tierDB.getBySearchMessage(messageDiscordId);
-  if (!targetTier) throw { name: "TIER_NOT_FOUND" };
+  if (!targetTier && !isSearchAll) throw { name: "TIER_NOT_FOUND" };
 
-  const isYuzu = targetTier.yuzu;
+  const isYuzu = !isSearchAll && targetTier.yuzu;
 
-  const playerTier = await playerDB.getTier(player.id);
+  let targetTiers = [];
+  const allTiers = await tierDB.getByGuild(guild.id, false);
+
+  const playerTier = await playerDB.getTier(player.id, guild.id);
+  // Yuzu
   if (isYuzu) {
     const canSearch = await canSearchYuzu(player.id, guild.id);
     if (!canSearch)
@@ -156,9 +162,25 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
           parsecRole: guild.parsec_role_id,
         },
       };
+    else targetTiers.push(targetTier);
+
+    // Not yuzu
   } else {
-    const canSearch = canSearchTier(playerTier, targetTier);
-    if (!canSearch)
+    let canSearch = false;
+    // One tier
+    if (targetTier && canSearchTier(playerTier, targetTier)) {
+      targetTiers.push(targetTier);
+      canSearch = true;
+    }
+    // All tiers
+    else {
+      targetTiers = allTiers.filter(
+        (tier) => tier.weight !== null && canSearchTier(playerTier, tier)
+      );
+      canSearch = targetTiers.length > 0;
+    }
+
+    if (!canSearch && targetTier)
       throw {
         name: "TOO_NOOB",
         args: {
@@ -166,33 +188,42 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
           playerTier: playerTier.discord_id,
         },
       };
+    else if (!canSearch)
+      throw {
+        name: "NO_CABLE",
+      };
   }
 
   let lobby = await lobbyDB.getByPlayer(player.id);
   const isSearching = lobby?.status === "SEARCHING";
-  const hasTier = await lobbyDB.hasTier(lobby?.id, targetTier.id);
+  const searchingTiers = await lobbyTierDB.getByLobby(lobby?.id);
+  const searchingTiersIds = searchingTiers.map((tier) => tier.id);
+
+  const lanSearchingTiers = searchingTiers.filter((tier) => tier.weight !== null);
+
+  // Is already searching all those tiers?
+  const newTiers = targetTiers.filter((tier) => !searchingTiersIds.includes(tier.id));
+  // const hasTier = await lobbyDB.hasTier(lobby?.id, targetTier.id);
 
   if (!lobby) {
-    await lobbyDB.create(guild.id, player.id, targetTier.id);
+    await lobbyDB.create(guild.id, player.id, targetTiers);
     lobby = await lobbyDB.getByPlayer(player.id);
   } else if (!isSearching) {
     throw { name: "NOT_SEARCHING" };
-  } else if (hasTier) {
+  } else if (newTiers.length === 0) {
     throw {
       name: "ALREADY_SEARCHING",
-      args: { targetTier: targetTier.discord_id, isYuzu },
+      args: { targetTiers, isYuzu },
     };
-  } else await lobbyDB.addTier(lobby.id, targetTier.id);
+  } else await lobbyDB.addTiers(lobby.id, newTiers);
 
-  const rivalPlayer = await matchmaking(player.id, lobby.id, guild.id, targetTier.id);
+  const rivalPlayer = await matchmaking(player.id, lobby.id, guild.id, null);
 
   // Unmatched, return info to send @Tier
   if (!rivalPlayer) {
     return {
       matched: false,
-      tierId: targetTier.discord_id,
-      yuzu: targetTier.yuzu,
-      channelId: targetTier.channel_id,
+      tiers: targetTiers,
     };
   }
 
@@ -248,17 +279,27 @@ const directMatch = async (playerDiscordId, guildDiscordId, messageDiscordId) =>
 
 const stopSearch = async (playerDiscordId, messageId) => {
   const lobby = await lobbyDB.getByPlayer(playerDiscordId, true);
-  const tier = await tierDB.getBySearchMessage(messageId);
-
-  //  Checks
   if (!lobby) throw { name: "LOBBY_NOT_FOUND" };
-  if (!tier) throw { name: "TIER_NOT_FOUND" };
 
-  let hasTier = await lobbyDB.hasTier(lobby.id, tier.id);
-  if (!hasTier)
+  // Tiers to Stop
+  let tiersToStop = [];
+  const searchingTiers = await lobbyTierDB.getByLobby(lobby.id);
+  if (messageId) {
+    const tier = await tierDB.getBySearchMessage(messageId);
+    if (!tier) throw { name: "TIER_NOT_FOUND" };
+    if (searchingTiers.some((x) => x.id === tier.id)) tiersToStop.push(tier);
+    else
+      throw {
+        name: "NOT_SEARCHING_HERE",
+        args: { tierId: tier.discord_id, yuzu: tier.yuzu },
+      };
+  } else {
+    tiersToStop = searchingTiers.filter((tier) => tier.weight !== null);
+  }
+
+  if (tiersToStop.length === 0)
     throw {
-      name: "NOT_SEARCHING_HERE",
-      args: { tierId: tier.discord_id, yuzu: tier.yuzu },
+      name: "NOT_SEARCHING_LAN",
     };
 
   if (lobby.status === "PLAYING") throw { name: "ALREADY_PLAYING" };
@@ -270,8 +311,11 @@ const stopSearch = async (playerDiscordId, messageId) => {
 
   try {
     await client.query("BEGIN");
-    const lobbyTier = await lobbyTierDB.get(lobby.id, tier.id, client);
-    await lobbyTierDB.remove(lobby.id, tier.id, client);
+    for (tier of tiersToStop) {
+      const lobbyTier = await lobbyTierDB.get(lobby.id, tier.id, client);
+      await lobbyTierDB.remove(lobby.id, tier.id, client);
+      tier.lobbyTier = lobbyTier;
+    }
 
     // If it was the last tier, remove the lobby
     hasTier = await lobbyTierDB.hasAnyTier(lobby.id, client);
@@ -280,9 +324,7 @@ const stopSearch = async (playerDiscordId, messageId) => {
 
     return {
       isSearching: hasTier,
-      tierId: tier.discord_id,
-      channelId: tier.channel_id,
-      messageId: lobbyTier.message_id,
+      tiers: tiersToStop,
     };
   } catch (e) {
     await client.query("ROLLBACK");
