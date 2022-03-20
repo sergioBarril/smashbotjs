@@ -117,9 +117,20 @@ const getYuzuMessageRoles = async (playerDiscordId, guildDiscordId) => {
   return roles;
 };
 
+const getCharacters = async (playerDiscordId, guildDiscordId) => {
+  const player = await playerDB.get(playerDiscordId, true);
+
+  const mains = await characterPlayerDB.getByType(player.id, "MAIN");
+  const seconds = await characterPlayerDB.getByType(player.id, "SECOND");
+  const pockets = await characterPlayerDB.getByType(player.id, "POCKET");
+
+  return { mains, seconds, pockets };
+};
+
 module.exports = {
   assignCharacter,
   assignRegion,
   assignYuzu,
   getYuzuMessageRoles,
+  getCharacters,
 };

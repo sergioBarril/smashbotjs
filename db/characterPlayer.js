@@ -15,7 +15,7 @@ const get = async (characterId, playerId, client = null) => {
 const getByType = async (playerId, type, client = null) => {
   const getQuery = {
     text: `
-    SELECT character.* FROM character_player cp
+    SELECT character.*, type FROM character_player cp
     INNER JOIN character
     ON cp.character_id = character.id
     WHERE cp.player_id = $1

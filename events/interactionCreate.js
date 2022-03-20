@@ -3,7 +3,11 @@ module.exports = {
   async execute(interaction) {
     let command = null;
     if (interaction.isCommand()) command = interaction.client.commands.get(interaction.commandName);
-    else if (interaction.isButton()) command = interaction.client.buttons.get(interaction.customId);
+    else if (interaction.isButton()) {
+      command = interaction.client.buttons.get(interaction.customId);
+      if (!command && interaction.customId.startsWith("play-character"))
+        command = interaction.client.buttons.get("play-character");
+    }
 
     if (!command) {
       console.log("Rip");

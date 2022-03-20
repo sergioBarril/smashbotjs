@@ -11,7 +11,8 @@ const deleteDirectMessages = async (guild, players) => {
 
   for (player of players) {
     const member = await guild.members.fetch(player.discord_id);
-    const message = await member.user.dmChannel.messages.fetch(player.message_id);
+    const dmChannel = await member.user.createDM();
+    const message = await dmChannel.messages.fetch(player.message_id);
     message.delete();
     playerNames.push(member.displayName);
   }

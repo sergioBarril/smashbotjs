@@ -48,6 +48,19 @@ const getByPlayerStatus = async (playerId, status, discord = false, client = nul
   else return null;
 };
 
+const getByTextChannel = async (channelId, client = null) => {
+  const getQuery = {
+    text: `
+    SELECT * FROM lobby
+    WHERE text_channel_id = $1
+    `,
+    values: [channelId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows[0];
+};
+
 const getByTierChannelMessage = async (messageId, client = null) => {
   const getByMessageQuery = {
     text: `
@@ -288,6 +301,7 @@ module.exports = {
   get,
   getByPlayer,
   getByPlayerStatus,
+  getByTextChannel,
   getByTierChannelMessage,
   create,
   remove,
