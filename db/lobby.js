@@ -61,6 +61,23 @@ const getByTextChannel = async (channelId, client = null) => {
   return getResult.rows[0];
 };
 
+const getByGameSet = async (gamesetId, client = null) => {
+  const getQuery = {
+    text: `
+    SELECT lobby.*
+    FROM lobby 
+    INNER JOIN gameset
+      ON gameset.lobby_id = lobby.id
+    WHERE gameset.id = $1
+    `,
+    values: [gamesetId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+
+  return getResult.rows[0];
+};
+
 const getByTierChannelMessage = async (messageId, client = null) => {
   const getByMessageQuery = {
     text: `
@@ -300,6 +317,7 @@ const updateStatus = async (lobbyId, status, client = null) => {
 module.exports = {
   get,
   getByPlayer,
+  getByGameSet,
   getByPlayerStatus,
   getByTextChannel,
   getByTierChannelMessage,

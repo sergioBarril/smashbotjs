@@ -53,10 +53,35 @@ const create = async (gameSetId, gameNum, client = null) => {
   await (client ?? db).query(insertQuery);
 };
 
+const getStriker = async (gameId, client = null) => {
+  const getQuery = {
+    text: `SELECT 1 FROM game_player
+    WHERE game_id = $1
+    AND ban_turn`,
+    values: [gameId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows[0];
+};
+
+const setStage = async (gameId, stageId, client = null) => {
+  const updateQuery = {
+    text: `UPDATE game
+    SET stage_id = $1
+    WHERE id = $2`,
+    values: [stageId, gameId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
 module.exports = {
   get,
+  getStriker,
   getCurrent,
   getByNum,
   haveAllPicked,
   create,
+  setStage,
 };

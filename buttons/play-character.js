@@ -2,6 +2,7 @@ const setAPI = require("../api/gameSet");
 
 const { MessageActionRow, MessageButton } = require("discord.js");
 const smashCharacters = require("../params/smashCharacters.json");
+const { setupBans } = require("../utils/discordGameset");
 
 const allHavePicked = async (interaction, playerId, gameNum) => {
   // Delete all charpick messages
@@ -24,6 +25,8 @@ const allHavePicked = async (interaction, playerId, gameNum) => {
   await interaction.reply({
     content: `El **Game ${gameNum}** será entre ${playersText}.`,
   });
+
+  return await setupBans(interaction, gameNum);
 };
 
 const disableAllButtons = (message) => {
