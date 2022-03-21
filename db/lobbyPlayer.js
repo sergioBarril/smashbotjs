@@ -1,5 +1,4 @@
 const db = require("./index");
-const playerDB = require("./player");
 
 const updateStatus = async (lobbyId, playerId, status, client = null) => {
   const updateStatusQuery = {
@@ -100,6 +99,17 @@ const removeOtherPlayers = async (lobbyId, playerId, client = null) => {
   await (client ?? db).query(removeOtherPlayersQuery);
 };
 
+const existsLobbyPlayer = async (playerId, client = null) => {
+  const getQuery = {
+    text: `SELECT 1 FROM lobby_player
+    WHERE player_id = $1`,
+    values: [playerId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows.length > 0;
+};
+
 module.exports = {
   updateStatus,
   updateAllStatus,
@@ -108,4 +118,5 @@ module.exports = {
   setMessage,
   getLobbyPlayers,
   removeOtherPlayers,
+  existsLobbyPlayer,
 };

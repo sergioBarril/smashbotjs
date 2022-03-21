@@ -195,20 +195,19 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   }
 
   let lobby = await lobbyDB.getByPlayer(player.id);
+  const existsLobbyPlayer = await lobbyPlayerDB.existsLobbyPlayer(player.id);
   const isSearching = lobby?.status === "SEARCHING";
   const searchingTiers = await lobbyTierDB.getByLobby(lobby?.id);
   const searchingTiersIds = searchingTiers.map((tier) => tier.id);
-
-  const lanSearchingTiers = searchingTiers.filter((tier) => tier.weight !== null);
 
   // Is already searching all those tiers?
   const newTiers = targetTiers.filter((tier) => !searchingTiersIds.includes(tier.id));
   // const hasTier = await lobbyDB.hasTier(lobby?.id, targetTier.id);
 
-  if (!lobby) {
+  if (!lobby && !existsLobbyPlayer) {
     await lobbyDB.create(guild.id, player.id, targetTiers);
     lobby = await lobbyDB.getByPlayer(player.id);
-  } else if (!isSearching) {
+  } else if (!isSearching || (!lobby && existsLobbyPlayer)) {
     throw { name: "NOT_SEARCHING" };
   } else if (newTiers.length === 0) {
     throw {
