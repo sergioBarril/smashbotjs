@@ -76,10 +76,60 @@ const setStage = async (gameId, stageId, client = null) => {
   await (client ?? db).query(updateQuery);
 };
 
+const getWinner = async (gameId, client = null) => {
+  const getQuery = {
+    text: `SELECT player.*
+    FROM game
+    INNER JOIN player
+      ON game.winner_id = player.id
+    WHERE game.id = $1`,
+    values: [gameId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows[0];
+};
+
+const calculateWinner = async (gameId, client = null) => {
+  const getQuery = {
+    text: `SELECT player.*, c.name AS character_name
+    FROM game_player gp
+    INNER JOIN player
+      ON gp.player_id = player.id
+    INNER JOIN character c
+      ON gp.character_id = c.id
+    WHERE gp.game_id = $1 
+    AND winner
+    AND EXISTS (
+      SELECT 1 FROM game_player
+      WHERE game_id = $1
+      AND NOT winner
+    )`,
+    values: [gameId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows[0];
+};
+
+const setWinner = async (gameId, winnerId, client = null) => {
+  const updateQuery = {
+    text: `UPDATE game
+    SET winner_id = $1
+    WHERE id = $2`,
+    values: [winnerId, gameId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
 module.exports = {
   get,
   getStriker,
   getCurrent,
+  getWinner,
+  setWinner,
+  calculateWinner,
   getByNum,
   haveAllPicked,
   create,

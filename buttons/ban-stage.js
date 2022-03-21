@@ -2,6 +2,7 @@ const setAPI = require("../api/gameSet");
 
 const stageEmojis = require("../params/stageEmojis.json");
 const { MessageActionRow, MessageButton } = require("discord.js");
+const { setupGameWinner } = require("../utils/discordGameset");
 
 const banText = (nextStriker, gameNum, bannedStages) => {
   if (gameNum == 1) {
@@ -108,7 +109,8 @@ const execute = async (interaction) => {
       components: banMessageComponents,
     });
 
-    await interaction.reply("Aquí irá la selección de ganador");
+    await interaction.deferUpdate();
+    return await setupGameWinner(interaction, gameNum);
   } else {
     const { bannedStages } = banResponse;
 

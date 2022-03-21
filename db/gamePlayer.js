@@ -11,6 +11,21 @@ const get = async (gameId, playerId, client = null) => {
   return getResult.rows[0];
 };
 
+const getOpponent = async (gameId, playerId, client = null) => {
+  const getQuery = {
+    text: `SELECT player.*, gp.winner AS winner
+    FROM game_player gp
+    INNER JOIN player
+      ON player.id = gp.player_id
+    WHERE gp.game_id = $1
+    AND gp.player_id <> $2`,
+    values: [gameId, playerId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows[0];
+};
+
 const getPlayersAndCharacters = async (gameId, client = null) => {
   const getQuery = {
     text: `SELECT p.discord_id AS discord_id, c.name AS character_name
@@ -85,6 +100,18 @@ const setBanTurn = async (gameId, playerId, banTurn, client = null) => {
   await (client ?? db).query(updateQuery);
 };
 
+const setWinner = async (gameId, playerId, isWinner, client = null) => {
+  const updateQuery = {
+    text: `UPDATE game_player
+    SET winner = $1
+    WHERE game_id = $2
+    AND player_id = $3`,
+    values: [isWinner, gameId, playerId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
 const create = async (gameId, playerId, client = null) => {
   const insertQuery = {
     text: `
@@ -100,10 +127,12 @@ const create = async (gameId, playerId, client = null) => {
 module.exports = {
   get,
   create,
+  getOpponent,
   getPlayersAndCharacters,
   setCharacter,
   getCharMessages,
   setCharMessage,
   setNullCharMessages,
   setBanTurn,
+  setWinner,
 };

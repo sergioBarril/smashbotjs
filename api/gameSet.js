@@ -174,6 +174,32 @@ const getStriker = async (channelDiscordId) => {
   return { striker };
 };
 
+const pickWinner = async (playerDiscordId, isWinner, gameNum) => {
+  // Get variables
+  const player = await playerDB.get(playerDiscordId, true);
+
+  const gameset = await gameSetDB.getByPlayer(player.id);
+  const game = await gameDB.getByNum(gameset.id, gameNum);
+
+  const client = await db.getClient();
+  try {
+    await client.query("BEGIN");
+    await gamePlayerDB.setWinner(game.id, player.id, isWinner, client);
+    const winner = await gameDB.calculateWinner(game.id, client);
+    const opponent = await gamePlayerDB.getOpponent(game.id, player.id, client);
+
+    if (winner) await gameDB.setWinner(game.id, winner.id, client);
+    await client.query("COMMIT");
+
+    return { winner, opponent };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   newSet,
   getPlayersAndCharacters,
@@ -183,5 +209,6 @@ module.exports = {
   getStages,
   getStriker,
   pickStage,
+  pickWinner,
   banStage,
 };

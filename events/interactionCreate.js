@@ -9,6 +9,8 @@ module.exports = {
         command = interaction.client.buttons.get("play-character");
       if (!command && interaction.customId.startsWith("ban-stage"))
         command = interaction.client.buttons.get("ban-stage");
+      if (!command && interaction.customId.startsWith("game-winner"))
+        command = interaction.client.buttons.get("game-winner");
     }
 
     if (!command) {

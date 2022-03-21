@@ -5,6 +5,8 @@ const smashCharacters = require("../params/smashCharacters.json");
 const { setupBans } = require("../utils/discordGameset");
 
 const allHavePicked = async (interaction, playerId, gameNum) => {
+  await interaction.deferUpdate();
+
   // Delete all charpick messages
   const { charMessages } = await setAPI.popCharacterMessages(playerId);
   for ({ char_message: messageId } of charMessages) {
@@ -21,8 +23,7 @@ const allHavePicked = async (interaction, playerId, gameNum) => {
     playerEmojis.push(`**${player.displayName}** ${emoji}`);
   }
   const playersText = new Intl.ListFormat("es").format(playerEmojis);
-
-  await interaction.reply({
+  await interaction.channel.send({
     content: `El **Game ${gameNum}** será entre ${playersText}.`,
   });
 
