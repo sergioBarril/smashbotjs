@@ -13,10 +13,12 @@ const get = async (gameId, playerId, client = null) => {
 
 const getOpponent = async (gameId, playerId, client = null) => {
   const getQuery = {
-    text: `SELECT player.*, gp.winner AS winner
+    text: `SELECT player.*, gp.winner AS winner, c.name
     FROM game_player gp
     INNER JOIN player
       ON player.id = gp.player_id
+    LEFT JOIN character c
+      ON c.id = gp.character_id
     WHERE gp.game_id = $1
     AND gp.player_id <> $2`,
     values: [gameId, playerId],

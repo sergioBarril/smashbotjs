@@ -1,9 +1,5 @@
 const setAPI = require("../api/gameSet");
-const rolesAPI = require("../api/roles");
-
-const smashCharacters = require("../params/smashCharacters.json");
-
-const { MessageActionRow, MessageButton } = require("discord.js");
+const { setupCharacter } = require("../utils/discordGameset");
 
 const exceptionHandler = async (interaction, exception) => {
   EXCEPTION_MESSAGES = {
@@ -21,40 +17,6 @@ const exceptionHandler = async (interaction, exception) => {
     content: response,
     ephemeral: true,
   });
-};
-
-const askChar = async (channel, player, guildId) => {
-  const { mains, seconds, pockets } = await rolesAPI.getCharacters(player.id, guildId);
-
-  const characters = mains.concat(seconds).concat(pockets);
-
-  const rows = [];
-  let i = 0;
-  let row;
-
-  for (character of characters) {
-    const emoji = smashCharacters[character.name].emoji;
-    if (i % 5 === 0) {
-      if (row) rows.push(row);
-      row = new MessageActionRow();
-    }
-    row.addComponents(
-      new MessageButton()
-        .setCustomId(`play-character-${player.id}-${i}`)
-        .setLabel(character.name)
-        .setStyle(character.type === "MAIN" ? "PRIMARY" : "SECONDARY")
-        .setEmoji(emoji)
-    );
-    i++;
-  }
-  rows.push(row);
-
-  const message = await channel.send({
-    content: `${player}, selecciona el personaje que quieras jugar (con botones o usando \`/play\`).`,
-    components: [...rows],
-  });
-
-  await setAPI.setCharMessage(player.id, message.id);
 };
 
 module.exports = {
@@ -82,7 +44,11 @@ module.exports = {
         components: [],
       });
 
-      await Promise.all([members.map((member) => askChar(channel, member, interaction.guild.id))]);
+      await interaction.channel.send("__**Game 1**__");
+
+      await Promise.all([
+        members.map((member) => setupCharacter(channel, member, interaction.guild.id, 1)),
+      ]);
     } catch (e) {
       await exceptionHandler(interaction, e);
     }

@@ -42,9 +42,27 @@ const create = async (guildId, lobbyId, firstTo, client = null) => {
   await (client ?? db).query(insertQuery);
 };
 
+const getScore = async (gameSetId, client = null) => {
+  const getQuery = {
+    text: `SELECT p.discord_id AS discord_id,
+      COUNT(game.winner_id) FILTER(WHERE p.id = game.winner_id) AS wins
+    FROM game_player gp
+    INNER JOIN game
+      ON game.id = gp.game_id
+    INNER JOIN player p
+      ON p.id = gp.player_id
+    WHERE game.gameset_id = $1
+    GROUP BY p.discord_id`,
+    values: [gameSetId],
+  };
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows;
+};
+
 module.exports = {
   get,
   getByPlayer,
   getByLobby,
+  getScore,
   create,
 };

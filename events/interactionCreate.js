@@ -11,10 +11,13 @@ module.exports = {
         command = interaction.client.buttons.get("ban-stage");
       if (!command && interaction.customId.startsWith("game-winner"))
         command = interaction.client.buttons.get("game-winner");
+      if (!command && interaction.customId.startsWith("pick-stage"))
+        command = interaction.client.buttons.get("pick-stage");
     }
 
     if (!command) {
       console.log("Rip");
+      console.log(interaction.customId);
       return;
     }
 

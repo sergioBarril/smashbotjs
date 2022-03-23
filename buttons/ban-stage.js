@@ -1,91 +1,49 @@
 const setAPI = require("../api/gameSet");
 
-const stageEmojis = require("../params/stageEmojis.json");
-const { MessageActionRow, MessageButton } = require("discord.js");
-const { setupGameWinner } = require("../utils/discordGameset");
+const {
+  setupGameWinner,
+  stageButtons,
+  stageFinalButtons,
+  stageFinalText,
+  stageText,
+  setupCharacter,
+} = require("../utils/discordGameset");
 
-const banText = (nextStriker, gameNum, bannedStages) => {
-  if (gameNum == 1) {
-    if (bannedStages.length === 1)
-      return `${nextStriker}, te toca banear **DOS** escenarios. Pulsa el botón del escenario que quieras __**BANEAR**__. `;
-    else
-      return `${nextStriker}, te toca banear otro escenario. Pulsa el botón del escenario que quieras __**BANEAR**__. `;
+const endStageStep = async (interaction, gameNum, stages, pickedStage) => {
+  const banMessageComponents = stageFinalButtons(stages, pickedStage);
+  const banMessageText = stageFinalText(gameNum, pickedStage);
+
+  await interaction.message.edit({
+    content: banMessageText,
+    components: banMessageComponents,
+  });
+
+  await interaction.deferUpdate();
+  if (gameNum == 1) return await setupGameWinner(interaction, gameNum);
+  else {
+    const lastWinner = await setAPI.getGameWinner(gameNum - 1);
+    const player = await interaction.guild.members.fetch(lastWinner.discord_id);
+    return await setupCharacter(interaction.channel, player, interaction.guild.id);
   }
-
-  // bannedStages.length == 1
-  return `${nextStriker}, te toca banear otro escenario. Pulsa el botón del escenario que quieras __**BANEAR**__.`;
 };
 
-const banFinalText = (gameNum, starter) => {
-  const emoji = stageEmojis[starter.name];
-  return `El **Game ${gameNum}** se jugará en **${starter.name}** ${emoji}`;
-};
+const nextStep = async (interaction, gameNum, nextPlayerId, stages, bannedStages, isBan) => {
+  const nextPlayer = await interaction.guild.members.fetch(nextPlayerId);
+  const stageMessageText = stageText(nextPlayer, gameNum, bannedStages.length, isBan);
+  const stageMessageComponents = stageButtons(nextPlayer.id, gameNum, stages, bannedStages, isBan);
 
-const banButtons = (nextStriker, gameNum, stages, bannedStages) => {
-  const rows = [];
-  let i = 0;
-  let row;
-  const bannedStagesNames = bannedStages.map((stage) => stage.name);
+  await interaction.message.edit({
+    content: stageMessageText,
+    components: stageMessageComponents,
+  });
 
-  for (stage of stages) {
-    const emoji = stageEmojis[stage.name];
-    if (i % 5 === 0) {
-      if (row) rows.push(row);
-      row = new MessageActionRow();
-    }
-
-    const button = new MessageButton()
-      .setCustomId(`ban-stage-${nextStriker.id}-${gameNum}-${stage.id}`)
-      .setLabel(stage.name)
-      .setStyle("PRIMARY")
-      .setEmoji(emoji);
-    if (bannedStagesNames.includes(stage.name)) {
-      button.setStyle("SECONDARY");
-      button.setDisabled(true);
-    }
-
-    row.addComponents(button);
-    i++;
-  }
-  rows.push(row);
-
-  return rows;
-};
-
-const banFinalButtons = (stages, starter) => {
-  const rows = [];
-  let i = 0;
-  let row;
-
-  for (stage of stages) {
-    const emoji = stageEmojis[stage.name];
-    if (i % 5 === 0) {
-      if (row) rows.push(row);
-      row = new MessageActionRow();
-    }
-
-    const button = new MessageButton()
-      .setCustomId(`ban-stage-final-${stage.id}`)
-      .setLabel(stage.name)
-      .setStyle("SECONDARY")
-      .setEmoji(emoji)
-      .setDisabled(true);
-    if (starter.name === stage.name) {
-      button.setStyle("SUCCESS");
-    }
-
-    row.addComponents(button);
-    i++;
-  }
-  rows.push(row);
-
-  return rows;
+  await interaction.deferUpdate();
 };
 
 const execute = async (interaction) => {
   const customId = interaction.customId.split("-");
   const playerId = customId[2];
-  const gameNum = customId[3];
+  const gameNum = Number(customId[3]);
 
   if (interaction.user.id != playerId) {
     return await interaction.reply({
@@ -97,34 +55,14 @@ const execute = async (interaction) => {
 
   const stages = await setAPI.getStages(gameNum);
   const banResponse = await setAPI.banStage(playerId, gameNum, stageName);
-  const { nextStriker } = banResponse;
+  const { nextStriker, nextPicker, starter, bannedStages } = banResponse;
+  const isBan = nextPicker == null;
 
-  if (nextStriker === null) {
-    const { starter } = banResponse;
-    const banMessageComponents = banFinalButtons(stages, starter);
-    const banMessageText = banFinalText(gameNum, starter);
+  if (nextStriker === null && starter)
+    return await endStageStep(interaction, gameNum, stages, starter);
 
-    await interaction.message.edit({
-      content: banMessageText,
-      components: banMessageComponents,
-    });
-
-    await interaction.deferUpdate();
-    return await setupGameWinner(interaction, gameNum);
-  } else {
-    const { bannedStages } = banResponse;
-
-    const nextStrikePlayer = await interaction.guild.members.fetch(nextStriker.discord_id);
-    const banMessageText = banText(nextStrikePlayer, gameNum, bannedStages);
-    const banMessageComponents = banButtons(nextStrikePlayer, gameNum, stages, bannedStages);
-
-    await interaction.message.edit({
-      content: banMessageText,
-      components: banMessageComponents,
-    });
-
-    await interaction.deferUpdate();
-  }
+  const nextPlayer = nextStriker ?? nextPicker;
+  return await nextStep(interaction, gameNum, nextPlayer.discord_id, stages, bannedStages, isBan);
 };
 
 module.exports = {

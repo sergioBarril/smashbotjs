@@ -2,7 +2,7 @@ const setAPI = require("../api/gameSet");
 
 const { MessageActionRow, MessageButton } = require("discord.js");
 const smashCharacters = require("../params/smashCharacters.json");
-const { setupBans } = require("../utils/discordGameset");
+const { setupBans, setupGameWinner, setupCharacter } = require("../utils/discordGameset");
 
 const allHavePicked = async (interaction, playerId, gameNum) => {
   await interaction.deferUpdate();
@@ -27,7 +27,8 @@ const allHavePicked = async (interaction, playerId, gameNum) => {
     content: `El **Game ${gameNum}** será entre ${playersText}.`,
   });
 
-  return await setupBans(interaction, gameNum);
+  if (gameNum == 1) return await setupBans(interaction, gameNum);
+  else return await setupGameWinner(interaction, gameNum);
 };
 
 const disableAllButtons = (message) => {
@@ -43,7 +44,7 @@ const disableAllButtons = (message) => {
   return disabledComponents;
 };
 
-const pickingIsNotOver = async (interaction, gameNum, charName, charMessage) => {
+const pickingIsNotOver = async (interaction, gameNum, charName, charMessage, opponent) => {
   const message = await interaction.channel.messages.fetch(charMessage);
   const disabledComponents = disableAllButtons(message);
 
@@ -62,11 +63,15 @@ const pickingIsNotOver = async (interaction, gameNum, charName, charMessage) => 
     content: `Has seleccionado **${charName}** ${emoji}. Espera a que tu rival acabe de pickear.`,
     ephemeral: true,
   });
+
+  if (gameNum > 1)
+    return await setupCharacter(interaction.channel, opponent, interaction.guild.id, gameNum);
 };
 
 const execute = async (interaction) => {
   const customId = interaction.customId.split("-");
   const playerId = customId[2];
+  const gameNum = Number(customId[3]);
 
   if (interaction.user.id != playerId) {
     return await interaction.reply({
@@ -76,10 +81,13 @@ const execute = async (interaction) => {
   }
   const charName = interaction.component.label;
 
-  const { allPicked, gameNum, charMessage } = await setAPI.pickCharacter(playerId, charName);
+  const { allPicked, charMessage, opponent } = await setAPI.pickCharacter(playerId, charName);
 
   if (allPicked) await allHavePicked(interaction, playerId, gameNum);
-  else await pickingIsNotOver(interaction, gameNum, charName, charMessage);
+  else {
+    const opponentPlayer = await interaction.guild.members.fetch(opponent.discord_id);
+    await pickingIsNotOver(interaction, gameNum, charName, charMessage, opponentPlayer);
+  }
 };
 
 module.exports = {

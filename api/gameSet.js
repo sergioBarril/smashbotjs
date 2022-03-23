@@ -43,6 +43,34 @@ const newSet = async (lobbyChannelId) => {
   }
 };
 
+const newGame = async (lobbyChannelId) => {
+  // Get variables
+  const lobby = await lobbyDB.getByTextChannel(lobbyChannelId);
+  const gameset = await gameSetDB.getByLobby(lobby.id);
+
+  const client = await db.getClient();
+  let newGameNum = null;
+  try {
+    await client.query("BEGIN");
+    const prevGame = await gameDB.getCurrent(gameset.id, client);
+    newGameNum = (prevGame?.num || 0) + 1;
+    await gameDB.create(gameset.id, newGameNum, client);
+    const newGameObj = await gameDB.getByNum(gameset.id, newGameNum, client);
+
+    const lobbyPlayers = await lobbyPlayerDB.getLobbyPlayers(lobby.id, client);
+    for (lp of lobbyPlayers) await gamePlayerDB.create(newGameObj.id, lp.player_id, client);
+
+    await client.query("COMMIT");
+
+    return { newGameNum };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
 const setCharMessage = async (playerDiscordId, messageId) => {
   const player = await playerDB.get(playerDiscordId, true);
   const gameset = await gameSetDB.getByPlayer(player.id);
@@ -64,9 +92,10 @@ const pickCharacter = async (playerDiscordId, charName) => {
     await gamePlayerDB.setCharacter(game.id, player.id, character.id, client);
     const allPicked = await gameDB.haveAllPicked(game.id, client);
     const gamePlayer = await gamePlayerDB.get(game.id, player.id, client);
+    const opponent = await gamePlayerDB.getOpponent(game.id, player.id, client);
     await client.query("COMMIT");
 
-    return { allPicked, gameNum: game.num, charMessage: gamePlayer.char_message };
+    return { allPicked, gameNum: game.num, charMessage: gamePlayer.char_message, opponent };
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
@@ -84,6 +113,8 @@ const pickStage = async (playerDiscordId, gameNum, stageName) => {
 
   const stage = await stageDB.getByName(stageName);
   await gameDB.setStage(game.id, stage.id);
+
+  return { stage };
 };
 
 const banStage = async (playerDiscordId, gameNum, stageName) => {
@@ -106,6 +137,7 @@ const banStage = async (playerDiscordId, gameNum, stageName) => {
     await client.query("BEGIN");
     await stageBanDB.ban(game.id, player.id, stage.id, client);
     const bannedStages = await stageBanDB.getBans(game.id, client);
+    let nextPicker = null;
 
     // Strike
     let nextStriker = player;
@@ -119,11 +151,12 @@ const banStage = async (playerDiscordId, gameNum, stageName) => {
         await pickStage(playerDiscordId, gameNum, starter.name);
         return { nextStriker, starter: starter };
       }
-    } else {
-      if (bannedStages.length == 2) nextStriker = null;
+    } else if (bannedStages.length == 2) {
+      nextStriker = null;
+      nextPicker = otherPlayer;
     }
     await client.query("COMMIT");
-    return { nextStriker, bannedStages };
+    return { nextStriker, bannedStages, nextPicker };
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
@@ -167,7 +200,12 @@ const getStriker = async (channelDiscordId) => {
   const hasStriker = await gameDB.getStriker(game.id);
   if (hasStriker) return { striker: hasStriker };
 
-  const strikePlayer = lobbyPlayers[Math.floor(Math.random() * lobbyPlayers.length)];
+  let strikePlayer;
+  if (game.num === 1) strikePlayer = lobbyPlayers[Math.floor(Math.random() * lobbyPlayers.length)];
+  else {
+    const prevGame = await gameDB.getByNum(gameset.id, game.num - 1);
+    strikePlayer = { player_id: prevGame.winner_id };
+  }
   await gamePlayerDB.setBanTurn(game.id, strikePlayer.player_id, true);
 
   const striker = await playerDB.get(strikePlayer.player_id, false);
@@ -200,8 +238,28 @@ const pickWinner = async (playerDiscordId, isWinner, gameNum) => {
   }
 };
 
+const getScore = async (channelDiscordId) => {
+  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
+  const gameset = await gameSetDB.getByLobby(lobby.id);
+
+  const score = await gameSetDB.getScore(gameset.id);
+  return score;
+};
+
+const getGameWinner = async (channelDiscordId, gameNum) => {
+  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
+  const gameset = await gameSetDB.getByLobby(lobby.id);
+
+  const game = await gameDB.getByNum(gameset.id, gameNum);
+  if (!game || !game.winner_id) return null;
+
+  const player = await playerDB.get(game.winner_id, false);
+  return player;
+};
+
 module.exports = {
   newSet,
+  newGame,
   getPlayersAndCharacters,
   pickCharacter,
   setCharMessage,
@@ -211,4 +269,6 @@ module.exports = {
   pickStage,
   pickWinner,
   banStage,
+  getScore,
+  getGameWinner,
 };
