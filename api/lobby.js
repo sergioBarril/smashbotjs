@@ -569,8 +569,8 @@ const voteCancelSet = async (playerDiscordId, textChannelId) => {
 
     if (decided) {
       const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id, client);
-      await lobbyPlayerDB.setNewSet(lobby.id, player.id, false, client);
-      await lobbyPlayerDB.setNewSet(lobby.id, opponent.id, false, client);
+      await lobbyPlayerDB.setCancelSet(lobby.id, player.id, false, client);
+      await lobbyPlayerDB.setCancelSet(lobby.id, opponent.id, false, client);
     }
 
     await client.query("COMMIT");

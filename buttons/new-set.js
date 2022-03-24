@@ -1,4 +1,4 @@
-const { MessageActionRow } = require("discord.js");
+const { MessageActionRow, MessageButton } = require("discord.js");
 const setAPI = require("../api/gameSet");
 const lobbyAPI = require("../api/lobby");
 const { setupCharacter } = require("../utils/discordGameset");
@@ -25,6 +25,7 @@ const newSetButtons = (message, decided, status) => {
   const newButtons = message.components.map((row) => {
     const newRow = new MessageActionRow();
     row.components.forEach((button) => {
+      if (button.customId === "close-lobby" && decided) button.setDisabled(true);
       if (button.customId === "new-set") {
         if (decided) {
           button.setStyle("SUCCESS");
@@ -50,6 +51,14 @@ const firstVote = async (interaction, status) => {
       `${player.displayName} quiere jugar un set BO5. ${opponent}, ¡dale tú también al botón si quieres jugar!`
     );
   else await interaction.reply(`**${player.displayName}** ya no quiere jugar un set BO5.`);
+};
+
+const cancelSetButtons = () => {
+  return [
+    new MessageActionRow().addComponents(
+      new MessageButton().setCustomId("cancel-set").setStyle("SECONDARY").setLabel("Anular set")
+    ),
+  ];
 };
 
 module.exports = {
@@ -81,8 +90,8 @@ module.exports = {
       );
 
       await interaction.reply({
-        content: `¡Marchando un set BO5 entre ${memberNames}!`,
-        components: [],
+        content: `¡Marchando un set BO5 entre ${memberNames}! Si hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón:`,
+        components: cancelSetButtons(),
       });
 
       await interaction.channel.send("__**Game 1**__");

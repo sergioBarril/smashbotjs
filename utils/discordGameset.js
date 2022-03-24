@@ -209,4 +209,5 @@ module.exports = {
   stageText,
   stageFinalText,
   stageFinalButtons,
+  setEndButtons,
 };

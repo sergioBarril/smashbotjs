@@ -71,6 +71,16 @@ const newGame = async (lobbyChannelId) => {
   }
 };
 
+const cancelSet = async (lobbyChannelId) => {
+  const lobby = await lobbyDB.getByTextChannel(lobbyChannelId);
+  const gameset = await gameSetDB.getByLobby(lobby.id);
+
+  if (!gameset) throw { name: "NO_GAMESET" };
+  if (gameset.winner_id) throw { name: "ALREADY_ENDED" };
+
+  await gameSetDB.remove(gameset.id);
+};
+
 const setCharMessage = async (playerDiscordId, messageId) => {
   const player = await playerDB.get(playerDiscordId, true);
   const gameset = await gameSetDB.getByPlayer(player.id);
@@ -285,6 +295,7 @@ const unlinkLobby = async (channelDiscordId) => {
 module.exports = {
   newSet,
   newGame,
+  cancelSet,
   getPlayersAndCharacters,
   pickCharacter,
   setCharMessage,
