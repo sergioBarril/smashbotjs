@@ -77,7 +77,7 @@ const createArena = async (interaction, players) => {
   });
 
   const newSet = new MessageActionRow().addComponents(
-    new MessageButton().setCustomId("new-set").setLabel("Set BO5").setStyle("PRIMARY")
+    new MessageButton().setCustomId("new-set").setLabel("Set BO5").setStyle("SECONDARY")
   );
   const firstMessageText = `¡Bienvenidos! Jugad, y cuando acabéis haced /ggs.`;
   await channel.send({

@@ -257,6 +257,31 @@ const getGameWinner = async (channelDiscordId, gameNum) => {
   return player;
 };
 
+const setWinner = async (winnerDiscordId) => {
+  const player = await playerDB.get(winnerDiscordId, true);
+  const gameset = await gameSetDB.getByPlayer(player.id);
+
+  const client = await db.getClient();
+
+  try {
+    await client.query("BEGIN");
+    await gameSetDB.setWinner(gameset.id, player.id, client);
+    await gameSetDB.setFinish(gameset.id, client);
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
+const unlinkLobby = async (channelDiscordId) => {
+  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
+  const gameset = await gameSetDB.getByLobby(lobby.id);
+  await gameSetDB.setLobby(gameset.id, null);
+};
+
 module.exports = {
   newSet,
   newGame,
@@ -271,4 +296,6 @@ module.exports = {
   banStage,
   getScore,
   getGameWinner,
+  setWinner,
+  unlinkLobby,
 };

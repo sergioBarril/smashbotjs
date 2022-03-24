@@ -3,7 +3,7 @@ const rolesAPI = require("../api/roles");
 const stageEmojis = require("../params/stageEmojis.json");
 const smashCharacters = require("../params/smashCharacters.json");
 
-const { MessageActionRow, MessageButton } = require("discord.js");
+const { MessageActionRow, MessageButton, Message } = require("discord.js");
 
 const stageText = (nextPlayer, gameNum, bannedStagesLength, isBan) => {
   let text = `${nextPlayer}, te toca `;
@@ -163,15 +163,37 @@ const setupGameWinner = async (interaction, gameNum) => {
   });
 };
 
+const setEndButtons = () => {
+  const newSet = new MessageActionRow().addComponents(
+    new MessageButton().setCustomId("new-set").setLabel("Revancha").setStyle("SECONDARY"),
+    new MessageButton().setCustomId("close-lobby").setLabel("Cerrar arena").setStyle("DANGER")
+  );
+
+  return [newSet];
+};
+
+const setupSetEnd = async (interaction, winnerId) => {
+  const player = await interaction.guild.members.fetch(winnerId);
+  const pc = await setAPI.getPlayersAndCharacters(player.id);
+  const characterName = await pc.find((p) => p.discord_id === player.id).character_name;
+  const emoji = smashCharacters[characterName].emoji;
+
+  await setAPI.setWinner(player.id);
+  await setAPI.unlinkLobby(interaction.channel.id);
+
+  return await interaction.channel.send({
+    content: `¡**${player.displayName}** ${emoji} ha ganado el set! Puedes pedir la revancha, o cerrar la arena.`,
+    components: setEndButtons(),
+  });
+};
+
 const setupNextGame = async (interaction) => {
   const score = await setAPI.getScore(interaction.channel.id);
 
-  const done = score.some((player) => player.wins >= 3);
+  const winner = score.find((player) => player.wins >= 3);
 
-  if (done) {
-    return await interaction.channel.send("GGs. Alguien ganó, gracias por participar.");
-  } else {
-    console.log("Starting next game");
+  if (winner) return await setupSetEnd(interaction, winner.discord_id);
+  else {
     const { newGameNum } = await setAPI.newGame(interaction.channel.id);
     await interaction.channel.send(`__**Game ${newGameNum}**__`);
     await setupBans(interaction, newGameNum);

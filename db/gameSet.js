@@ -22,7 +22,7 @@ const getByPlayer = async (playerId, client = null) => {
     INNER JOIN game_player gp
       ON gp.game_id = game.id
     WHERE gp.player_id = $1
-    AND gs.winner IS NULL`,
+    AND gs.winner_id IS NULL`,
     values: [playerId],
   };
 
@@ -59,10 +59,46 @@ const getScore = async (gameSetId, client = null) => {
   return getResult.rows;
 };
 
+const setWinner = async (gameSetId, winnerId, client = null) => {
+  const updateQuery = {
+    text: `UPDATE gameset
+    SET winner_id = $1
+    WHERE id = $2`,
+    values: [winnerId, gameSetId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
+const setLobby = async (gameSetId, lobbyId, client = null) => {
+  const updateQuery = {
+    text: `UPDATE gameset
+    SET lobby_id = $1
+    WHERE id = $2`,
+    values: [lobbyId, gameSetId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
+const setFinish = async (gameSetId, client = null) => {
+  const updateQuery = {
+    text: `UPDATE gameset
+  SET finished_at = NOW()
+  WHERE id = $1`,
+    values: [gameSetId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
 module.exports = {
   get,
   getByPlayer,
   getByLobby,
   getScore,
   create,
+  setWinner,
+  setLobby,
+  setFinish,
 };

@@ -529,6 +529,68 @@ const timeOutCheck = async (lobbyId, acceptedPlayerId, afkPlayerId) => {
   return isAccepted && isConfirmation;
 };
 
+const voteNewSet = async (playerDiscordId, textChannelId) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const lobby = await lobbyDB.getByTextChannel(textChannelId);
+  const lobbyPlayer = await lobbyPlayerDB.get(lobby.id, player.id);
+
+  const client = await db.getClient();
+  try {
+    await client.query("BEGIN");
+    await lobbyPlayerDB.setNewSet(lobby.id, player.id, !lobbyPlayer.new_set, client);
+    const decided = await lobbyPlayerDB.isNewSetDecided(lobby.id, client);
+
+    if (decided) {
+      const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id, client);
+      await lobbyPlayerDB.setNewSet(lobby.id, player.id, false, client);
+      await lobbyPlayerDB.setNewSet(lobby.id, opponent.id, false, client);
+    }
+
+    await client.query("COMMIT");
+    return { decided, status: !lobbyPlayer.new_set };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
+const voteCancelSet = async (playerDiscordId, textChannelId) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const lobby = await lobbyDB.getByTextChannel(textChannelId);
+  const lobbyPlayer = await lobbyPlayerDB.get(lobby.id, player.id);
+
+  const client = await db.getClient();
+  try {
+    await client.query("BEGIN");
+    await lobbyPlayerDB.setCancelSet(lobby.id, player.id, !lobbyPlayer.cancel_set, client);
+    const decided = await lobbyPlayerDB.isCancelSetDecided(lobby.id, client);
+
+    if (decided) {
+      const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id, client);
+      await lobbyPlayerDB.setNewSet(lobby.id, player.id, false, client);
+      await lobbyPlayerDB.setNewSet(lobby.id, opponent.id, false, client);
+    }
+
+    await client.query("COMMIT");
+    return { decided, status: !lobbyPlayer.cancel_set };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
+const getOpponent = async (playerDiscordId, textChannelId) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const lobby = await lobbyDB.getByTextChannel(textChannelId);
+
+  const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id);
+  return opponent;
+};
+
 module.exports = {
   getByPlayer,
   getGuild,
@@ -550,4 +612,7 @@ module.exports = {
   unAFK,
   closeArena,
   timeOutCheck,
+  voteNewSet,
+  voteCancelSet,
+  getOpponent,
 };
