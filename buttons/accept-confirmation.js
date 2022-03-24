@@ -77,9 +77,11 @@ const createArena = async (interaction, players) => {
   });
 
   const newSet = new MessageActionRow().addComponents(
-    new MessageButton().setCustomId("new-set").setLabel("Set BO5").setStyle("SECONDARY")
+    new MessageButton().setCustomId("new-set").setLabel("Set BO5").setStyle("SECONDARY"),
+    new MessageButton().setCustomId("close-lobby").setLabel("Cerrar arena").setStyle("DANGER")
   );
-  const firstMessageText = `¡Bienvenidos! Jugad, y cuando acabéis haced /ggs.`;
+
+  const firstMessageText = `¡Bienvenidos! Jugad todo lo que queráis y cerrad la arena cuando acabéis.`;
   await channel.send({
     content: firstMessageText,
     components: [newSet],

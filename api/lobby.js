@@ -8,6 +8,7 @@ const guildDB = require("../db/guild");
 const playerDB = require("../db/player");
 const tierDB = require("../db/tier");
 const yuzuPlayerDB = require("../db/yuzuPlayer");
+const gameSetDB = require("../db/gameSet");
 
 const canSearchTier = (playerTier, targetTier) => {
   // Compares two tiers, and returns true if someone
@@ -491,6 +492,8 @@ const closeArena = async (playerDiscordId) => {
   const lobby = await lobbyDB.getByPlayerStatus(player.id, "PLAYING", false);
 
   if (!lobby) throw { name: "NOT_PLAYING" };
+  const gameset = await gameSetDB.getByLobby(lobby.id);
+  if (gameset) throw { name: "IN_GAMESET" };
 
   const client = await db.getClient();
 
