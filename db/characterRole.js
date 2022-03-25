@@ -16,6 +16,17 @@ const getByGuild = async (guildId, client = null) => {
   return getResult.rows;
 };
 
+const getByRole = async (roleDiscordId, client = null) => {
+  const getQuery = {
+    text: `SELECT * FROM character_role
+    WHERE discord_id = $1`,
+    values: [roleDiscordId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows[0];
+};
+
 const getByChar = async (charId, guildId, client = null) => {
   const getQuery = {
     text: `
@@ -75,6 +86,7 @@ module.exports = {
   get,
   getByChar,
   getByName,
+  getByRole,
   getByGuild,
   create,
   update,

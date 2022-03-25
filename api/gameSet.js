@@ -292,6 +292,35 @@ const unlinkLobby = async (channelDiscordId) => {
   await gameSetDB.setLobby(gameset.id, null);
 };
 
+const getGameNumber = async (channelDiscordId) => {
+  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
+  const gameset = await gameSetDB.getByLobby(lobby.id);
+  const game = await gameDB.getCurrent(gameset.id);
+
+  return game.num;
+};
+
+const canPickCharacter = async (playerDiscordId, channelDiscordId, gameNum) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
+  const gameset = await gameSetDB.getByLobby(lobby.id);
+  const game = await gameDB.getCurrent(gameset.id);
+
+  const gamePlayer = await gamePlayerDB.get(game.id, player.id);
+  const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id);
+  const opponentGP = await gamePlayerDB.get(game.id, opponent.id);
+
+  // Conditions:
+  const charMessage = gamePlayer.char_message != null;
+  const notYetPicked = gamePlayer.character_id == null;
+
+  const opponentHasPicked = opponentGP.character_id != null;
+  const noOpponentMessage = opponentGP.char_message == null;
+  const isFirstGame = gameNum == 1;
+
+  return charMessage && notYetPicked && (isFirstGame || opponentHasPicked || noOpponentMessage);
+};
+
 module.exports = {
   newSet,
   newGame,
@@ -309,4 +338,6 @@ module.exports = {
   getGameWinner,
   setWinner,
   unlinkLobby,
+  getGameNumber,
+  canPickCharacter,
 };

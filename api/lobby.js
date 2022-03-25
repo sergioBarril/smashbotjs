@@ -594,6 +594,13 @@ const getOpponent = async (playerDiscordId, textChannelId) => {
   return opponent;
 };
 
+const isInCurrentLobby = async (playerDiscordId, textChannelId) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const lobby = await lobbyDB.getByPlayerStatus(player.id, "PLAYING", false);
+
+  return lobby && lobby.text_channel_id == textChannelId;
+};
+
 module.exports = {
   getByPlayer,
   getGuild,
@@ -618,4 +625,5 @@ module.exports = {
   voteNewSet,
   voteCancelSet,
   getOpponent,
+  isInCurrentLobby,
 };
