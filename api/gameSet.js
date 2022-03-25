@@ -236,6 +236,8 @@ const pickWinner = async (playerDiscordId, isWinner, gameNum) => {
     const winner = await gameDB.calculateWinner(game.id, client);
     const opponent = await gamePlayerDB.getOpponent(game.id, player.id, client);
 
+    if (!isWinner) opponent.winner = opponent.winner === false;
+
     if (winner) await gameDB.setWinner(game.id, winner.id, client);
     await client.query("COMMIT");
 
