@@ -74,6 +74,7 @@ const getLobbyPlayers = async (lobbyId, client = null) => {
     FROM lobby_player INNER JOIN player
     ON lobby_player.player_id = player.id
     WHERE lobby_id = $1
+    ORDER BY discord_id ASC
     `,
     values: [lobbyId],
   };

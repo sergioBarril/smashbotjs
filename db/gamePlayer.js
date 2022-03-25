@@ -36,7 +36,8 @@ const getPlayersAndCharacters = async (gameId, client = null) => {
       ON gp.player_id = p.id
     INNER JOIN character c
       ON c.id = gp.character_id
-    WHERE gp.game_id = $1`,
+    WHERE gp.game_id = $1
+    ORDER BY p.discord_id ASC`,
     values: [gameId],
   };
 

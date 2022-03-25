@@ -258,9 +258,10 @@ const getScore = async (channelDiscordId) => {
 
   const winner = await playerDB.get(winnerId, false);
 
-  score.forEach((playerScore) => {
-    playerScore.surrender = playerScore.discord_id != winner?.discord_id;
-  });
+  if (gameset.is_surrender)
+    score.forEach((playerScore) => {
+      playerScore.surrender = playerScore.discord_id != winner?.discord_id;
+    });
 
   return score;
 };

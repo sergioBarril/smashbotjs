@@ -175,7 +175,8 @@ const setEndButtons = () => {
 const setupSetEnd = async (interaction, playerId, isSurrender) => {
   const player = await interaction.guild.members.fetch(playerId);
   let emoji = "";
-  let porAbandono = isSurrender && " por abandono";
+  let porAbandono = "";
+  if (isSurrender) porAbandono = " por abandono";
 
   if (!isSurrender) {
     const pc = await setAPI.getPlayersAndCharacters(player.id);
