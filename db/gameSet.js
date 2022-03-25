@@ -92,6 +92,17 @@ const setFinish = async (gameSetId, client = null) => {
   await (client ?? db).query(updateQuery);
 };
 
+const setSurrender = async (gameSetId, winnerId, client = null) => {
+  const updateQuery = {
+    text: `UPDATE gameset
+    SET winner_id = $1, is_surrender = true
+    WHERE id = $2`,
+    values: [winnerId, gameSetId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
 const remove = async (gameSetId, client = null) => {
   const deleteQuery = {
     text: `DELETE FROM gameset
@@ -109,6 +120,7 @@ module.exports = {
   getScore,
   create,
   setWinner,
+  setSurrender,
   setLobby,
   setFinish,
   remove,

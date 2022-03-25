@@ -172,27 +172,40 @@ const setEndButtons = () => {
   return [newSet];
 };
 
-const setupSetEnd = async (interaction, winnerId) => {
-  const player = await interaction.guild.members.fetch(winnerId);
-  const pc = await setAPI.getPlayersAndCharacters(player.id);
-  const characterName = await pc.find((p) => p.discord_id === player.id).character_name;
-  const emoji = smashCharacters[characterName].emoji;
+const setupSetEnd = async (interaction, playerId, isSurrender) => {
+  const player = await interaction.guild.members.fetch(playerId);
+  let emoji = "";
+  let porAbandono = isSurrender && " por abandono";
 
-  await setAPI.setWinner(player.id);
+  if (!isSurrender) {
+    const pc = await setAPI.getPlayersAndCharacters(player.id);
+    const characterName = await pc.find((p) => p.discord_id === player.id).character_name;
+    emoji = ` ${smashCharacters[characterName].emoji}`;
+
+    await setAPI.setWinner(player.id);
+  }
+
   await setAPI.unlinkLobby(interaction.channel.id);
 
-  return await interaction.channel.send({
-    content: `¡**${player.displayName}** ${emoji} ha ganado el set! Puedes pedir la revancha, o cerrar la arena.`,
+  const responseObj = {
+    content: `¡**${player.displayName}**${emoji} ha ganado el set${porAbandono}! Puedes pedir la revancha, o cerrar la arena.`,
     components: setEndButtons(),
-  });
+  };
+
+  if (interaction.isButton()) return await interaction.channel.send(responseObj);
+  return await interaction.reply(responseObj);
 };
 
 const setupNextGame = async (interaction) => {
   const score = await setAPI.getScore(interaction.channel.id);
 
-  const winner = score.find((player) => player.wins >= 3);
+  // Get winner. First check for surrender, else normal BO5
+  const isSurrender = score.some((player) => player.surrender);
 
-  if (winner) return await setupSetEnd(interaction, winner.discord_id);
+  let winner = isSurrender && score.find((player) => !player.surrender);
+  if (!winner) winner = score.find((player) => player.wins >= 3);
+
+  if (winner) return await setupSetEnd(interaction, winner.discord_id, isSurrender);
   else {
     const { newGameNum } = await setAPI.newGame(interaction.channel.id);
     await interaction.channel.send(`__**Game ${newGameNum}**__`);

@@ -68,7 +68,7 @@ module.exports = {
 
       await setAPI.cancelSet(channel.id);
 
-      https: await interaction.reply({
+      await interaction.reply({
         content:
           `El set ha sido **cancelado**. ¿Qué set? Yo no he visto ningún set... ` +
           `Si queréis hacer otro dadle al botón. Si no, cerrad la arena cuando queráis.`,

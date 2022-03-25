@@ -253,8 +253,15 @@ const pickWinner = async (playerDiscordId, isWinner, gameNum) => {
 const getScore = async (channelDiscordId) => {
   const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
   const gameset = await gameSetDB.getByLobby(lobby.id);
-
   const score = await gameSetDB.getScore(gameset.id);
+  const winnerId = gameset.winner_id;
+
+  const winner = await playerDB.get(winnerId, false);
+
+  score.forEach((playerScore) => {
+    playerScore.surrender = playerScore.discord_id != winner.discord_id;
+  });
+
   return score;
 };
 
@@ -323,6 +330,31 @@ const canPickCharacter = async (playerDiscordId, channelDiscordId, gameNum) => {
   return charMessage && notYetPicked && (isFirstGame || opponentHasPicked || noOpponentMessage);
 };
 
+const surrender = async (playerDiscordId, channelDiscordId) => {
+  const player = await playerDB.get(playerDiscordId, true);
+  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
+  if (!lobby) throw { name: "NO_LOBBY" };
+  const gameset = await gameSetDB.getByLobby(lobby.id);
+  if (!gameset) throw { name: "NO_GAMESET" };
+
+  const game = await gameDB.getCurrent(gameset.id);
+  const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id);
+
+  const client = await db.getClient();
+  try {
+    await client.query("BEGIN");
+    await gameDB.setWinner(game.id, opponent.id, client);
+    await gameSetDB.setSurrender(gameset.id, opponent.id, client);
+
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   newSet,
   newGame,
@@ -342,4 +374,5 @@ module.exports = {
   unlinkLobby,
   getGameNumber,
   canPickCharacter,
+  surrender,
 };
