@@ -344,7 +344,7 @@ const surrender = async (playerDiscordId, channelDiscordId) => {
   const client = await db.getClient();
   try {
     await client.query("BEGIN");
-    await gameDB.setWinner(game.id, opponent.id, client);
+    if (game) await gameDB.setWinner(game.id, opponent.id, client);
     await gameSetDB.setSurrender(gameset.id, opponent.id, client);
 
     await client.query("COMMIT");
@@ -354,6 +354,19 @@ const surrender = async (playerDiscordId, channelDiscordId) => {
   } finally {
     client.release();
   }
+};
+
+const removeCurrentGame = async (channelDiscordId) => {
+  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
+  if (!lobby) throw { name: "NO_LOBBY" };
+
+  const gameset = await gameSetDB.getByLobby(lobby.id);
+  if (!gameset) throw { name: "NO_GAMESET" };
+
+  const game = await gameDB.getCurrent(gameset.id);
+  if (!game) throw { name: "NO_GAME" };
+
+  await gameDB.remove(game.id);
 };
 
 module.exports = {
@@ -376,4 +389,5 @@ module.exports = {
   getGameNumber,
   canPickCharacter,
   surrender,
+  removeCurrentGame,
 };

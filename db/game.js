@@ -123,6 +123,8 @@ const setWinner = async (gameId, winnerId, client = null) => {
   await (client ?? db).query(updateQuery);
 };
 
+const remove = async (gameId, client = null) => await db.basicRemove("game", gameId, false, client);
+
 module.exports = {
   get,
   getStriker,
@@ -134,4 +136,5 @@ module.exports = {
   haveAllPicked,
   create,
   setStage,
+  remove,
 };

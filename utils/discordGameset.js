@@ -1,5 +1,6 @@
 const setAPI = require("../api/gameSet");
 const rolesAPI = require("../api/roles");
+const lobbyAPI = require("../api/lobby");
 const stageEmojis = require("../params/stageEmojis.json");
 const smashCharacters = require("../params/smashCharacters.json");
 
@@ -209,9 +210,30 @@ const setupNextGame = async (interaction) => {
   if (winner) return await setupSetEnd(interaction, winner.discord_id, isSurrender);
   else {
     const { newGameNum } = await setAPI.newGame(interaction.channel.id);
-    await interaction.channel.send(`__**Game ${newGameNum}**__`);
-    await setupBans(interaction, newGameNum);
+
+    if (newGameNum > 1) {
+      await interaction.channel.send(`__**Game ${newGameNum}**__`);
+      return await setupBans(interaction, newGameNum);
+    }
+
+    const members = [];
+    const lp = await lobbyAPI.getPlayingPlayers(interaction.user.id);
+
+    for ({ discord_id } of lp) {
+      const member = await interaction.guild.members.fetch(discord_id);
+      members.push(member);
+    }
+    return await setupFirstGame(interaction, members);
   }
+};
+
+const setupFirstGame = async (interaction, members) => {
+  const channel = interaction.channel;
+  await channel.send("__**Game 1**__");
+
+  await Promise.all([
+    members.map((member) => setupCharacter(channel, member, interaction.guild.id, 1)),
+  ]);
 };
 
 // **********************************
