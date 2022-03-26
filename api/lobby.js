@@ -174,7 +174,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
       canSearch = true;
     }
     // All tiers
-    else {
+    else if (isSearchAll) {
       targetTiers = allTiers.filter(
         (tier) => tier.weight !== null && canSearchTier(playerTier, tier)
       );
