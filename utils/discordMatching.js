@@ -4,6 +4,8 @@ const lobbyAPI = require("../api/lobby");
 const guildAPI = require("../api/guild");
 const rolesAPI = require("../api/roles");
 
+const smashCharacters = require("../params/smashCharacters.json");
+
 // This module is composed of Discord functionality that's
 // recurring in different buttons or commands
 
@@ -80,6 +82,15 @@ const notMatched = async (playerId, guild, tierInfo = null) => {
   );
 
   const member = await guild.members.fetch(playerId);
+  const { mains, seconds } = await rolesAPI.getCharacters(playerId, guild.id);
+
+  const characters = mains.concat(seconds);
+
+  let charsText = "";
+  if (characters.length > 0) {
+    const charsEmojis = characters.map((char) => smashCharacters[char.name].emoji);
+    charsText = ` (${charsEmojis.join("")})`;
+  }
 
   let tiersInfo = [];
   if (tierInfo) tiersInfo.push(tierInfo);
@@ -97,11 +108,11 @@ const notMatched = async (playerId, guild, tierInfo = null) => {
         const role = await guild.roles.fetch(roleId);
         messageContent += `${role} `;
       }
-      messageContent += `- **${member.displayName}** está buscando partida en **Yuzu**.`;
+      messageContent += `- **${member.displayName}**${charsText} está buscando partida en **Yuzu**.`;
     } else {
       const tierRole = await guild.roles.fetch(tierId);
       messageContent =
-        `${tierRole} - **${member.displayName}**` +
+        `${tierRole} - **${member.displayName}**${charsText}` +
         ` está buscando partida en **${tierRole.name}**.`;
     }
     const message = await channel.send({
