@@ -30,6 +30,17 @@ const setMatchmakingChannel = async (guildId, channelId, client = null) => {
   await (client ?? db).query(updateQuery);
 };
 
+const setRankedChannel = async (guildId, channelId, client = null) => {
+  const updateQuery = {
+    text: `UPDATE guild
+    SET ranked_channel_id = $1
+    WHERE id = $2`,
+    values: [channelId, guildId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
 const setRolesChannel = async (guildId, channelId, client = null) => {
   const updateQuery = {
     text: `UPDATE guild
@@ -92,6 +103,7 @@ module.exports = {
   getByLobby,
   getCurrentList,
   setMatchmakingChannel,
+  setRankedChannel,
   setRolesChannel,
   setYuzuRole,
   setParsecRole,

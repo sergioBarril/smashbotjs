@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const discordRolesUtils = require("../utils/discordRoles");
 const { channel } = require("./admin/roles/channel");
+const { channel: rankedChannel } = require("./admin/ranked/channel");
 
 const { upsert } = require("./admin/roles/upsert");
 const { add } = require("./admin/tiers/add");
@@ -65,6 +66,14 @@ const data = new SlashCommandBuilder()
       .addSubcommand((subcommand) =>
         subcommand.setName("matchmaking").setDescription("Remakes the search channel.")
       )
+  )
+  .addSubcommandGroup((rankedCommandGroup) =>
+    rankedCommandGroup
+      .setName("ranked")
+      .setDescription("Comandos de admin relacionados con las ranked")
+      .addSubcommand((subcommand) =>
+        subcommand.setName("channel").setDescription("Crea el canal de rankeds")
+      )
   );
 
 module.exports = {
@@ -86,6 +95,9 @@ module.exports = {
       if (interaction.options.getSubcommand() === "matchmaking") {
         await matchmaking(interaction);
       }
+    }
+    if (interaction.options.getSubcommandGroup() === "ranked") {
+      if (interaction.options.getSubcommand() === "channel") await rankedChannel(interaction);
     }
   },
 };

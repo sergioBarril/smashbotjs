@@ -26,6 +26,16 @@ const setMatchmakingChannel = async (guildDiscordId, searchChannelId) => {
   await guildDB.setMatchmakingChannel(guild.id, searchChannelId);
 };
 
+const getRankedChannel = async (guildDiscordId) => {
+  const guild = await guildDB.get(guildDiscordId, true);
+  return guild.ranked_channel_id;
+};
+
+const setRankedChannel = async (guildDiscordId, rankedChannelId) => {
+  const guild = await guildDB.get(guildDiscordId, true);
+  await guildDB.setRankedChannel(guild.id, rankedChannelId);
+};
+
 const getCurrentList = async (guildDiscordId) => {
   const guild = await guildDB.get(guildDiscordId, true);
   const playerList = await guildDB.getCurrentList(guild.id);
@@ -48,5 +58,7 @@ module.exports = {
   setRolesChannel,
   getMatchmakingChannel,
   setMatchmakingChannel,
+  getRankedChannel,
+  setRankedChannel,
   getCurrentList,
 };
