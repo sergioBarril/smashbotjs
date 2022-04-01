@@ -3,6 +3,30 @@ const guildDB = require("./guild");
 
 const get = async (tierId, discord = false) => await db.basicGet("tier", tierId, discord);
 
+const getByRole = async (roleDiscordId, client = null) => {
+  const getQuery = {
+    text: `
+    SELECT * FROM tier
+    WHERE discord_id = $1`,
+    values: [roleDiscordId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows[0];
+};
+
+const getByRankedRole = async (roleDiscordId, client = null) => {
+  const getQuery = {
+    text: `
+    SELECT * FROM tier
+    WHERE ranked_role_id = $1`,
+    values: [roleDiscordId],
+  };
+
+  const getResult = await (client ?? db).query(getQuery);
+  return getResult.rows[0];
+};
+
 const getBySearchMessage = async (messageDiscordId) => {
   const getQuery = {
     text: `
@@ -110,8 +134,22 @@ const setSearchMessage = async (tierId, searchMessageId, client = null) => {
   await (client ?? db).query(updateQuery);
 };
 
+const setRankedRole = async (tierId, rankedRoleId, client = null) => {
+  const updateQuery = {
+    text: `
+    UPDATE tier
+    SET ranked_role_id = $1
+    WHERE id = $2`,
+    values: [rankedRoleId, tierId],
+  };
+
+  await (client ?? db).query(updateQuery);
+};
+
 module.exports = {
   get,
+  getByRole,
+  getByRankedRole,
   getYuzu,
   getBySearchMessage,
   getByTierMessage,
@@ -119,4 +157,5 @@ module.exports = {
   getByGuild,
   create,
   setSearchMessage,
+  setRankedRole,
 };

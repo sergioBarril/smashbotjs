@@ -12,13 +12,13 @@ const getMessages = async (lobbyId, client = null) => {
   return getMessagesResult.rows;
 };
 
-const insert = async (lobbyId, messageId, channelId, client = null) => {
+const insert = async (lobbyId, messageId, channelId, ranked, client = null) => {
   const insertMessagesQuery = {
     text: `
-    INSERT INTO lobby_message(lobby_id, message_id, channel_id)
-    VALUES ($1, $2, $3)
+    INSERT INTO lobby_message(lobby_id, message_id, channel_id, ranked)
+    VALUES ($1, $2, $3, $4)
     `,
-    values: [lobbyId, messageId, channelId],
+    values: [lobbyId, messageId, channelId, ranked],
   };
 
   await (client ?? db).query(insertMessagesQuery);

@@ -50,13 +50,24 @@ const add = async (interaction) => {
   } else channel = await guild.channels.create(name);
 
   // Add it to the DB
-  let responseText;
+  let responseText = "";
   if (yuzu) {
     await tierAPI.addYuzuTier(yuzuRole.id, parsecRole.id, guild.id, channel.id);
     responseText = `Los roles ${yuzuRole} y ${parsecRole} han sido creados y guardados en la BDD.`;
   } else {
     await tierAPI.addTier(role.id, guild.id, channel.id, weight, threshold);
-    responseText = `El rol ${role} ha sido creado y guardado en la BDD.`;
+    responseText += `El rol ${role} ha sido creado y guardado en la BDD.`;
+
+    if (weight || weight === 0) {
+      const rankedRole = await guild.roles.create({
+        name: `${name} (Ranked)`,
+        color,
+        mentionable: true,
+        hoist: true,
+      });
+      await tierAPI.addRankedTier(role.id, rankedRole.id);
+      responseText += `El rol ${rankedRole} ha sido creado y guardado en la BDD.`;
+    }
   }
 
   await interaction.reply({

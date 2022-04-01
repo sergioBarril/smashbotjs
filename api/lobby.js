@@ -9,6 +9,7 @@ const playerDB = require("../db/player");
 const tierDB = require("../db/tier");
 const yuzuPlayerDB = require("../db/yuzuPlayer");
 const gameSetDB = require("../db/gameSet");
+const ratingDB = require("../db/rating");
 
 const canSearchTier = (playerTier, targetTier) => {
   // Compares two tiers, and returns true if someone
@@ -134,6 +135,37 @@ const canSearchYuzu = async (playerId, guildId) => {
   return yuzuPlayer && (yuzuPlayer.yuzu || yuzuPlayer.parsec);
 };
 
+const canSearchRanked = async (playerId, guildId) => {
+  const rating = await ratingDB.getByPlayerGuild(playerId, guildId);
+  return rating?.tier_id != null;
+};
+
+const rankedSearch = async (playerDiscordId, guildDiscordId) => {
+  const guild = await guildDB.get(guildDiscordId, true);
+  if (!guild) throw { name: "GUILD_NOT_FOUND" };
+
+  const player = await playerDB.get(playerDiscordId, true);
+  if (!player) throw { name: "PLAYER_NOT_FOUND" };
+
+  const canSearch = await canSearchRanked(player.id, guild.id);
+  if (!canSearch) throw { name: "NO_LAN_TIER" };
+
+  let lobby = await lobbyDB.getByPlayer(player.id);
+  const existsLobbyPlayer = await lobbyPlayerDB.existsLobbyPlayer(player.id);
+  const isSearching = lobby?.status === "SEARCHING";
+
+  if (!lobby && !existsLobbyPlayer) {
+    await lobbyDB.createRanked(guild.id, player.id);
+    lobby = await lobbyDB.getByPlayer(player.id);
+  } else if (!isSearching || (!lobby && existsLobbyPlayer)) {
+    throw { name: "NOT_SEARCHING" };
+  } else if (lobby.ranked) {
+    throw { name: "ALREADY_SEARCHING" };
+  } else await lobbyDB.setRanked(lobby.id, true);
+
+  return true;
+};
+
 const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   const isSearchAll = messageDiscordId === null;
 
@@ -203,7 +235,6 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
 
   // Is already searching all those tiers?
   const newTiers = targetTiers.filter((tier) => !searchingTiersIds.includes(tier.id));
-  // const hasTier = await lobbyDB.hasTier(lobby?.id, targetTier.id);
 
   if (!lobby && !existsLobbyPlayer) {
     await lobbyDB.create(guild.id, player.id, targetTiers);
@@ -319,7 +350,7 @@ const stopSearch = async (playerDiscordId, messageId) => {
 
     // If it was the last tier, remove the lobby
     hasTier = await lobbyTierDB.hasAnyTier(lobby.id, client);
-    if (!hasTier) await lobbyDB.remove(lobby.id, false, client);
+    if (!hasTier && !lobby.ranked) await lobbyDB.remove(lobby.id, false, client);
     await client.query("COMMIT");
 
     return {
@@ -396,6 +427,15 @@ const saveSearchTierMessage = async (playerDiscordId, tierDiscordId, messageId, 
   return true;
 };
 
+const saveRankedMessage = async (playerDiscordId, rankedRoleId, messageId) => {
+  const lobby = await lobbyDB.getByPlayer(playerDiscordId, true);
+  const tier = await tierDB.getByRankedRole(rankedRoleId);
+  const guild = await guildDB.get(tier.guild_id, false);
+
+  await lobbyMessageDB.insert(lobby.id, messageId, guild.ranked_channel_id, true);
+  return true;
+};
+
 const acceptMatch = async (playerDiscordId) => {
   const player = await playerDB.get(playerDiscordId, true);
   const lobby = await lobbyDB.getByPlayerStatus(player.id, "CONFIRMATION", false);
@@ -451,7 +491,7 @@ const afterConfirmation = async (playerDiscordId, textChannelId, voiceChannelId)
 
     // Store tier messages
     for (message of allMessages) {
-      lobbyMessageDB.insert(lobby.id, message.message_id, message.channel_id);
+      await lobbyMessageDB.insert(lobby.id, message.message_id, message.channel_id, false, client);
     }
 
     return { messages: allMessages, players: lobbyPlayers };
@@ -606,6 +646,7 @@ module.exports = {
   getGuild,
   hasLobbyTiers,
   search,
+  rankedSearch,
   stopSearch,
   saveSearchTierMessage,
   saveDirectMessage,

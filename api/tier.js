@@ -8,6 +8,11 @@ const addTier = async (roleDiscordId, guildDiscordId, channelDiscordId, weight, 
   await tierDB.create(roleDiscordId, channelDiscordId, guild.id, weight, threshold, false);
 };
 
+const addRankedTier = async (roleDiscordId, rankedRoleId) => {
+  const tier = await tierDB.getByRole(roleDiscordId);
+  await tierDB.setRankedRole(tier.id, rankedRoleId);
+};
+
 const addYuzuTier = async (yuzuDiscordId, parsecDiscordId, guildDiscordId, channelDiscordId) => {
   const guild = await guildDB.get(guildDiscordId, true);
 
@@ -43,6 +48,7 @@ const setYuzuSearchMessage = async (guildDiscordId, searchMessageId) => {
 
 module.exports = {
   addTier,
+  addRankedTier,
   addYuzuTier,
   getTiers,
   setSearchMessage,

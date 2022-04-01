@@ -314,6 +314,15 @@ const updateStatus = async (lobbyId, status, client = null) => {
   return true;
 };
 
+const setRanked = async (lobbyId, isRanked, client = null) => {
+  const updateQuery = {
+    text: `
+    UPDATE lobby SET ranked = $1
+    WHERE id = $2`,
+    values: [isRanked, lobbyId],
+  };
+};
+
 module.exports = {
   get,
   getByPlayer,
@@ -331,4 +340,5 @@ module.exports = {
   updateLobbyChannels,
   updateStatus,
   allAccepted,
+  setRanked,
 };
