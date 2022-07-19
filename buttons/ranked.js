@@ -135,6 +135,6 @@ const execute = async (interaction) => {
 };
 
 module.exports = {
-  data: { name: "friendlies" },
+  data: { name: "ranked" },
   execute,
 };
