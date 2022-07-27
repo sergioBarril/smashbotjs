@@ -57,6 +57,7 @@ const getTierByRankedRole = async (rankedRoleId, client = null) =>
   await getBy("ranked_role_id", rankedRoleId, client);
 
 const getTierBySearchMessage = async (messageDiscordId, client = null) => {
+  if (messageDiscordId == null) return null;
   const { Message } = require("./message");
 
   const message = await db.getBy("message", { discord_id: messageDiscordId.toString() });
