@@ -1,49 +1,17 @@
 const lobbyAPI = require("../api/lobby");
+const { EditMessageError } = require("../errors/editMessage");
 
 const exceptionHandler = async (interaction, exception) => {
-  EXCEPTION_MESSAGES = {
-    LOBBY_NOT_FOUND: "¡No estabas buscando partida!",
-    TIER_NOT_FOUND: "__**ERROR**__: No se ha encontrado la tier.",
-    ALREADY_PLAYING: "Ya estás jugando. ¡Cierra la arena desde allí!",
-    ALREADY_CONFIRMATION: "Ya has encontrado partida. Acéptala (o espera a que tu rival la acepte)",
-    ERROR_MESSAGE_MODIF: "Ha habido un problema con la gestión de mensajes.",
-    NOT_SEARCHING_LAN: "No estás buscando en ningún canal de Cable LAN. ",
-  };
-
-  const { name, args } = exception;
-  let response = EXCEPTION_MESSAGES[name];
-
-  if (!response)
-    switch (name) {
-      case "NOT_SEARCHING_HERE":
-        const { tierId, yuzu } = args;
-
-        if (yuzu) response = `¡No estabas buscando partida en **Yuzu**!`;
-        else {
-          const tierRole = await interaction.guild.roles.fetch(tierId);
-          response = `¡No estabas buscando partida en ${tierRole}!`;
-        }
-        break;
-    }
-
-  if (!response) throw exception;
+  if (exception.name === "LobbyNotFoundError") exception.message = "¡No estabas buscando partida!";
 
   return await interaction.reply({
-    content: response,
+    content: exception.message,
     ephemeral: true,
   });
 };
 
 const successfulReply = async (interaction, isSearching, tiers) => {
-  const roles = [];
-
-  for (tier of tiers) {
-    if (tier.yuzu) roles.push(`**Yuzu**`);
-    else {
-      const tierRole = await interaction.guild.roles.fetch(tier.discord_id);
-      roles.push(`${tierRole}`);
-    }
-  }
+  const roles = tiers.map((tier) => (tier.yuzu ? `**Yuzu**` : `<@&${tier.roleId}>`));
 
   const rolesFormatter = new Intl.ListFormat("es", {
     style: "long",
@@ -62,7 +30,8 @@ const successfulReply = async (interaction, isSearching, tiers) => {
 };
 
 const editMessage = async (interaction, channelId, messageId) => {
-  if (!channelId || !messageId) throw { name: "ERROR_MESSAGE_MODIF" };
+  if (!channelId || !messageId) throw new EditMessageError();
+
   const channel = await interaction.guild.channels.fetch(channelId);
   const message = await channel.messages.fetch(messageId);
 
@@ -92,9 +61,9 @@ module.exports = {
 
     try {
       const stopSearchResult = await lobbyAPI.stopSearch(playerId, messageId);
-      const { isSearching, tiers } = stopSearchResult;
-      for (tier of tiers) {
-        await editMessage(interaction, tier.channel_id, tier.lobbyTier.message_id);
+      const { isSearching, messages, tiers } = stopSearchResult;
+      for (let message of messages) {
+        await editMessage(interaction, message.channelId, message.discordId);
       }
       await successfulReply(interaction, isSearching, tiers);
     } catch (e) {

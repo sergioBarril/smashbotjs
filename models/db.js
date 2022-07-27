@@ -69,12 +69,12 @@ module.exports = {
 
   async updateBy(table, dictSet, dictWhere, client = null) {
     const setValuesString = Object.keys(dictSet)
-      .map((field, index) => `${field} = ${index + 1}`)
+      .map((field, index) => `${field} = $${index + 1}`)
       .join(", ");
 
     const numValues = Object.keys(dictSet).length;
     const whereConditions = Object.keys(dictWhere)
-      .map((field, index) => `${field} = ${index + numValues + 1}`)
+      .map((field, index) => `${field} = $${index + numValues + 1}`)
       .join(" AND ");
 
     const updateQuery = {
@@ -82,6 +82,7 @@ module.exports = {
       UPDATE ${table}
       SET ${setValuesString}
       WHERE ${whereConditions}`,
+      values: Object.values(dictSet).concat(Object.values(dictWhere)),
     };
 
     await this.query(updateQuery, client);

@@ -19,6 +19,9 @@ const { CannotSearchError } = require("../errors/cannotSearch");
 const { AlreadySearchingError } = require("../errors/alreadySearching");
 const { NotFoundError } = require("../errors/notFound");
 const { insertMessage } = require("../models/message");
+const { NotSearchingError } = require("../errors/notSearching");
+const { TooNoobError } = require("../errors/tooNoob");
+const { NoCableError } = require("../errors/noCable");
 
 const matchNotAccepted = async (declinePlayer, isTimeout) => {
   // Handles a match not being accepted, whether by direct 'Decline' or timeout.
@@ -218,10 +221,10 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   if (!lobby && !existsLobbyPlayer) {
     lobby = await insertLobby({ guildId: guild.id, playerId: player.id, targetTiers });
   } else if (!isSearching || (!lobby && existsLobbyPlayer)) {
-    if (!lobby) throw new CannotSearchError("PLAYING");
-    else throw new CannotSearchError(lobby.status);
+    if (!lobby) throw new CannotSearchError("PLAYING", "SEARCH");
+    else throw new CannotSearchError(lobby.status, "SEARCH");
   } else if (newTiers.length === 0) {
-    throw new AlreadySearchingError(isYuzu, targetTiers[0]);
+    throw new AlreadySearchingError(targetTiers[0], isYuzu);
   } else await lobby.addTiers(newTiers);
 
   const rivalPlayer = await lobby.matchmaking();
@@ -285,52 +288,56 @@ const directMatch = async (playerDiscordId, guildDiscordId, messageDiscordId) =>
 };
 
 const stopSearch = async (playerDiscordId, messageId) => {
-  const lobby = await lobbyDB.getByPlayer(playerDiscordId, true);
-  if (!lobby) throw { name: "LOBBY_NOT_FOUND" };
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const lobby = await player.getOwnLobby();
+  if (!lobby) throw new NotFoundError("Lobby");
 
   // Tiers to Stop
   let tiersToStop = [];
-  const searchingTiers = await lobbyTierDB.getByLobby(lobby.id);
+
+  const searchingTiers = await lobby.getLobbyTiers();
+
   if (messageId) {
-    const tier = await tierDB.getBySearchMessage(messageId);
-    if (!tier) throw { name: "TIER_NOT_FOUND" };
-    if (searchingTiers.some((x) => x.id === tier.id)) tiersToStop.push(tier);
-    else
-      throw {
-        name: "NOT_SEARCHING_HERE",
-        args: { tierId: tier.discord_id, yuzu: tier.yuzu },
-      };
+    const tier = await getTierBySearchMessage(messageId);
+    if (!tier) throw new NotFoundError("Tier");
+
+    if (searchingTiers.some((lt) => lt.tierId === tier.id)) tiersToStop.push(tier);
+    else throw new NotSearchingError(tier.roleId, tier.yuzu);
   } else {
-    tiersToStop = searchingTiers.filter((tier) => tier.weight !== null);
+    const tiers = await Promise.all(searchingTiers.map(async (lt) => await lt.getTier()));
+    tiersToStop = tiers.filter((tier) => tier.weight !== null);
   }
 
-  if (tiersToStop.length === 0)
-    throw {
-      name: "NOT_SEARCHING_LAN",
-    };
+  if (tiersToStop.length === 0) throw new NotSearchingError(null, null);
 
-  if (lobby.status === "PLAYING") throw { name: "ALREADY_PLAYING" };
+  if (lobby.status === "PLAYING") throw new CannotSearchError(lobby.status, "CANCEL");
   if (lobby.status === "CONFIRMATION" || lobby.status === "WAITING")
-    throw { name: "ALREADY_CONFIRMATION" };
+    throw new CannotSearchError(lobby.status, "CANCEL");
 
   // Remove Tier
   const client = await db.getClient();
 
   try {
     await client.query("BEGIN");
-    for (tier of tiersToStop) {
-      const lobbyTier = await lobbyTierDB.get(lobby.id, tier.id, client);
-      await lobbyTierDB.remove(lobby.id, tier.id, client);
-      tier.lobbyTier = lobbyTier;
-    }
+    const messages = await Promise.all(
+      tiersToStop.map(async (tier) => {
+        const lt = await lobby.getLobbyTier(tier.id, client);
+        const message = await lt.getMessage(client);
+        await lt.remove(client);
+        return message;
+      })
+    );
 
     // If it was the last tier, remove the lobby
-    hasTier = await lobbyTierDB.hasAnyTier(lobby.id, client);
-    if (!hasTier && !lobby.ranked) await lobbyDB.remove(lobby.id, false, client);
+    const hasTier = await lobby.hasAnyTier(client);
+    if (!hasTier && !lobby.ranked) await lobby.remove(client);
     await client.query("COMMIT");
 
     return {
       isSearching: hasTier,
+      messages: messages,
       tiers: tiersToStop,
     };
   } catch (e) {

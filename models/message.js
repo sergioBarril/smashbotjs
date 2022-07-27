@@ -17,6 +17,7 @@ class Message {
   }
 
   getTier = async (client = null) => {
+    if (this.tierId == null) return null;
     const tier = await db.getBy("tier", { id: this.tierId }, client);
     if (tier == null) return null;
     else return new Tier(tier);

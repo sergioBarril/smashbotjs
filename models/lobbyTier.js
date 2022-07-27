@@ -1,4 +1,5 @@
 const db = require("./db");
+const { getMessage } = require("./message");
 const { getTier } = require("./tier");
 
 class LobbyTier {
@@ -15,9 +16,13 @@ class LobbyTier {
     return tier;
   };
 
+  getMessage = async (client = null) => await getMessage(this.messageId, false, client);
+
   setMessage = async (messageId, client = null) => {
     const whereCondition = { lobby_id: this.lobbyId, tier_id: this.tierId };
     await db.updateBy("lobby_tier", { message_id: messageId }, whereCondition, client);
+
+    this.messageId = messageId;
   };
 
   remove = async (client = null) => {

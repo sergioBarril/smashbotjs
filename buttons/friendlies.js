@@ -3,49 +3,6 @@ const discordMatchingUtils = require("../utils/discordMatching");
 const lobbyAPI = require("../api/lobby");
 
 const exceptionHandler = async (interaction, exception) => {
-  // EXCEPTION_MESSAGES = {
-  //   GUILD_NOT_FOUND: `__**ERROR**__: No se ha encontrado el servidor.`,
-  //   PLAYER_NOT_FOUND: `__**ERROR**__: No se ha encontrado al jugador.`,
-  //   TIER_NOT_FOUND: `__**ERROR**__: No se ha encontrado la tier.`,
-  //   NOT_SEARCHING:
-  //     `No puedes buscar partida porque ya has encontrado una.\n` +
-  //     `Espera a que tu rival confirme, o cierra la arena si ya habéis terminado de jugar.`,
-  //   LOBBY_NOT_FOUND: `__**ERROR**__: No se ha encontrado el lobby.`,
-  //   MESSAGES_NOT_FOUND: `__**ERROR**__: No se han encontrado mensajes.`,
-  //   TOO_MANY_PLAYERS: `__**ERROR**__: Aún no están listas las arenas de más de 2 players.`,
-  //   NO_CABLE: `¡No tienes ninguna tier asignada! No puedes buscar partida aquí.`,
-  // };
-
-  // const { name, args } = exception;
-
-  // // Get message
-  // let response = EXCEPTION_MESSAGES[name];
-  // if (!response)
-  //   switch (name) {
-  //     case "TOO_NOOB": {
-  //       const targetTier = await interaction.guild.roles.fetch(args.targetTier);
-  //       const playerTier = await interaction.guild.roles.fetch(args.playerTier);
-  //       response = `¡No puedes jugar en ${targetTier} siendo ${playerTier}!`;
-  //       break;
-  //     }
-  //     case "NO_YUZU": {
-  //       const yuzuRole = await interaction.guild.roles.fetch(args.yuzuRole);
-  //       const parsecRole = await interaction.guild.roles.fetch(args.parsecRole);
-  //       response = `¡No puedes jugar Yuzu sin los roles de ${yuzuRole} o ${parsecRole}!`;
-  //       break;
-  //     }
-  //     case "ALREADY_SEARCHING": {
-  //       if (args.isYuzu) response = `¡Ya estabas buscando en **Yuzu**!`;
-  //       else {
-  //         const targetTier = await interaction.guild.roles.fetch(args.targetTiers[0].discord_id);
-  //         response = `Ya estabas buscando en ${targetTier}!`;
-  //       }
-  //       break;
-  //     }
-  //   }
-
-  // if (!response) throw exception;
-
   // Send reply
   return await interaction.reply({
     content: exception.message,

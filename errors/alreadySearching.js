@@ -1,5 +1,5 @@
 class AlreadySearchingError extends Error {
-  constructor(isYuzu, tierDiscordId, message = null) {
+  constructor(tierDiscordId, isYuzu, message = null) {
     super(message);
     this.name = `AlreadySearchingError`;
 
