@@ -4,13 +4,6 @@ const db = require("./db");
 const { RegionRole } = require("./regionRole");
 const { Tier } = require("./tier");
 
-const getGuild = async (guildId, discord = false, client = null) =>
-  await db.basicGet("guild", guildId, discord, client);
-
-const updateBy = async (dictSet, guildId, client = null) => {
-  await db.updateBy("guild", setPairs, { id: guildId }, client);
-};
-
 class Guild {
   constructor({
     id,
@@ -43,7 +36,7 @@ class Guild {
       SELECT * FROM tier
       WHERE guild_id = $1
       ORDER BY weight ASC
-    `,
+      `,
       values: [this.id],
     };
 
@@ -54,19 +47,19 @@ class Guild {
   getCurrentList = async (client = null) => {
     const getQueryString = {
       text: `
-    SELECT tier.discord_id AS tier_id, player.discord_id AS player_id, 
+      SELECT tier.discord_id AS tier_id, player.discord_id AS player_id, 
       tier.search_message_id AS message_id
-    FROM tier
-    INNER JOIN lobby_tier lt
+      FROM tier
+      INNER JOIN lobby_tier lt
       ON tier.id = lt.tier_id
-    INNER JOIN lobby l
+      INNER JOIN lobby l
       ON l.id = lt.lobby_id
-    INNER JOIN lobby_player lp
+      INNER JOIN lobby_player lp
       ON lp.player_id = l.created_by
-    INNER JOIN player
+      INNER JOIN player
       ON player.id = lp.player_id
-    WHERE tier.guild_id = $1
-    `,
+      WHERE tier.guild_id = $1
+      `,
       values: [this.id],
     };
     const getResult = await db.getQuery(getQueryString, client, true);
@@ -118,6 +111,16 @@ class Guild {
   setParsecRole = async (parsecRoleId, client = null) =>
     await updateBy({ parsec_role_id: parsecRoleId }, this.id, client);
 }
+
+const getGuild = async (guildId, discord = false, client = null) => {
+  const guild = await db.basicGet("guild", guildId, discord, client);
+  if (guild == null) return null;
+  else return new Guild(guild);
+};
+
+const updateBy = async (dictSet, guildId, client = null) => {
+  await db.updateBy("guild", setPairs, { id: guildId }, client);
+};
 
 module.exports = {
   getGuild,

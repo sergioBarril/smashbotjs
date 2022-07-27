@@ -1,11 +1,12 @@
 const db = require("./db");
 
 const { CharacterPlayer } = require("./characterPlayer");
-const { Gameset } = require("./gameset");
+
 const { Lobby } = require("./lobby");
 const { Rating } = require("./rating");
 const { getRegion } = require("./region");
 const { YuzuPlayer } = require("./yuzuPlayer");
+const { Tier } = require("./tier");
 
 const getPlayer = async (playerId, discord = false, client = null) => {
   const player = await db.basicGet("player", playerId, discord, client);
@@ -30,7 +31,9 @@ class Player {
       values: [this.id, guildId],
     };
 
-    return await db.getQuery(getQuery, client);
+    const tier = await db.getQuery(getQuery, client);
+    if (tier == null) return null;
+    else return new Tier(tier);
   };
 
   getOwnLobby = async (client = null) => {
@@ -63,6 +66,7 @@ class Player {
   };
 
   getCurrentGameset = async (client = null) => {
+    const { Gameset } = require("./gameset");
     const getQuery = {
       text: `SELECT gs.* FROM gameset gs
     INNER JOIN game
@@ -97,7 +101,7 @@ class Player {
     return lps.length > 0;
   };
 
-  getCharacter = async (characterId, client = null) => {
+  getCharacterPlayer = async (characterId, client = null) => {
     const charPlayer = await db.getBy(
       "character_player",
       { player_id: this.id, character_id: characterId },
@@ -108,9 +112,22 @@ class Player {
     else return new CharacterPlayer(charPlayer);
   };
 
-  getAllCharacters = async (client = null) => {
+  getAllCharacterPlayers = async (client = null) => {
     const charPlayers = await db.filterBy("character_player", { player_id: this.id }, client);
     return charPlayers.map((row) => new CharacterPlayer(row));
+  };
+
+  getCharacter = async (characterId, client = null) => {
+    const charPlayer = await this.getCharacterPlayer(characterId, client);
+    if (charPlayer == null) return null;
+    else return await charPlayer.getCharacter(client);
+  };
+
+  getCharactersByType = async (type, client = null) => {
+    const charPlayers = await this.getAllCharacterPlayers(client);
+    return await Promise.all(
+      charPlayers.filter((cp) => cp.type === type).map(async (cp) => await cp.getCharacter(client))
+    );
   };
 
   getRegion = async (regionId, client = null) => {
@@ -132,6 +149,11 @@ class Player {
     const yp = await db.getBy("yuzu_player", { player_id: this.id, guild_id: guildId }, client);
     if (yp == null) return null;
     else return new YuzuPlayer(yp);
+  };
+
+  canSearchYuzu = async (guildId, client = null) => {
+    const yuzuPlayer = await this.getYuzuPlayer(guildId, client);
+    return yuzuPlayer && (yuzuPlayer.yuzu || yuzuPlayer.parsec);
   };
 }
 

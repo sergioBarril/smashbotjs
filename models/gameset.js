@@ -1,6 +1,5 @@
 const db = require("./db");
 const { Game } = require("./game");
-const { Lobby } = require("./lobby");
 
 class Gameset {
   constructor({
@@ -30,6 +29,7 @@ class Gameset {
   };
 
   getLobby = async (client = null) => {
+    const { Lobby } = require("./lobby");
     if (this.lobbyId == null) return null;
 
     const lobby = await db.getBy("lobby", { id: this.lobbyId }, client);

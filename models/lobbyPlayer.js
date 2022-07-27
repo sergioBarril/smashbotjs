@@ -1,7 +1,5 @@
 const db = require("./db");
-const { getLobby } = require("./lobby");
 const { getMessage } = require("./message");
-const { getPlayer } = require("./player");
 
 class LobbyPlayer {
   constructor({ lobby_id, player_id, status, message_id, new_set, cancel_set }) {
@@ -16,6 +14,7 @@ class LobbyPlayer {
   }
 
   getPlayer = async (client = null) => {
+    const { getPlayer } = require("./player");
     const player = await getPlayer(this.playerId, false, client);
     return player;
   };
@@ -23,11 +22,11 @@ class LobbyPlayer {
   getOpponent = async (client = null) => {
     const getQuery = {
       text: `SELECT lobby_player.*
-    FROM lobby_player
-    INNER JOIN player
+      FROM lobby_player
+      INNER JOIN player
       ON player.id = lobby_player.player_id
-    WHERE lobby_player.lobby_id = $1
-    AND lobby_player.player_id <> $2`,
+      WHERE lobby_player.lobby_id = $1
+      AND lobby_player.player_id <> $2`,
       values: [this.lobbyId, this.playerId],
     };
 
@@ -37,12 +36,13 @@ class LobbyPlayer {
   };
 
   getLobby = async (client = null) => {
+    const { getLobby } = require("./lobby");
     const lobby = await getLobby(this.lobbyId, client);
     return lobby;
   };
 
   getMessage = async (client = null) => {
-    const message = await getMessage(this.messageId, client);
+    const message = await getMessage(this.messageId, false, client);
     return message;
   };
 
@@ -71,21 +71,7 @@ class LobbyPlayer {
   };
 }
 
-const insert = async (lobbyId, playerId, status, client = null) => {
-  const insertLobbyPlayerQuery = {
-    text: `
-    INSERT INTO lobby_player(lobby_id, player_id, status)
-    VALUES ($1, $2, $3)
-    `,
-    values: [lobbyId, playerId, status],
-  };
-
-  await db.insertQuery(insertLobbyPlayerQuery, client);
-  return true;
-};
-
 module.exports = {
-  insert,
   getMessage,
   LobbyPlayer,
 };

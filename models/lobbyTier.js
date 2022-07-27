@@ -1,4 +1,5 @@
 const db = require("./db");
+const { getTier } = require("./tier");
 
 class LobbyTier {
   constructor({ lobby_id, tier_id, created_at, message_id }) {
@@ -8,6 +9,11 @@ class LobbyTier {
     this.createdAt = created_at;
     this.messageId = message_id;
   }
+
+  getTier = async () => {
+    const tier = await getTier(this.tierId, false);
+    return tier;
+  };
 
   setMessage = async (messageId, client = null) => {
     const whereCondition = { lobby_id: this.lobbyId, tier_id: this.tierId };

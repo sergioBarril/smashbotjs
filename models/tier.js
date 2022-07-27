@@ -24,6 +24,12 @@ class Tier {
     this.rankedRoleId = ranked_role_id; // discordId of @Tier X (Ranked)
   }
 
+  canSearchIn = (targetTier) => {
+    // Can someone with this as their highest tier search in targetTier?
+    if (!targetTier) return false;
+    return targetTier.weight == null || targetTier.weight >= this.weight;
+  };
+
   setSearchMessage = async (newSearchMessageId, client = null) => {
     await updateBy({ search_message_id: newSearchMessageId }, this.id, client);
     this.searchMessageId = newSearchMessageId;
@@ -35,7 +41,7 @@ class Tier {
   };
 }
 
-const get = async (tierId, discord = false) => {
+const getTier = async (tierId, discord = false) => {
   const tier = await db.basicGet("tier", tierId, discord);
   if (tier == null) return null;
   else return new Tier(tier);
@@ -47,16 +53,23 @@ const getBy = async (dbFieldName, value, client = null) => {
   else return new Tier(tier);
 };
 
-const getByRankedRole = async (rankedRoleId, client = null) =>
+const getTierByRankedRole = async (rankedRoleId, client = null) =>
   await getBy("ranked_role_id", rankedRoleId, client);
 
-const getBySearchMessage = async (messageDiscordId, client = null) =>
-  await getBy("search_message_id", messageDiscordId, client);
+const getTierBySearchMessage = async (messageDiscordId, client = null) => {
+  const { Message } = require("./message");
 
-const getByChannel = async (channelDiscordId, client = null) =>
+  const message = await db.getBy("message", { discord_id: messageDiscordId.toString() });
+  if (message == null) return null;
+
+  const messageObj = new Message(message);
+  return await messageObj.getTier(client);
+};
+
+const getTierByChannel = async (channelDiscordId, client = null) =>
   await getBy("channel_id", channelDiscordId, client);
 
-const getByTierMessage = async (messageDiscordId, client = null) => {
+const getTierByTierMessage = async (messageDiscordId, client = null) => {
   const getQuery = {
     text: `SELECT t.*
     FROM lobby_tier lt
@@ -66,13 +79,12 @@ const getByTierMessage = async (messageDiscordId, client = null) => {
     values: [messageDiscordId],
   };
 
-  const getResult = await (client ?? db).query(getQuery);
-
-  if (getResult.rows.length > 0) return new Tier(getResult.rows[0]);
-  else return null;
+  const tier = await db.getQuery(getQuery, client, false);
+  if (tier == null) return null;
+  else return new Tier(tier);
 };
 
-const create = async ({
+const insertTier = async ({
   roleDiscordId,
   channelDiscordId,
   guildId,
@@ -89,7 +101,7 @@ const create = async ({
     values: [roleDiscordId, channelDiscordId, guildId, weight, threshold, yuzu],
   };
 
-  await (client ?? db).query(insertQuery);
+  await db.insertQuery(insertQuery, client);
 };
 
 // Basic update, only Where condition is id check
@@ -98,11 +110,11 @@ const updateBy = async (setDict, tierId, client = null) => {
 };
 
 module.exports = {
-  get,
-  getByRankedRole,
-  getBySearchMessage,
-  getByTierMessage,
-  getByChannel,
-  create,
+  getTier,
+  getTierByRankedRole,
+  getTierBySearchMessage,
+  getTierByTierMessage,
+  getTierByChannel,
+  insertTier,
   Tier,
 };

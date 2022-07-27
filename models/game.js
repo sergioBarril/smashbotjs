@@ -1,7 +1,6 @@
 const db = require("./db");
 const { GamePlayer } = require("./gamePlayer");
 const { Message } = require("./message");
-const { Player } = require("./player");
 const { StageBan } = require("./stageBan");
 
 class Game {
@@ -76,6 +75,7 @@ class Game {
   };
 
   getWinner = async (client = null) => {
+    const { Player } = require("./player");
     if (this.winnerId == null) return null;
     const winner = await db.getBy("player", { id: this.winnerId }, client);
 

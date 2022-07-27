@@ -15,6 +15,7 @@ class CharacterPlayer {
     return character?.name;
   };
 
+  getCharacter = async (client = null) => await getCharacter(this.characterId, client);
   // ***********
   //   SETTER
   // **********

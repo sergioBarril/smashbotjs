@@ -1,10 +1,10 @@
 const db = require("./db");
-const { getPlayer } = require("./player");
 const { getGuild } = require("./guild");
 const { LobbyTier } = require("./lobbyTier");
 const { Message } = require("./message");
 const { LobbyPlayer } = require("./lobbyPlayer");
 const { Gameset } = require("./gameset");
+const { YuzuPlayer } = require("./yuzuPlayer");
 
 class Lobby {
   constructor({
@@ -49,10 +49,10 @@ class Lobby {
   };
 
   addTiers = async (tiers, client = null) => {
-    for (tier of tiers) {
+    for (let tier of tiers) {
       const addTierQuery = {
         text: `INSERT INTO lobby_tier(lobby_id, tier_id) VALUES ($1, $2)`,
-        values: [lobbyId, tier.id],
+        values: [this.id, tier.id],
       };
       await db.insertQuery(addTierQuery, client);
     }
@@ -114,6 +114,95 @@ class Lobby {
     };
 
     await db.deleteQuery(queryString, client);
+  };
+
+  matchmaking = async (opponent = null, tierId = null) => {
+    if (opponent == null) {
+      // Get someone to match to. If tierId is null, check all tiers
+
+      // Check YuzuPlayer
+      const ypQuery = {
+        text: `SELECT yp.* FROM yuzu_player yp
+      INNER JOIN lobby l
+        ON l.created_by = yp.player_id
+      WHERE l.id = $1 AND yp.guild_id = $2`,
+        values: [this.id, this.guildId],
+      };
+
+      const ypResult = await db.getQuery(ypQuery);
+
+      let yp = null;
+      if (ypResult) yp = new YuzuPlayer(ypResult);
+
+      const values = [this.guildId, this.id, !!yp?.yuzu, !!yp?.parsec];
+
+      // Tier Conditions
+      let tierCondition = "";
+
+      if (tierId) {
+        tierCondition = "AND tier.id = $5";
+        values.push(tierId);
+      } else
+        tierCondition = `
+        AND tier.id IN (
+        SELECT id FROM tier t
+        INNER JOIN lobby_tier lt
+          ON t.id = lt.tier_id
+        WHERE lt.lobby_id = $2
+        )`;
+
+      const matchmakingQuery = {
+        text: `
+      SELECT lobby_player.*
+      FROM lobby_player
+      INNER JOIN lobby
+        ON lobby.id = lobby_player.lobby_id
+      INNER JOIN lobby_tier
+        ON lobby_tier.lobby_id = lobby_player.lobby_id
+      INNER JOIN tier
+        ON lobby_tier.tier_id = tier.id
+      LEFT JOIN yuzu_player
+        ON yuzu_player.player_id = lobby_player.player_id
+          AND yuzu_player.guild_id = $1
+          AND tier.yuzu
+      WHERE lobby.guild_id = $1
+      AND lobby_player.lobby_id <> $2
+      AND lobby_player.status = 'SEARCHING'
+      AND (NOT tier.yuzu OR yuzu_player.parsec = $3 OR yuzu_player.yuzu = $4)
+      ${tierCondition}
+      ORDER BY tier.weight ASC, lobby_tier.created_at ASC
+      `,
+        values,
+      };
+
+      const matchmakingResult = await db.getQuery(matchmakingQuery);
+
+      if (matchmakingResult == null) return null;
+      opponent = new LobbyPlayer(matchmakingResult);
+    }
+
+    const client = await db.getClient();
+
+    // Update status
+    try {
+      await client.query("BEGIN");
+      await this.setStatus("CONFIRMATION", client);
+
+      const oppLobby = await opponent.getLobby(client);
+      if (!oppLobby) throw Error("matchmakingNoOppLobby");
+
+      await oppLobby.setStatus("WAITING", client);
+      await this.addPlayer(opponent.playerId, "CONFIRMATION", client);
+      await this.setLobbyPlayersStatus("CONFIRMATION", client);
+      await client.query("COMMIT");
+
+      return await opponent.getPlayer(client);
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
   };
 
   // *************
@@ -279,7 +368,9 @@ const insertLobby = async ({
     };
     await db.insertQuery(insertLobby, client);
 
-    const player = await getPlayer({ playerId, discord: false, client });
+    const { getPlayer } = require("./player");
+
+    const player = await getPlayer(playerId, false, client);
     const lobby = await player.getOwnLobby(client);
     await lobby.addPlayer(player.id, status, client);
 
@@ -296,68 +387,9 @@ const insertLobby = async ({
   }
 };
 
-const matchmaking = async (lobbyId, guildId, tierId = null, client = null) => {
-  // Get someone to match to. If tierId is null, check all tiers
-
-  // Check YuzuPlayer
-  const ypResult = await (client ?? db).query({
-    text: `SELECT yp.* FROM yuzu_player yp
-        INNER JOIN lobby l
-          ON l.created_by = yp.player_id
-        WHERE l.id = $1 AND yp.guild_id = $2`,
-    values: [lobbyId, guildId],
-  });
-  const yp = ypResult.rows[0];
-  const values = [guildId, lobbyId, !!yp?.yuzu, !!yp?.parsec];
-
-  // Tier Conditions
-  let tierCondition = "";
-
-  if (tierId) {
-    tierCondition = "AND tier.id = $5";
-    values.push(tierId);
-  } else
-    tierCondition = `
-        AND tier.id IN (
-        SELECT id FROM tier t
-        INNER JOIN lobby_tier lt
-          ON t.id = lt.tier_id
-        WHERE lt.lobby_id = $2
-        )`;
-
-  const matchmakingQuery = {
-    text: `
-      SELECT lobby_player.lobby_id AS lobby_id, lobby_player.player_id AS player_id
-      FROM lobby_player
-      INNER JOIN lobby
-        ON lobby.id = lobby_player.lobby_id
-      INNER JOIN lobby_tier
-        ON lobby_tier.lobby_id = lobby_player.lobby_id
-      INNER JOIN tier
-        ON lobby_tier.tier_id = tier.id
-      LEFT JOIN yuzu_player
-        ON yuzu_player.player_id = lobby_player.player_id
-          AND yuzu_player.guild_id = $1
-          AND tier.yuzu
-      WHERE lobby.guild_id = $1
-      AND lobby_player.lobby_id <> $2
-      AND lobby_player.status = 'SEARCHING'
-      AND (NOT tier.yuzu OR yuzu_player.parsec = $3 OR yuzu_player.yuzu = $4)
-      ${tierCondition}
-      ORDER BY tier.weight ASC, lobby_tier.created_at ASC
-      `,
-    values,
-  };
-
-  const matchmakingResult = await (client ?? db).query(matchmakingQuery);
-  if (matchmakingResult.rows?.length > 0) return matchmakingResult.rows[0];
-  else return null;
-};
-
 module.exports = {
   getLobby,
   getByTextChannel,
   insertLobby,
-  // matchmaking, --> A revisar
   Lobby,
 };

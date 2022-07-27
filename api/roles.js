@@ -11,6 +11,8 @@ const regionRoleDB = require("../db/regionRole");
 const regionPlayerDB = require("../db/regionPlayer");
 
 const yuzuPlayerDB = require("../db/yuzuPlayer");
+const { getPlayer } = require("../models/player");
+const { getGuild } = require("./lobby");
 
 const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
   // Assigns a player a role
@@ -106,23 +108,25 @@ const assignYuzu = async (playerDiscordId, guildDiscordId, yuzuRoleName) => {
 };
 
 const getYuzuMessageRoles = async (playerDiscordId, guildDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const guild = await guildDB.get(guildDiscordId, true);
+  const player = await getPlayer(playerDiscordId, true);
+  const guild = await getGuild(guildDiscordId, true);
 
-  const yuzuPlayer = await yuzuPlayerDB.get(player.id, guild.id);
+  const yuzuPlayer = await player.getYuzuPlayer(guild.id);
+
   const roles = [];
-  if (yuzuPlayer.parsec) roles.push(guild.yuzu_role_id);
-  if (yuzuPlayer.yuzu) roles.push(guild.parsec_role_id);
+  if (yuzuPlayer.parsec) roles.push(guild.yuzuRoleId);
+  if (yuzuPlayer.yuzu) roles.push(guild.parsecRoleId);
 
   return roles;
 };
 
-const getCharacters = async (playerDiscordId, guildDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
+const getCharacters = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) return null;
 
-  const mains = await characterPlayerDB.getByType(player.id, "MAIN");
-  const seconds = await characterPlayerDB.getByType(player.id, "SECOND");
-  const pockets = await characterPlayerDB.getByType(player.id, "POCKET");
+  const mains = await player.getCharactersByType("MAIN");
+  const seconds = await player.getCharactersByType("SECOND");
+  const pockets = await player.getCharactersByType("POCKET");
 
   return { mains, seconds, pockets };
 };

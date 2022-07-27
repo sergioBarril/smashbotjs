@@ -16,7 +16,7 @@ module.exports = {
   async getQuery(queryString, client = null, many = false) {
     const getRes = await this.query(queryString, client);
     if (many) return getRes.rows;
-    else return getRes.rows.length === 1 ? getRes.rows[0] : null;
+    else return getRes.rows.length > 0 ? getRes.rows[0] : null;
   },
 
   async insertQuery(queryString, client = null) {
@@ -58,7 +58,7 @@ module.exports = {
       text: `
       SELECT * FROM ${table}
       WHERE ${Object.keys(dict)
-        .map((field, index) => `${field} ${values[index] == null ? "IS" : "="} ${index + 1}`)
+        .map((field, index) => `${field} ${values[index] == null ? "IS" : "="} $${index + 1}`)
         .join(" AND ")}`,
       values: Object.values(dict),
     };

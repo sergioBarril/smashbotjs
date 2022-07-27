@@ -2,6 +2,7 @@ const { MessageActionRow, MessageButton } = require("discord.js");
 
 const lobbyAPI = require("../api/lobby");
 const guildAPI = require("../api/guild");
+const messageAPI = require("../api/message");
 const rolesAPI = require("../api/roles");
 
 const smashCharacters = require("../params/smashCharacters.json");
@@ -73,7 +74,7 @@ const matched = async (guild, playerIdList) => {
   }
 };
 
-const notMatched = async (playerId, guild, tierInfo = null) => {
+const notMatched = async (playerId, guild, tier = null) => {
   // Actions to do after not finding a match
   // This includes sending a message to #tier
 
@@ -82,7 +83,7 @@ const notMatched = async (playerId, guild, tierInfo = null) => {
   );
 
   const member = await guild.members.fetch(playerId);
-  const { mains, seconds } = await rolesAPI.getCharacters(playerId, guild.id);
+  const { mains, seconds } = await rolesAPI.getCharacters(playerId);
 
   const characters = mains.concat(seconds);
 
@@ -92,25 +93,21 @@ const notMatched = async (playerId, guild, tierInfo = null) => {
     charsText = ` (${charsEmojis.join("")})`;
   }
 
-  let tiersInfo = [];
-  if (tierInfo) tiersInfo.push(tierInfo);
-  else tiersInfo = await lobbyAPI.getTierChannels(playerId);
+  let tiers = [];
+  if (tier) tiers.push(tier);
+  else tiers = await lobbyAPI.getSearchingTiers(playerId);
 
-  for (tierInfo of tiersInfo) {
-    const { tier_id: tierId, channel_id: channelId, yuzu } = tierInfo;
-    const channel = await guild.channels.fetch(channelId);
+  for (let tier of tiers) {
+    const channel = await guild.channels.fetch(tier.channelId);
 
     let messageContent = "";
 
-    if (yuzu) {
+    if (tier.yuzu) {
       const roleIds = await rolesAPI.getYuzuMessageRoles(member.id, guild.id);
-      for (roleId of roleIds) {
-        const role = await guild.roles.fetch(roleId);
-        messageContent += `${role} `;
-      }
-      messageContent += `- **${member.displayName}**${charsText} está buscando partida en **Yuzu**.`;
+      messageContent = roleIds.map((roleId) => `<@&${roleId}>`).join(" ");
+      messageContent += ` - **${member.displayName}**${charsText} está buscando partida en **Yuzu**.`;
     } else {
-      const tierRole = await guild.roles.fetch(tierId);
+      const tierRole = await guild.roles.fetch(tier.roleId);
       messageContent =
         `${tierRole} - **${member.displayName}**${charsText}` +
         ` está buscando partida en **${tierRole.name}**.`;
@@ -120,7 +117,7 @@ const notMatched = async (playerId, guild, tierInfo = null) => {
       components: [button],
     });
 
-    await lobbyAPI.saveSearchTierMessage(playerId, tierId, message.id, yuzu);
+    await messageAPI.saveSearchTierMessage(playerId, tier.roleId, message.id, tier.yuzu);
   }
 };
 

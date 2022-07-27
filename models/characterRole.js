@@ -1,4 +1,3 @@
-const { getCharacterByName, Character } = require("./character");
 const db = require("./db");
 
 class CharacterRole {

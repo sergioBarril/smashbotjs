@@ -1,4 +1,3 @@
-const { getRegionByName, Region } = require("./region");
 const db = require("./db");
 
 class RegionRole {

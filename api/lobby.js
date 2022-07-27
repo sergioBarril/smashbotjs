@@ -11,12 +11,14 @@ const yuzuPlayerDB = require("../db/yuzuPlayer");
 const gameSetDB = require("../db/gameSet");
 const ratingDB = require("../db/rating");
 
-const canSearchTier = (playerTier, targetTier) => {
-  // Compares two tiers, and returns true if someone
-  // from playerTier can play in targetTier
-  if (!playerTier || !targetTier) return false;
-  return targetTier.weight == null || targetTier.weight >= playerTier.weight;
-};
+const { getGuild } = require("../models/guild");
+const { getPlayer } = require("../models/player");
+const { getTierBySearchMessage, getTier } = require("../models/tier");
+const { getLobby, insertLobby } = require("../models/lobby");
+const { CannotSearchError } = require("../errors/cannotSearch");
+const { AlreadySearchingError } = require("../errors/alreadySearching");
+const { NotFoundError } = require("../errors/notFound");
+const { insertMessage } = require("../models/message");
 
 const matchNotAccepted = async (declinePlayer, isTimeout) => {
   // Handles a match not being accepted, whether by direct 'Decline' or timeout.
@@ -83,31 +85,31 @@ const matchNotAccepted = async (declinePlayer, isTimeout) => {
 
 // PUBLIC WITH INTERNAL DATA
 
-const matchmaking = async (playerId, lobbyId, guildId, targetTierId = null, opponent = null) => {
-  if (opponent === null) opponent = await lobbyDB.matchmaking(lobbyId, guildId, targetTierId);
-  if (!opponent) return null;
+// const matchmaking = async (playerId, lobbyId, guildId, targetTierId = null, opponent = null) => {
+//   if (opponent === null) opponent = await lobbyDB.matchmaking(lobbyId, guildId, targetTierId);
+//   if (!opponent) return null;
 
-  const { player_id: rivalPlayerId, lobby_id: rivalLobbyId } = opponent;
+//   const { player_id: rivalPlayerId, lobby_id: rivalLobbyId } = opponent;
 
-  const client = await db.getClient();
+//   const client = await db.getClient();
 
-  // Update status
-  try {
-    await client.query("BEGIN");
-    await lobbyDB.updateStatus(lobbyId, "CONFIRMATION", client);
-    await lobbyDB.updateStatus(rivalLobbyId, "WAITING", client);
-    await lobbyPlayerDB.updateStatus(lobbyId, playerId, "CONFIRMATION", client);
-    await lobbyPlayerDB.insert(lobbyId, rivalPlayerId, "CONFIRMATION", client);
-    await client.query("COMMIT");
+//   // Update status
+//   try {
+//     await client.query("BEGIN");
+//     await lobbyDB.updateStatus(lobbyId, "CONFIRMATION", client);
+//     await lobbyDB.updateStatus(rivalLobbyId, "WAITING", client);
+//     await lobbyPlayerDB.updateStatus(lobbyId, playerId, "CONFIRMATION", client);
+//     await lobbyPlayerDB.insert(lobbyId, rivalPlayerId, "CONFIRMATION", client);
+//     await client.query("COMMIT");
 
-    return await playerDB.get(rivalPlayerId, false);
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
-};
+//     return await playerDB.get(rivalPlayerId, false);
+//   } catch (e) {
+//     await client.query("ROLLBACK");
+//     throw e;
+//   } finally {
+//     client.release();
+//   }
+// };
 
 // PUBLIC
 
@@ -115,9 +117,9 @@ const getByPlayer = async (playerDiscordId) => {
   return await lobbyDB.getByPlayer(playerDiscordId, true);
 };
 
-const getGuild = async (lobbyId) => {
-  return await guildDB.getByLobby(lobbyId);
-};
+// const getGuild = async (lobbyId) => {
+//   return await guildDB.getByLobby(lobbyId);
+// };
 
 const hasLobbyTiers = async (playerDiscordId) => {
   const player = await playerDB.get(playerDiscordId, true);
@@ -127,12 +129,6 @@ const hasLobbyTiers = async (playerDiscordId) => {
   const hasAnyTier = await lobbyTierDB.hasAnyTier(lobby.id);
 
   return hasAnyTier;
-};
-
-const canSearchYuzu = async (playerId, guildId) => {
-  const yuzuPlayer = await yuzuPlayerDB.get(playerId, guildId);
-
-  return yuzuPlayer && (yuzuPlayer.yuzu || yuzuPlayer.parsec);
 };
 
 const canSearchRanked = async (playerId, guildId) => {
@@ -169,86 +165,66 @@ const rankedSearch = async (playerDiscordId, guildDiscordId) => {
 const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   const isSearchAll = messageDiscordId === null;
 
-  const guild = await guildDB.get(guildDiscordId, true);
-  if (!guild) throw { name: "GUILD_NOT_FOUND" };
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
-  const player = await playerDB.get(playerDiscordId, true);
-  if (!player) throw { name: "PLAYER_NOT_FOUND" };
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const targetTier = await tierDB.getBySearchMessage(messageDiscordId);
-  if (!targetTier && !isSearchAll) throw { name: "TIER_NOT_FOUND" };
+  const targetTier = await getTierBySearchMessage(messageDiscordId);
+  if (!targetTier && !isSearchAll) throw new NotFoundError("Tier");
 
   const isYuzu = !isSearchAll && targetTier.yuzu;
 
   let targetTiers = [];
-  const allTiers = await tierDB.getByGuild(guild.id, false);
+  const allTiers = await guild.getTiers();
+  const playerTier = await player.getTier(guild.id);
 
-  const playerTier = await playerDB.getTier(player.id, guild.id);
   // Yuzu
   if (isYuzu) {
-    const canSearch = await canSearchYuzu(player.id, guild.id);
-    if (!canSearch)
-      throw {
-        name: "NO_YUZU",
-        args: {
-          yuzuRole: guild.yuzu_role_id,
-          parsecRole: guild.parsec_role_id,
-        },
-      };
+    const canSearch = await player.canSearchYuzu(guild.id);
+    if (!canSearch) throw new NoYuzuError(guild.yuzuRoleId, guild.parsecRoleId);
     else targetTiers.push(targetTier);
 
     // Not yuzu
   } else {
     let canSearch = false;
     // One tier
-    if (targetTier && canSearchTier(playerTier, targetTier)) {
+    if (targetTier && playerTier.canSearchIn(targetTier)) {
       targetTiers.push(targetTier);
       canSearch = true;
     }
     // All tiers
     else if (isSearchAll) {
-      targetTiers = allTiers.filter(
-        (tier) => tier.weight !== null && canSearchTier(playerTier, tier)
-      );
+      targetTiers = allTiers.filter((tier) => tier.weight !== null && playerTier.canSearchIn(tier));
       canSearch = targetTiers.length > 0;
     }
 
     if (!canSearch && targetTier)
-      throw {
-        name: "TOO_NOOB",
-        args: {
-          targetTier: targetTier.discord_id,
-          playerTier: playerTier.discord_id,
-        },
-      };
-    else if (!canSearch)
-      throw {
-        name: "NO_CABLE",
-      };
+      throw new TooNoobError(playerTier.discordId, targetTier.discordId);
+    else if (!canSearch) throw new NoCableError();
   }
 
-  let lobby = await lobbyDB.getByPlayer(player.id);
-  const existsLobbyPlayer = await lobbyPlayerDB.existsLobbyPlayer(player.id);
+  let lobby = await player.getOwnLobby();
+  const existsLobbyPlayer = await player.hasLobbyPlayer();
   const isSearching = lobby?.status === "SEARCHING";
-  const searchingTiers = await lobbyTierDB.getByLobby(lobby?.id);
+
+  const searchingTiers = lobby == null ? [] : await lobby.getLobbyTiers();
   const searchingTiersIds = searchingTiers.map((tier) => tier.id);
 
   // Is already searching all those tiers?
   const newTiers = targetTiers.filter((tier) => !searchingTiersIds.includes(tier.id));
 
   if (!lobby && !existsLobbyPlayer) {
-    await lobbyDB.create(guild.id, player.id, targetTiers);
-    lobby = await lobbyDB.getByPlayer(player.id);
+    lobby = await insertLobby({ guildId: guild.id, playerId: player.id, targetTiers });
   } else if (!isSearching || (!lobby && existsLobbyPlayer)) {
-    throw { name: "NOT_SEARCHING" };
+    if (!lobby) throw new CannotSearchError("PLAYING");
+    else throw new CannotSearchError(lobby.status);
   } else if (newTiers.length === 0) {
-    throw {
-      name: "ALREADY_SEARCHING",
-      args: { targetTiers, isYuzu },
-    };
-  } else await lobbyDB.addTiers(lobby.id, newTiers);
+    throw new AlreadySearchingError(isYuzu, targetTiers[0]);
+  } else await lobby.addTiers(newTiers);
 
-  const rivalPlayer = await matchmaking(player.id, lobby.id, guild.id, null);
+  const rivalPlayer = await lobby.matchmaking();
 
   // Unmatched, return info to send @Tier
   if (!rivalPlayer) {
@@ -260,7 +236,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
 
   return {
     matched: true,
-    players: [player.discord_id, rivalPlayer.discord_id],
+    players: [player.discordId, rivalPlayer.discordId],
   };
 };
 
@@ -400,12 +376,14 @@ const getTierMessages = async (playerDiscordId, status = "CONFIRMATION") => {
   });
 };
 
-const getTierChannels = async (playerDiscordId) => {
-  // Given a player, returns all the channels where he's looking for games
-  const lobby = await lobbyDB.getByPlayer(playerDiscordId, true);
-  const channelsInfo = await lobbyTierDB.getChannels(lobby.id);
+const getSearchingTiers = async (playerDiscordId) => {
+  // Given a player, returns all the Tiers where he's looking for games
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  return channelsInfo;
+  const lobby = await player.getOwnLobby();
+  const lts = await lobby.getLobbyTiers();
+  return await Promise.all(lts.map(async (lt) => await lt.getTier()));
 };
 
 const getPlayingPlayers = async (playerDiscordId) => {
@@ -414,17 +392,6 @@ const getPlayingPlayers = async (playerDiscordId) => {
 
   const lobbyPlayers = await lobbyPlayerDB.getLobbyPlayers(lobby.id);
   return lobbyPlayers;
-};
-
-const saveSearchTierMessage = async (playerDiscordId, tierDiscordId, messageId, yuzu) => {
-  const lobby = await lobbyDB.getByPlayer(playerDiscordId, true);
-
-  let tier;
-  if (yuzu) {
-    tier = await tierDB.getYuzu(lobby.guild_id);
-  } else tier = await tierDB.get(tierDiscordId, true);
-  await lobbyTierDB.updateMessage(lobby.id, tier.id, messageId);
-  return true;
 };
 
 const saveRankedMessage = async (playerDiscordId, rankedRoleId, messageId) => {
@@ -648,17 +615,16 @@ module.exports = {
   search,
   rankedSearch,
   stopSearch,
-  saveSearchTierMessage,
   saveDirectMessage,
   getPlayingPlayers,
   getMessages,
   getTierMessages,
-  getTierChannels,
+  getSearchingTiers,
   acceptMatch,
   declineMatch,
   timeoutMatch,
   afterConfirmation,
-  matchmaking,
+  // matchmaking,
   directMatch,
   unAFK,
   closeArena,
