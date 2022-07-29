@@ -83,7 +83,20 @@ class Player {
     else return new Gameset(gameset);
   };
 
-  getRatingByGuild = async (guildId, client = null) => {
+  insertRating = async (guildId, tierId, score, client = null) => {
+    const insertQuery = {
+      text: `
+    INSERT INTO rating(player_id, guild_id, tier_id, score)
+    VALUES ($1, $2, $3, $4)
+    `,
+      values: [this.id, guildId, tierId, score],
+    };
+
+    await db.insertQuery(insertQuery, client);
+    return await this.getRating(guildId, client);
+  };
+
+  getRating = async (guildId, client = null) => {
     const getRatingQuery = {
       text: `SELECT * FROM rating
         WHERE player_id = $1 
@@ -155,9 +168,25 @@ class Player {
     const yuzuPlayer = await this.getYuzuPlayer(guildId, client);
     return yuzuPlayer && (yuzuPlayer.yuzu || yuzuPlayer.parsec);
   };
+
+  remove = async (client = null) => await db.basicRemove("player", this.id, false, client);
 }
 
+const insertPlayer = async (playerDiscordId, client = null) => {
+  const insertQuery = {
+    text: `
+    INSERT INTO player (discord_id)
+    VALUES ($1)
+    `,
+    values: [playerDiscordId],
+  };
+
+  await db.insertQuery(insertQuery, client);
+  return await getPlayer(playerDiscordId, true, client);
+};
+
 module.exports = {
-  getPlayer,
   Player,
+  getPlayer,
+  insertPlayer,
 };
