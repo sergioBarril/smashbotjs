@@ -16,6 +16,11 @@ class CharacterPlayer {
   };
 
   getCharacter = async (client = null) => await getCharacter(this.characterId, client);
+
+  getPlayer = async (client = null) => {
+    const { getPlayer } = require("./player");
+    return await getPlayer(this.playerId, false, client);
+  };
   // ***********
   //   SETTER
   // **********
@@ -39,18 +44,6 @@ class CharacterPlayer {
   };
 }
 
-const insertCharacterPlayer = async (characterId, playerId, type, client = null) => {
-  const insertQuery = {
-    text: `
-    INSERT INTO character_player (character_id, player_id, type)
-    VALUES ($1, $2, $3)
-    `,
-    values: [characterId, playerId, type],
-  };
-  await db.insertQuery(insertQuery, client);
-};
-
 module.exports = {
-  insertCharacterPlayer,
   CharacterPlayer,
 };

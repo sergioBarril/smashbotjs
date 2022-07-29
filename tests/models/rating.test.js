@@ -3,7 +3,7 @@ jest.mock("../../models/config.json", () => mockCredentials);
 const db = require("../../models/db");
 
 const { getAllGuilds } = require("../../models/guild");
-const { getPlayer, insertPlayer, Player } = require("../../models/player");
+const { getPlayer, insertPlayer } = require("../../models/player");
 const { Rating, getRating } = require("../../models/rating");
 
 afterAll(async () => await db.close());
@@ -31,9 +31,9 @@ describe("test rating methods", () => {
   });
 
   afterEach(async () => {
+    player = await getPlayer(mockPlayerDiscordId, true);
     if (player) {
       await player.remove();
-      player = null;
     }
   });
 

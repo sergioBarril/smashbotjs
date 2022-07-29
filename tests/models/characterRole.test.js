@@ -7,7 +7,7 @@ const { getAllGuilds } = require("../../models/guild");
 
 afterAll(async () => await db.close());
 
-describe("test character methods", () => {
+describe("test characterRole methods", () => {
   let character;
   let guild;
 

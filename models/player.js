@@ -8,13 +8,6 @@ const { getRegion } = require("./region");
 const { YuzuPlayer } = require("./yuzuPlayer");
 const { Tier } = require("./tier");
 
-const getPlayer = async (playerId, discord = false, client = null) => {
-  const player = await db.basicGet("player", playerId, discord, client);
-
-  if (player === null) return null;
-  return new Player(player);
-};
-
 class Player {
   constructor({ id, discord_id }) {
     this.id = id;
@@ -94,6 +87,19 @@ class Player {
 
     await db.insertQuery(insertQuery, client);
     return await this.getRating(guildId, client);
+  };
+
+  insertCharacter = async (characterId, type, client = null) => {
+    const insertQuery = {
+      text: `
+    INSERT INTO character_player (character_id, player_id, type)
+    VALUES ($1, $2, $3)
+    `,
+      values: [characterId, this.id, type],
+    };
+    await db.insertQuery(insertQuery, client);
+
+    return await this.getCharacterPlayer(characterId);
   };
 
   getRating = async (guildId, client = null) => {
@@ -183,6 +189,13 @@ const insertPlayer = async (playerDiscordId, client = null) => {
 
   await db.insertQuery(insertQuery, client);
   return await getPlayer(playerDiscordId, true, client);
+};
+
+const getPlayer = async (playerId, discord = false, client = null) => {
+  const player = await db.basicGet("player", playerId, discord, client);
+
+  if (player === null) return null;
+  return new Player(player);
 };
 
 module.exports = {
