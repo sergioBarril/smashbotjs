@@ -616,17 +616,17 @@ const isInCurrentLobby = async (playerDiscordId, textChannelId) => {
 };
 
 module.exports = {
+  search,
+  stopSearch,
+  getSearchingTiers,
   getByPlayer,
   getGuild,
   hasLobbyTiers,
-  search,
   rankedSearch,
-  stopSearch,
   saveDirectMessage,
   getPlayingPlayers,
   getMessages,
   getTierMessages,
-  getSearchingTiers,
   acceptMatch,
   declineMatch,
   timeoutMatch,

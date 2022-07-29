@@ -110,6 +110,8 @@ class Guild {
     await updateBy({ yuzu_role_id: yuzuRoleId }, this.id, client);
   setParsecRole = async (parsecRoleId, client = null) =>
     await updateBy({ parsec_role_id: parsecRoleId }, this.id, client);
+
+  remove = async (client = null) => await db.basicRemove("guild", this.id, false, client);
 }
 
 const getGuild = async (guildId, discord = false, client = null) => {
@@ -118,11 +120,17 @@ const getGuild = async (guildId, discord = false, client = null) => {
   else return new Guild(guild);
 };
 
+const getAllGuilds = async (client = null) => {
+  const guilds = await db.getQuery({ text: "SELECT * FROM guild" }, client, true);
+  return guilds.map((guild) => new Guild(guild));
+};
+
 const updateBy = async (dictSet, guildId, client = null) => {
   await db.updateBy("guild", setPairs, { id: guildId }, client);
 };
 
 module.exports = {
   getGuild,
+  getAllGuilds,
   Guild,
 };

@@ -22,6 +22,8 @@ class Message {
     if (tier == null) return null;
     else return new Tier(tier);
   };
+
+  remove = async (client = null) => await db.basicRemove("message", this.id, false, client);
 }
 
 const getMessage = async (messageId, discord, client = null) => {

@@ -6,7 +6,7 @@ class CharacterRole {
     this.discordId = discord_id;
 
     this.guildId = guild_id;
-    this.chracterId = character_id;
+    this.characterId = character_id;
   }
 
   // ***********
@@ -21,23 +21,10 @@ class CharacterRole {
 const getCharacterRole = async (roleId, discord = false, client = null) => {
   const charRole = await db.basicGet("character_role", roleId, discord, client);
   if (charRole == null) return null;
-  else return CharacterRole(charRole);
-};
-
-const insertCharacterRole = async (roleDiscordId, characterId, guildId, client = null) => {
-  const insertQuery = {
-    text: `
-    INSERT INTO character_role (character_id, guild_id, discord_id)
-    VALUES ($1, $2, $3)
-    `,
-    values: [characterId, guildId, roleDiscordId],
-  };
-
-  await db.insertQuery(insertQuery, client);
+  else return new CharacterRole(charRole);
 };
 
 module.exports = {
   getCharacterRole,
-  insertCharacterRole,
   CharacterRole,
 };

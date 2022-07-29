@@ -101,4 +101,16 @@ module.exports = {
     await (client ?? pool).query(removeQuery);
     return true;
   },
+
+  async countRows(table, client = null) {
+    const query = {
+      text: `SELECT COUNT(1) AS COUNT FROM ${table}`,
+    };
+
+    return parseInt((await this.getQuery(query, client)).count);
+  },
+
+  async close() {
+    await pool.end();
+  },
 };

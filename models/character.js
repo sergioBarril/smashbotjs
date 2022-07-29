@@ -20,6 +20,21 @@ class Character {
     if (role == null) return null;
     else return new CharacterRole(role);
   };
+
+  remove = async (client = null) => await db.basicRemove("character", this.id, false, client);
+
+  insertCharacterRole = async (roleDiscordId, guildId, client = null) => {
+    const insertQuery = {
+      text: `
+    INSERT INTO character_role (character_id, guild_id, discord_id)
+    VALUES ($1, $2, $3)
+    `,
+      values: [this.id, guildId, roleDiscordId],
+    };
+
+    await db.insertQuery(insertQuery, client);
+    return await this.getRole(guildId, client);
+  };
 }
 
 const getCharacter = async (characterId, client = null) => {
@@ -48,6 +63,7 @@ const insertCharacter = async (characterName, client = null) => {
   };
 
   await db.insertQuery(insertChar, client);
+  return await getCharacterByName(characterName, client);
 };
 
 module.exports = {
