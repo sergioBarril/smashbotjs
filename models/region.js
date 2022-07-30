@@ -16,6 +16,21 @@ class Region {
     if (role == null) return null;
     else return new RegionRole(role);
   };
+
+  insertRegionRole = async (roleDiscordId, guildId, client = null) => {
+    const insertQuery = {
+      text: `
+    INSERT INTO region_role (region_id, guild_id, discord_id)
+    VALUES ($1, $2, $3)
+    `,
+      values: [this.id, guildId, roleDiscordId],
+    };
+
+    await db.insertQuery(insertQuery, client);
+    return await this.getRole(guildId, client);
+  };
+
+  remove = async (client = null) => await db.basicRemove("region", this.id, false, client);
 }
 
 const getRegion = async (regionId, client = null) => {
@@ -37,19 +52,21 @@ const getAllRegions = async (client = null) => {
   return getAllRegionsResult.map((row) => new Region(row));
 };
 
-const create = async (regionName, client = null) => {
+const insertRegion = async (regionName, client = null) => {
   const insertQuery = {
     text: `INSERT INTO region(name) VALUES ($1)`,
     values: [regionName],
   };
 
   await db.insertQuery(insertQuery, client);
+
+  return await getRegionByName(regionName, client);
 };
 
 module.exports = {
+  Region,
   getRegion,
   getRegionByName,
   getAllRegions,
-  create,
-  Region,
+  insertRegion,
 };

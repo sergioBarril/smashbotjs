@@ -21,22 +21,10 @@ class RegionRole {
 const getRegionRole = async (roleId, discord = false, client = null) => {
   const regionRole = await db.basicGet("region_role", roleId, discord, client);
   if (regionRole == null) return null;
-  else return RegionRole(regionRole);
-};
-const create = async (roleDiscordId, regionId, guildId, client = null) => {
-  const insertQuery = {
-    text: `
-    INSERT INTO region_role (region_id, guild_id, discord_id)
-    VALUES ($1, $2, $3)
-    `,
-    values: [regionId, guildId, roleDiscordId],
-  };
-
-  await db.insertQuery(insertQuery, client);
+  else return new RegionRole(regionRole);
 };
 
 module.exports = {
   getRegionRole,
-  create,
   RegionRole,
 };

@@ -7,6 +7,7 @@ const { Rating } = require("./rating");
 const { getRegion } = require("./region");
 const { YuzuPlayer } = require("./yuzuPlayer");
 const { Tier } = require("./tier");
+const { RegionPlayer } = require("./regionPlayer");
 
 class Player {
   constructor({ id, discord_id }) {
@@ -102,6 +103,19 @@ class Player {
     return await this.getCharacterPlayer(characterId);
   };
 
+  insertRegion = async (regionId, client = null) => {
+    const insertQuery = {
+      text: `
+    INSERT INTO region_player (region_id, player_id)
+    VALUES ($1, $2)
+    `,
+      values: [regionId, this.id],
+    };
+    await db.insertQuery(insertQuery, client);
+
+    return await this.getRegionPlayer(regionId);
+  };
+
   getRating = async (guildId, client = null) => {
     const getRatingQuery = {
       text: `SELECT * FROM rating
@@ -129,6 +143,17 @@ class Player {
 
     if (charPlayer == null) return null;
     else return new CharacterPlayer(charPlayer);
+  };
+
+  getRegionPlayer = async (regionId, client = null) => {
+    const regionPlayer = await db.getBy(
+      "region_player",
+      { player_id: this.id, region_id: regionId },
+      client
+    );
+
+    if (regionPlayer == null) return null;
+    else return new RegionPlayer(regionPlayer);
   };
 
   getAllCharacterPlayers = async (client = null) => {
