@@ -32,15 +32,15 @@ const getMessage = async (messageId, discord, client = null) => {
   else return new Message(message);
 };
 
-const insertMessage = async ({
+const insertMessage = async (
   discordId,
   tierId = null,
   channelId = null,
   playerId = null,
   ranked = null,
   guildId = null,
-  lobbyId = null,
-}) => {
+  lobbyId = null
+) => {
   const insertQuery = {
     text: `
     INSERT INTO message(discord_id, tier_id, channel_id, player_id, ranked, guild_id, lobby_id)
