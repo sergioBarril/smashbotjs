@@ -316,7 +316,7 @@ class Lobby {
   //    SETTERS
   // ************
 
-  setLobbyChannels = async (textChannelId, voiceChannelId, client = null) => {
+  setChannels = async (textChannelId, voiceChannelId, client = null) => {
     const setValues = { text_channel_id: textChannelId, voice_channel_id: voiceChannelId };
     await db.updateBy("lobby", setValues, { id: this.id }, client);
 
@@ -336,60 +336,21 @@ class Lobby {
 }
 
 const getLobby = async (lobbyId, client = null) => {
-  return await db.basicGet("lobby", lobbyId, discord, client);
+  const lobby = await db.basicGet("lobby", lobbyId, false, client);
+  if (!lobby) return null;
+  else return new Lobby(lobby);
 };
 
-const getBy = async (dbFieldName, value, client = null) => {
-  const lobby = await db.getBy("lobby", { [dbFieldName]: value }, client);
+const getLobbyByTextChannel = async (textChannelId, client = null) => {
+  if (!textChannelId) return null;
+  const lobby = await db.getBy("lobby", { text_channel_id: textChannelId }, client);
+
   if (lobby == null) return null;
   else return new Lobby(lobby);
 };
 
-const getByTextChannel = async (rankedRoleId, client = null) =>
-  await getBy("text_channel_id", rankedRoleId, client);
-
-const insertLobby = async ({
-  guildId,
-  playerId,
-  targetTiers = null,
-  mode = "FRIENDLIES",
-  status = "SEARCHING",
-  ranked = false,
-}) => {
-  const client = await db.getClient();
-  try {
-    await client.query("BEGIN");
-    const insertLobby = {
-      text: `
-        INSERT INTO lobby(status, guild_id, mode, created_by, ranked)
-        VALUES ($1, $2, $3, $4, $5)
-      `,
-      values: [status, guildId, mode, playerId, ranked],
-    };
-    await db.insertQuery(insertLobby, client);
-
-    const { getPlayer } = require("./player");
-
-    const player = await getPlayer(playerId, false, client);
-    const lobby = await player.getOwnLobby(client);
-    await lobby.addPlayer(player.id, status, client);
-
-    if (targetTiers == null) targetTiers = [];
-    await lobby.addTiers(targetTiers, client);
-
-    await client.query("COMMIT");
-    return lobby;
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
-};
-
 module.exports = {
   getLobby,
-  getByTextChannel,
-  insertLobby,
+  getLobbyByTextChannel,
   Lobby,
 };

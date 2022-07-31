@@ -116,6 +116,35 @@ class Player {
     return await this.getRegionPlayer(regionId);
   };
 
+  insertLobby = async (guildId, mode = "FRIENDLIES", status = "SEARCHING", ranked = false) => {
+    const client = await db.getClient();
+    try {
+      await client.query("BEGIN");
+      const insertLobby = {
+        text: `
+        INSERT INTO lobby(status, guild_id, mode, created_by, ranked)
+        VALUES ($1, $2, $3, $4, $5)
+      `,
+        values: [status, guildId, mode, this.id, ranked],
+      };
+      await db.insertQuery(insertLobby, client);
+
+      const lobby = await this.getOwnLobby(client);
+      await lobby.addPlayer(this.id, status, client);
+
+      // if (targetTiers == null) targetTiers = [];
+      // await lobby.addTiers(targetTiers, client);
+
+      await client.query("COMMIT");
+      return lobby;
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
+  };
+
   getRating = async (guildId, client = null) => {
     const getRatingQuery = {
       text: `SELECT * FROM rating
