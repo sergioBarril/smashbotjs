@@ -58,7 +58,7 @@ module.exports = {
       text: `
       SELECT * FROM ${table}
       WHERE ${Object.keys(dict)
-        .map((field, index) => `${field} ${values[index] == null ? "IS" : "="} $${index + 1}`)
+        .map((field, index) => `${field} = $${index + 1}`)
         .join(" AND ")}`,
       values: Object.values(dict),
     };

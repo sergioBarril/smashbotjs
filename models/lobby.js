@@ -69,6 +69,8 @@ class Lobby {
     };
 
     await db.insertQuery(insertQueryString, client);
+
+    return await this.getLobbyPlayer(playerId, client);
   };
 
   remove = async (client = null) => await db.basicRemove("lobby", this.id, false, client);
