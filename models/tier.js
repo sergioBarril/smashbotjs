@@ -128,7 +128,8 @@ const insertTier = async (
   };
 
   await db.insertQuery(insertQuery, client);
-  return await getTierByRole(roleDiscordId);
+  if (roleDiscordId) return await getTierByRole(roleDiscordId, client);
+  else if (channelDiscordId) return await getTierByChannel(channelDiscordId, client);
 };
 
 module.exports = {

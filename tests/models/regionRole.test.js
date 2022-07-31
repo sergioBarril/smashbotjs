@@ -3,7 +3,7 @@ jest.mock("../../models/config.json", () => mockCredentials);
 const db = require("../../models/db");
 const { insertRegion, getRegionByName } = require("../../models/region");
 const { RegionRole, getRegionRole } = require("../../models/regionRole");
-const { getAllGuilds } = require("../../models/guild");
+const { getGuild, insertGuild } = require("../../models/guild");
 
 afterAll(async () => await db.close());
 
@@ -11,6 +11,8 @@ describe("test regionRole methods", () => {
   let region;
   let guild;
   let regionRole;
+
+  const mockGuildDiscordId = "843516697";
 
   const mockRoleDiscordId = "123456";
   const secondRoleDiscordId = "654321";
@@ -22,10 +24,8 @@ describe("test regionRole methods", () => {
     region = await getRegionByName(regionName);
     if (!region) region = await insertRegion(regionName);
 
-    if (!guild) {
-      const guilds = await getAllGuilds();
-      guild = guilds[0];
-    }
+    guild = await getGuild(mockGuildDiscordId, true);
+    if (!guild) guild = await insertGuild(mockGuildDiscordId);
 
     regionRole = await region.insertRegionRole(mockRoleDiscordId, guild.id);
   });
@@ -33,6 +33,9 @@ describe("test regionRole methods", () => {
   afterEach(async () => {
     region = await getRegionByName(regionName);
     if (region) await region.remove();
+
+    guild = await getGuild(mockGuildDiscordId, true);
+    if (guild) await guild.remove();
   });
 
   it("inserts a new regionRole", async () => {
@@ -75,5 +78,23 @@ describe("test regionRole methods", () => {
     await region.remove();
     const afterRows = await db.countRows("region_role");
     expect(afterRows).toEqual(beforeRows - 1);
+  });
+
+  it("can get the regionrole by name in the guild", async () => {
+    let rr = await guild.getRegionRoleByName("TEST123");
+    expect(rr).toBeNull();
+
+    rr = await guild.getRegionRoleByName(regionName);
+    expect(rr instanceof RegionRole).toBe(true);
+
+    expect(JSON.stringify(rr)).toEqual(JSON.stringify(regionRole));
+  });
+
+  it("gets region roles for the guild", async () => {
+    let rrs = await guild.getRegionRoles();
+    expect(rrs.length).toBe(1);
+    const regionRoleFromGet = rrs[0];
+    expect(regionRoleFromGet instanceof RegionRole).toBe(true);
+    expect(JSON.stringify(regionRoleFromGet)).toEqual(JSON.stringify(regionRole));
   });
 });

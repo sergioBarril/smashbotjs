@@ -3,7 +3,7 @@ jest.mock("../../models/config.json", () => mockCredentials);
 const db = require("../../models/db");
 const { insertCharacter, getCharacterByName } = require("../../models/character");
 const { CharacterRole, getCharacterRole } = require("../../models/characterRole");
-const { getAllGuilds } = require("../../models/guild");
+const { getAllGuilds, insertGuild, getGuild } = require("../../models/guild");
 
 afterAll(async () => await db.close());
 
@@ -12,6 +12,7 @@ describe("test characterRole methods", () => {
   let guild;
 
   const mockRoleDiscordId = "123456";
+  const mockGuildDiscordId = "843516697";
 
   const characterName = "Fortnite Guy";
   const characterName2 = "Hornet";
@@ -20,15 +21,16 @@ describe("test characterRole methods", () => {
     character = await getCharacterByName(characterName);
     if (!character) character = await insertCharacter(characterName);
 
-    if (!guild) {
-      const guilds = await getAllGuilds();
-      guild = guilds[0];
-    }
+    guild = await getGuild(mockGuildDiscordId, true);
+    if (!guild) guild = await insertGuild(mockGuildDiscordId);
   });
 
   afterEach(async () => {
     character = await getCharacterByName(characterName);
     if (character) await character.remove();
+
+    guild = await getGuild(mockGuildDiscordId, true);
+    if (guild) await guild.remove();
   });
 
   it("inserts a new characterRole", async () => {
@@ -89,5 +91,32 @@ describe("test characterRole methods", () => {
     expect(await getCharacterRole(mockRoleDiscordId, true)).not.toBeNull();
     await character.remove();
     expect(await getCharacterRole(mockRoleDiscordId, true)).toBeNull();
+  });
+
+  it("gets character roles for the guild", async () => {
+    let crs = await guild.getCharacterRoles();
+    expect(crs.length).toBe(0);
+
+    const charRole = await character.insertCharacterRole(mockRoleDiscordId, guild.id);
+
+    crs = await guild.getCharacterRoles();
+    expect(crs.length).toBe(1);
+    const charRoleFromGet = crs[0];
+    expect(charRoleFromGet instanceof CharacterRole).toBe(true);
+    expect(JSON.stringify(charRoleFromGet)).toEqual(JSON.stringify(charRole));
+  });
+
+  it("gets character role by char name in a guild", async () => {
+    let crFromGet = await guild.getCharacterRoleByName(characterName);
+    expect(crFromGet).toBeNull();
+
+    crFromGet = await guild.getCharacterRoleByName(characterName2);
+    expect(crFromGet).toBeNull();
+
+    const charRole = await character.insertCharacterRole(mockRoleDiscordId, guild.id);
+
+    crFromGet = await guild.getCharacterRoleByName(characterName);
+    expect(crFromGet instanceof CharacterRole).toBe(true);
+    expect(JSON.stringify(crFromGet)).toEqual(JSON.stringify(charRole));
   });
 });

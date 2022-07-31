@@ -2,7 +2,7 @@ const mockCredentials = require("../config.json");
 jest.mock("../../models/config.json", () => mockCredentials);
 const db = require("../../models/db");
 const { insertTier, getTier, Tier, getTierByChannel, getTierByRole } = require("../../models/tier");
-const { getAllGuilds } = require("../../models/guild");
+const { insertGuild, getGuild } = require("../../models/guild");
 const { insertMessage, Message } = require("../../models/message");
 
 afterAll(async () => await db.close());
@@ -12,15 +12,15 @@ describe("test Tier methods", () => {
   let guild;
 
   const mockTierDiscordId = "8484813";
+  const mockGuildDiscordId = "843516697";
+
   const mockChannelId = "9104810";
   const mockWeight = 1;
   const mockThreshold = 2100;
 
   beforeEach(async () => {
-    if (!guild) {
-      const guilds = await getAllGuilds();
-      guild = guilds[0];
-    }
+    guild = await getGuild(mockGuildDiscordId, true);
+    if (!guild) guild = await insertGuild(mockGuildDiscordId);
 
     tier = await getTierByRole(mockTierDiscordId);
     if (!tier)
@@ -37,6 +37,9 @@ describe("test Tier methods", () => {
   afterEach(async () => {
     tier = await getTierByRole(mockTierDiscordId);
     if (tier) await tier.remove();
+
+    guild = await getGuild(mockGuildDiscordId, true);
+    if (guild) await guild.remove();
   });
 
   it("inserts a new tier", async () => {
@@ -154,5 +157,30 @@ describe("test Tier methods", () => {
 
     await secondTier.remove();
     await nullWeightTier.remove();
+  });
+
+  it("can get tiers from a guild", async () => {
+    const tier2DiscordId = "22222";
+    const tier2ChannelId = "2222201";
+
+    const tier2 = await insertTier(tier2DiscordId, tier2ChannelId, guild.id, 2, 1800, false);
+
+    const tiers = await guild.getTiers();
+    expect(tiers.length).toEqual(2);
+    expect(JSON.stringify(tiers[0])).toEqual(JSON.stringify(tier));
+    expect(JSON.stringify(tiers[1])).toEqual(JSON.stringify(tier2));
+  });
+
+  it("can get the yuzu Tier from a guild", async () => {
+    // If no yuzu tier, returns null
+    let yuzuTierFromGet = await guild.getYuzuTier();
+    expect(yuzuTierFromGet).toBeNull();
+
+    const yuzuTier = await insertTier(null, "9819191", guild.id, null, null, true);
+    expect(yuzuTier instanceof Tier).toBe(true);
+    yuzuTierFromGet = await guild.getYuzuTier();
+
+    expect(yuzuTierFromGet instanceof Tier).toBe(true);
+    expect(JSON.stringify(yuzuTierFromGet)).toEqual(JSON.stringify(yuzuTier));
   });
 });

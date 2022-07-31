@@ -1,6 +1,7 @@
 const { getCharacterByName } = require("./character");
 const { CharacterRole } = require("./characterRole");
 const db = require("./db");
+const { getRegionByName } = require("./region");
 const { RegionRole } = require("./regionRole");
 const { Tier } = require("./tier");
 
@@ -8,7 +9,7 @@ class Guild {
   constructor({
     id,
     discord_id,
-    search_channel_id,
+    matchmaking_channel_id,
     admin_channel_id,
     yuzu_role_id,
     parsec_role_id,
@@ -18,7 +19,7 @@ class Guild {
     this.id = id;
     this.discordId = discord_id;
 
-    this.searchChannelId = search_channel_id; // #matchmaking channel
+    this.matchmakingChannelId = matchmaking_channel_id;
     this.adminChannelId = admin_channel_id;
     this.rolesChannelId = roles_channel_id;
     this.rankedChannelId = ranked_channel_id;
@@ -91,7 +92,7 @@ class Guild {
   };
 
   getYuzuTier = async (client = null) => {
-    const tier = await db.getBy("tier", { guild_id: this.guildId, yuzu: true }, client);
+    const tier = await db.getBy("tier", { guild_id: this.id, yuzu: true }, client);
     if (tier == null) return null;
     else return new Tier(tier);
   };
@@ -99,17 +100,30 @@ class Guild {
   // *******
   // SETTERS
   // *******
-  setMatchmakingChannel = async (channelId, client = null) =>
-    await updateBy({ search_channel_id: channelId }, this.id, client);
+  setMatchmakingChannel = async (channelId, client = null) => {
+    await db.updateBy("guild", { matchmaking_channel_id: channelId }, { id: this.id }, client);
+    this.matchmakingChannelId = channelId;
+  };
 
-  setRankedChannel = async (channelId, client = null) =>
-    await updateBy({ ranked_channel_id: channelId }, this.id, client);
-  setRolesChannel = async (channelId, client = null) =>
-    await updateBy({ roles_channel_id: channelId }, this.id, client);
-  setYuzuRole = async (yuzuRoleId, client = null) =>
-    await updateBy({ yuzu_role_id: yuzuRoleId }, this.id, client);
-  setParsecRole = async (parsecRoleId, client = null) =>
-    await updateBy({ parsec_role_id: parsecRoleId }, this.id, client);
+  setRankedChannel = async (channelId, client = null) => {
+    await db.updateBy("guild", { ranked_channel_id: channelId }, { id: this.id }, client);
+    this.rankedChannelId = channelId;
+  };
+
+  setRolesChannel = async (channelId, client = null) => {
+    await db.updateBy("guild", { roles_channel_id: channelId }, { id: this.id }, client);
+    this.rolesChannelId = channelId;
+  };
+
+  setYuzuRole = async (yuzuRoleId, client = null) => {
+    await db.updateBy("guild", { yuzu_role_id: yuzuRoleId }, { id: this.id }, client);
+    this.yuzuRoleId = yuzuRoleId;
+  };
+
+  setParsecRole = async (parsecRoleId, client = null) => {
+    await db.updateBy("guild", { parsec_role_id: parsecRoleId }, { id: this.id }, client);
+    this.parsecRoleId = parsecRoleId;
+  };
 
   remove = async (client = null) => await db.basicRemove("guild", this.id, false, client);
 }
@@ -125,12 +139,22 @@ const getAllGuilds = async (client = null) => {
   return guilds.map((guild) => new Guild(guild));
 };
 
-const updateBy = async (dictSet, guildId, client = null) => {
-  await db.updateBy("guild", setPairs, { id: guildId }, client);
+const insertGuild = async (guildDiscordId, client) => {
+  const insertQuery = {
+    text: `
+    INSERT INTO guild(discord_id)
+    VALUES ($1)
+  `,
+    values: [guildDiscordId],
+  };
+
+  await db.insertQuery(insertQuery, client);
+  return await getGuild(guildDiscordId, true, client);
 };
 
 module.exports = {
+  Guild,
   getGuild,
   getAllGuilds,
-  Guild,
+  insertGuild,
 };
