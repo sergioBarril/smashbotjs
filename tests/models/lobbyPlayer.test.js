@@ -165,4 +165,53 @@ describe("test Lobby Player methods", () => {
     const finalNumRows = await db.countRows("lobby_player");
     expect(finalNumRows).toEqual(initialNumRows - 1);
   });
+
+  it("can check when all players have accepted the game", async () => {
+    let allAccepted = await lobby.allAccepted();
+    expect(allAccepted).toBe(false);
+
+    let lp1 = await lobby.getLobbyPlayer(player.id);
+    await lp1.setStatus("ACCEPTED");
+    allAccepted = await lobby.allAccepted();
+    expect(allAccepted).toBe(false);
+
+    let lp2 = await lobby.getLobbyPlayer(secondPlayer.id);
+    await lp2.setStatus("ACCEPTED");
+    allAccepted = await lobby.allAccepted();
+    expect(allAccepted).toBe(true);
+  });
+
+  it("can check if all players have asked for a new set", async () => {
+    let isNewSetDecided = await lobby.isNewSetDecided();
+    expect(isNewSetDecided).toBe(false);
+
+    let lp1 = await lobby.getLobbyPlayer(player.id);
+    await lp1.setNewSet(true);
+
+    isNewSetDecided = await lobby.isNewSetDecided();
+    expect(isNewSetDecided).toBe(false);
+
+    let lp2 = await lobby.getLobbyPlayer(secondPlayer.id);
+    await lp2.setNewSet(true);
+
+    isNewSetDecided = await lobby.isNewSetDecided();
+    expect(isNewSetDecided).toBe(true);
+  });
+
+  it("can check if all players have asked to cancel set", async () => {
+    let isCancelSetDecided = await lobby.isCancelSetDecided();
+    expect(isCancelSetDecided).toBe(false);
+
+    let lp1 = await lobby.getLobbyPlayer(player.id);
+    await lp1.setCancelSet(true);
+
+    isCancelSetDecided = await lobby.isCancelSetDecided();
+    expect(isCancelSetDecided).toBe(false);
+
+    let lp2 = await lobby.getLobbyPlayer(secondPlayer.id);
+    await lp2.setCancelSet(true);
+
+    isCancelSetDecided = await lobby.isCancelSetDecided();
+    expect(isCancelSetDecided).toBe(true);
+  });
 });

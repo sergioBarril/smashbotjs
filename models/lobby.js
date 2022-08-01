@@ -56,7 +56,7 @@ class Lobby {
       };
       await db.insertQuery(addTierQuery, client);
     }
-    return true;
+    return await this.getLobbyTiers(client);
   };
 
   addPlayer = async (playerId, status, client = null) => {
@@ -99,13 +99,13 @@ class Lobby {
       SELECT 1 FROM lobby_player
       WHERE lobby_id = $1
       AND status <> 'ACCEPTED'
-      )
+      ) AS result
       `,
       values: [this.id],
     };
 
     const checkAcceptedResult = await db.getQuery(checkAcceptedQuery, client);
-    return checkAcceptedResult;
+    return checkAcceptedResult.result;
   };
 
   removeMessages = async (client = null) => {
@@ -352,7 +352,7 @@ const getLobbyByTextChannel = async (textChannelId, client = null) => {
 };
 
 module.exports = {
+  Lobby,
   getLobby,
   getLobbyByTextChannel,
-  Lobby,
 };

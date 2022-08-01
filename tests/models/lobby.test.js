@@ -4,6 +4,7 @@ const db = require("../../models/db");
 const { getAllGuilds, Guild } = require("../../models/guild");
 const { getPlayer, insertPlayer } = require("../../models/player");
 const { Lobby, getLobbyByTextChannel, getLobby } = require("../../models/lobby");
+const { LobbyPlayer } = require("../../models/lobbyPlayer");
 
 afterAll(async () => await db.close());
 
@@ -147,5 +148,38 @@ describe("test Lobby methods", () => {
   it("getLobby returns null if lobbyId is null", async () => {
     const lobbyFromGet = await getLobby(null);
     expect(lobbyFromGet).toBeNull();
+  });
+
+  it("removes other lobbies where the owner of this lobby is, except this one", async () => {
+    const secondPlayerDiscordId = "9845817";
+
+    const secondPlayer = await insertPlayer(secondPlayerDiscordId);
+    let secondLobby = await secondPlayer.insertLobby(guild.id);
+
+    await secondLobby.addPlayer(player.id);
+    await lobby.addPlayer(secondPlayer.id);
+
+    await secondLobby.removeOtherLobbies();
+
+    // Assert lobby is deleted
+    lobby = await getLobby(lobby.id);
+    expect(lobby).toBeNull();
+
+    lobby = await player.getOwnLobby();
+    expect(lobby).toBeNull();
+
+    // Assert secondLobby is intact
+    secondLobby = await getLobby(secondLobby.id);
+    expect(secondLobby instanceof Lobby).toBe(true);
+
+    const lps = await secondLobby.getLobbyPlayers();
+    expect(lps.length).toEqual(2);
+    expect(lps[0] instanceof LobbyPlayer).toBe(true);
+    expect(lps[0].playerId).toEqual(secondPlayer.id);
+    expect(lps[1] instanceof LobbyPlayer).toBe(true);
+    expect(lps[1].playerId).toEqual(player.id);
+
+    // Cleanup
+    await secondPlayer.remove();
   });
 });

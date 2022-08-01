@@ -11,10 +11,7 @@ class LobbyTier {
     this.messageId = message_id;
   }
 
-  getTier = async () => {
-    const tier = await getTier(this.tierId, false);
-    return tier;
-  };
+  getTier = async () => await getTier(this.tierId);
 
   getMessage = async (client = null) => await getMessage(this.messageId, false, client);
 
@@ -90,6 +87,6 @@ class LobbyTier {
 //   return channelsInfo.rows;
 // };
 module.exports = {
-  // getChannels, A VER SU UTILIDAD
   LobbyTier,
+  // getChannels, A VER SU UTILIDAD
 };

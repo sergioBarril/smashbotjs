@@ -72,6 +72,6 @@ class LobbyPlayer {
 }
 
 module.exports = {
-  getMessage,
   LobbyPlayer,
+  getMessage,
 };
