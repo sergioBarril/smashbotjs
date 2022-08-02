@@ -6,6 +6,7 @@ const {
   insertCharacter,
   getCharacterByName,
   getAllCharacters,
+  getCharacter,
 } = require("../../models/character");
 
 afterAll(async () => await db.close());
@@ -57,5 +58,18 @@ describe("test character methods", () => {
 
   it("can't have two characters with the same name", async () => {
     expect(insertCharacter(characterName)).rejects.toThrow();
+  });
+
+  it("can get a character by Id", async () => {
+    const charFromGet = await getCharacter(character.id);
+    expect(JSON.stringify(charFromGet)).toEqual(JSON.stringify(character));
+  });
+
+  it("returns null if trying to get a char that doesn't exist", async () => {
+    let charFromGet = await getCharacter(0);
+    expect(charFromGet).toBeNull();
+
+    charFromGet = await getCharacter(null);
+    expect(charFromGet).toBeNull();
   });
 });

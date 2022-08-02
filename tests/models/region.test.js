@@ -1,7 +1,13 @@
 const mockCredentials = require("../config.json");
 jest.mock("../../models/config.json", () => mockCredentials);
 const db = require("../../models/db");
-const { Region, insertRegion, getRegionByName, getAllRegions } = require("../../models/region");
+const {
+  Region,
+  insertRegion,
+  getRegionByName,
+  getAllRegions,
+  getRegion,
+} = require("../../models/region");
 
 afterAll(async () => await db.close());
 
@@ -48,6 +54,17 @@ describe("test region methods", () => {
 
     const numRows = await db.countRows("region");
     expect(numRows).toBe(allRegs.length);
+  });
+
+  it("can get one region. returns null if it doesn't exist", async () => {
+    let regionFromGet = await getRegion(region.id);
+    expect(JSON.stringify(regionFromGet)).toEqual(JSON.stringify(region));
+
+    regionFromGet = await getRegion(5958949);
+    expect(regionFromGet).toBeNull();
+
+    regionFromGet = await getRegion(null);
+    expect(regionFromGet).toBeNull();
   });
 
   it("can't have two regions with the same name", async () => {

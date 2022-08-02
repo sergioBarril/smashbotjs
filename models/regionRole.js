@@ -9,6 +9,8 @@ class RegionRole {
     this.regionId = region_id;
   }
 
+  remove = async (client = null) => await db.basicRemove("region_role", this.id, false, client);
+
   // ***********
   //   SETTER
   // **********

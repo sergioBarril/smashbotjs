@@ -3,7 +3,7 @@ jest.mock("../../models/config.json", () => mockCredentials);
 const db = require("../../models/db");
 const { insertCharacter, getCharacterByName } = require("../../models/character");
 const { CharacterRole, getCharacterRole } = require("../../models/characterRole");
-const { getAllGuilds, insertGuild, getGuild } = require("../../models/guild");
+const { insertGuild, getGuild } = require("../../models/guild");
 
 afterAll(async () => await db.close());
 
@@ -118,5 +118,18 @@ describe("test characterRole methods", () => {
     crFromGet = await guild.getCharacterRoleByName(characterName);
     expect(crFromGet instanceof CharacterRole).toBe(true);
     expect(JSON.stringify(crFromGet)).toEqual(JSON.stringify(charRole));
+  });
+
+  it("can set the role discord Id", async () => {
+    let charRole = await character.insertCharacterRole(mockRoleDiscordId, guild.id);
+
+    expect(charRole.discordId).toEqual(mockRoleDiscordId);
+
+    const newRoleId = "8911939";
+    await charRole.setDiscordId(newRoleId);
+    expect(charRole.discordId).toEqual(newRoleId);
+
+    charRole = await guild.getCharacterRoleByName(characterName);
+    expect(charRole.discordId).toEqual(newRoleId);
   });
 });

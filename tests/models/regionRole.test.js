@@ -67,10 +67,13 @@ describe("test regionRole methods", () => {
   });
 
   it("can get a region role by role discordId", async () => {
-    const regRole = await getRegionRole(mockRoleDiscordId, true);
+    let regRole = await getRegionRole(mockRoleDiscordId, true);
     expect(regRole).not.toBeNull();
     expect(regRole instanceof RegionRole).toBe(true);
     expect(regRole.id).toBe(regionRole.id);
+
+    regRole = await getRegionRole(0, true);
+    expect(regRole).toBeNull();
   });
 
   it("removes region roles when region is deleted", async () => {
@@ -95,6 +98,27 @@ describe("test regionRole methods", () => {
     expect(rrs.length).toBe(1);
     const regionRoleFromGet = rrs[0];
     expect(regionRoleFromGet instanceof RegionRole).toBe(true);
+    expect(JSON.stringify(regionRoleFromGet)).toEqual(JSON.stringify(regionRole));
+  });
+
+  it("region.getRole() returns null if it has no role", async () => {
+    await regionRole.remove();
+    expect(await region.getRole(guild.id)).toBeNull();
+  });
+
+  it("can set the role discord Id", async () => {
+    expect(regionRole.discordId).toEqual(mockRoleDiscordId);
+
+    const newRoleId = "8911939";
+    await regionRole.setDiscordId(newRoleId);
+    expect(regionRole.discordId).toEqual(newRoleId);
+
+    regionRole = await guild.getRegionRoleByName(regionName);
+    expect(regionRole.discordId).toEqual(newRoleId);
+  });
+
+  it("can get regionrole by regionrole id", async () => {
+    const regionRoleFromGet = await getRegionRole(regionRole.id, false);
     expect(JSON.stringify(regionRoleFromGet)).toEqual(JSON.stringify(regionRole));
   });
 });

@@ -96,4 +96,20 @@ describe("test characterPlayer methods", () => {
     expect(p.id).toEqual(player.id);
     expect(p.discordId).toEqual(player.discordId);
   });
+
+  it("can set the type (main, second, pocket)", async () => {
+    expect(charPlayer.type).toEqual("MAIN");
+
+    await charPlayer.setType("SECOND");
+    expect(charPlayer.type).toEqual("SECOND");
+
+    charPlayer = await player.getCharacterPlayer(character.id);
+    expect(charPlayer.type).toEqual("SECOND");
+
+    await charPlayer.setType("POCKET");
+    expect(charPlayer.type).toEqual("POCKET");
+
+    charPlayer = await player.getCharacterPlayer(character.id);
+    expect(charPlayer.type).toEqual("POCKET");
+  });
 });
