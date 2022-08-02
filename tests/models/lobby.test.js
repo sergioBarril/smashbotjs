@@ -1,10 +1,11 @@
 const mockCredentials = require("../config.json");
 jest.mock("../../models/config.json", () => mockCredentials);
 const db = require("../../models/db");
-const { getAllGuilds, Guild } = require("../../models/guild");
-const { getPlayer, insertPlayer } = require("../../models/player");
+const { getAllGuilds, Guild, insertGuild, getGuild } = require("../../models/guild");
+const { getPlayer, insertPlayer, Player } = require("../../models/player");
 const { Lobby, getLobbyByTextChannel, getLobby } = require("../../models/lobby");
 const { LobbyPlayer } = require("../../models/lobbyPlayer");
+const { getTierByRole, insertTier } = require("../../models/tier");
 
 afterAll(async () => await db.close());
 
@@ -181,5 +182,191 @@ describe("test Lobby methods", () => {
 
     // Cleanup
     await secondPlayer.remove();
+  });
+});
+
+describe("test lobby.matchmaking() and setupMatch()", () => {
+  let guild;
+  let player;
+  let secondPlayer;
+  let lobby;
+  let secondLobby;
+  let tier;
+
+  const mockPlayerDiscordId = "147258369";
+  const secondPlayerDiscordId = "848149";
+
+  const mockGuildDiscordId = "191949144";
+
+  const mockTierDiscordId = "81845491";
+  const mockTierWeight = 4;
+
+  const secondTierDiscordId = "1949194";
+  const secondTierWeight = 3;
+
+  beforeEach(async () => {
+    guild = await getGuild(mockGuildDiscordId, true);
+    if (!guild) guild = await insertGuild(mockGuildDiscordId);
+
+    player = await getPlayer(mockPlayerDiscordId, true);
+    if (!player) player = await insertPlayer(mockPlayerDiscordId);
+
+    tier = await getTierByRole(mockTierDiscordId);
+    if (!tier)
+      tier = await insertTier(mockTierDiscordId, null, guild.id, mockTierWeight, 2100, false);
+
+    await player.insertRating(guild.id, tier.id, 1200);
+
+    lobby = await player.getOwnLobby();
+    if (!lobby) lobby = await player.insertLobby(guild.id);
+
+    // Second
+    secondPlayer = await getPlayer(secondPlayerDiscordId, true);
+    if (!secondPlayer) secondPlayer = await insertPlayer(secondPlayerDiscordId);
+
+    secondLobby = await secondPlayer.getOwnLobby();
+    if (!secondLobby) secondLobby = await secondPlayer.insertLobby(guild.id);
+
+    secondTier = await getTierByRole(secondTierDiscordId);
+    if (!secondTier)
+      secondTier = await insertTier(
+        secondTierDiscordId,
+        null,
+        guild.id,
+        secondTierWeight,
+        4000,
+        false
+      );
+  });
+
+  afterEach(async () => {
+    player = await getPlayer(mockPlayerDiscordId, true);
+    if (player) await player.remove();
+
+    secondPlayer = await getPlayer(secondPlayerDiscordId, true);
+    if (secondPlayer) await secondPlayer.remove();
+    guild = await getGuild(mockGuildDiscordId, true);
+    if (guild) await guild.remove();
+  });
+
+  it("returns null if there's only one lobby searching", async () => {
+    await secondPlayer.remove();
+    await lobby.addTiers([tier]);
+
+    let opponent = await lobby.matchmaking();
+    expect(opponent).toBeNull();
+  });
+
+  it("returns null if there's another lobby searching, but it's searching on another tier", async () => {
+    await lobby.addTiers([tier]);
+    await secondLobby.addTiers([secondTier]);
+
+    let opponent = await lobby.matchmaking();
+    expect(opponent).toBeNull();
+
+    opponent = await secondLobby.matchmaking();
+    expect(opponent).toBeNull();
+  });
+
+  it("returns an opponent if they are searching a tier in common", async () => {
+    await lobby.addTiers([tier, secondTier]);
+    await secondLobby.addTiers([secondTier]);
+
+    let opponent = await lobby.matchmaking();
+
+    expect(opponent).not.toBeNull();
+    expect(opponent instanceof Player).toBe(true);
+    expect(JSON.stringify(opponent)).toEqual(JSON.stringify(secondPlayer));
+
+    opponent = await secondLobby.matchmaking();
+    expect(opponent).not.toBeNull();
+    expect(opponent instanceof Player).toBe(true);
+    expect(JSON.stringify(opponent)).toEqual(JSON.stringify(player));
+  });
+
+  it("returns the opponent searching in the highest tier available, if possible to choose", async () => {
+    // Setup
+    const thirdPlayerId = "9434949";
+    let thirdPlayer = await getPlayer(thirdPlayerId, true);
+    if (!thirdPlayer) thirdPlayer = await insertPlayer(thirdPlayerId);
+
+    const thirdLobby = await thirdPlayer.insertLobby(guild.id);
+
+    await lobby.addTiers([tier, secondTier]);
+    await secondLobby.addTiers([tier]);
+    await thirdLobby.addTiers([secondTier]);
+
+    let opponent = await lobby.matchmaking();
+    expect(opponent).not.toBeNull();
+    expect(opponent instanceof Player).toBe(true);
+    expect(JSON.stringify(opponent)).toEqual(JSON.stringify(thirdPlayer));
+
+    // Cleanup
+    await thirdPlayer.remove();
+  });
+
+  it("searches only in the given tier if given", async () => {
+    // Setup
+    const thirdPlayerId = "9434949";
+    let thirdPlayer = await getPlayer(thirdPlayerId, true);
+    if (!thirdPlayer) thirdPlayer = await insertPlayer(thirdPlayerId);
+
+    const thirdLobby = await thirdPlayer.insertLobby(guild.id);
+
+    await lobby.addTiers([tier, secondTier]);
+    await secondLobby.addTiers([tier]);
+    await thirdLobby.addTiers([secondTier]);
+
+    const opponent = await lobby.matchmaking(secondTier.id);
+    expect(opponent).not.toBeNull();
+    expect(opponent instanceof Player).toBe(true);
+    expect(JSON.stringify(opponent)).toEqual(JSON.stringify(thirdPlayer));
+
+    // Cleanup
+    await thirdPlayer.remove();
+  });
+
+  it.todo("can search in yuzu");
+
+  it.todo("yuzu takes preference over tiers");
+
+  it.todo("tiers take preference over wifi");
+
+  it("sets up the match confirmation process", async () => {
+    await lobby.addTiers([tier]);
+    await secondLobby.addTiers([tier, secondTier]);
+
+    const opponent = await lobby.matchmaking();
+    expect(opponent instanceof Player).toBe(true);
+
+    const isSetUp = await lobby.setupMatch(opponent);
+    expect(isSetUp).toBe(true);
+
+    lobby = await player.getOwnLobby();
+    expect(lobby.status).toBe("CONFIRMATION");
+
+    let lps = await lobby.getLobbyPlayers();
+    expect(lps.length).toEqual(2);
+    expect(lps[0].playerId).toEqual(player.id);
+    expect(lps[0].status).toEqual("CONFIRMATION");
+    expect(lps[1].playerId).toEqual(secondPlayer.id);
+    expect(lps[1].status).toEqual("CONFIRMATION");
+
+    secondLobby = await secondPlayer.getOwnLobby();
+    expect(secondLobby.status).toBe("WAITING");
+
+    lps = await secondLobby.getLobbyPlayers();
+    expect(lps.length).toEqual(1);
+    expect(lps[0].playerId).toEqual(secondPlayer.id);
+    expect(lps[0].status).toEqual("WAITING");
+  });
+
+  it("the opponent must have a lobby", async () => {
+    await secondLobby.remove();
+    await expect(lobby.setupMatch(secondPlayer)).rejects.toThrow("matchmakingNoOppLobby");
+
+    lobby = await player.getOwnLobby();
+    expect(lobby.status).toEqual("SEARCHING");
+    expect((await lobby.getLobbyPlayer(player.id)).status).toEqual("SEARCHING");
   });
 });

@@ -62,6 +62,17 @@ describe("test rating methods", () => {
     expect(ratingFromGet.score).toEqual(rating.score);
   });
 
+  it("gets a rating by player and guildId", async () => {
+    let rating = await player.getRating(guild.id);
+    expect(rating).toBeNull();
+
+    rating = await player.insertRating(guild.id, tier.id, 1200);
+    const ratingFromGet = await player.getRating(guild.id);
+
+    expect(ratingFromGet instanceof Rating).toBe(true);
+    expect(JSON.stringify(ratingFromGet)).toEqual(JSON.stringify(rating));
+  });
+
   it("removes the rating on player removal", async () => {
     const rating = await player.insertRating(guild.id, tier.id, 1500);
     expect(await getRating(rating.id)).not.toBeNull();

@@ -95,12 +95,12 @@ class Lobby {
   allAccepted = async (client = null) => {
     const checkAcceptedQuery = {
       text: `
-    SELECT NOT EXISTS(
-      SELECT 1 FROM lobby_player
-      WHERE lobby_id = $1
-      AND status <> 'ACCEPTED'
-      ) AS result
-      `,
+        SELECT NOT EXISTS(
+          SELECT 1 FROM lobby_player
+          WHERE lobby_id = $1
+          AND status <> 'ACCEPTED'
+          ) AS result
+          `,
       values: [this.id],
     };
 
@@ -118,55 +118,56 @@ class Lobby {
     await db.deleteQuery(queryString, client);
   };
 
-  matchmaking = async (opponent = null, tierId = null) => {
-    if (opponent == null) {
-      // Get someone to match to. If tierId is null, check all tiers
+  matchmaking = async (tierId = null) => {
+    // Get someone to match to. If tierId is null, check all tiers
 
-      // Check YuzuPlayer
-      const ypQuery = {
-        text: `SELECT yp.* FROM yuzu_player yp
-      INNER JOIN lobby l
-        ON l.created_by = yp.player_id
-      WHERE l.id = $1 AND yp.guild_id = $2`,
-        values: [this.id, this.guildId],
-      };
+    // Check YuzuPlayer
+    const ypQuery = {
+      text: `SELECT yp.* FROM yuzu_player yp
+          INNER JOIN lobby l
+          ON l.created_by = yp.player_id
+          WHERE l.id = $1 AND yp.guild_id = $2`,
+      values: [this.id, this.guildId],
+    };
 
-      const ypResult = await db.getQuery(ypQuery);
+    const ypResult = await db.getQuery(ypQuery);
 
-      let yp = null;
-      if (ypResult) yp = new YuzuPlayer(ypResult);
+    let yp = null;
+    if (ypResult) yp = new YuzuPlayer(ypResult);
 
-      const values = [this.guildId, this.id, !!yp?.yuzu, !!yp?.parsec];
+    const values = [this.guildId, this.id, !!yp?.yuzu, !!yp?.parsec];
 
-      // Tier Conditions
-      let tierCondition = "";
+    // Tier Conditions
+    let tierCondition = "";
 
-      if (tierId) {
-        tierCondition = "AND tier.id = $5";
-        values.push(tierId);
-      } else
-        tierCondition = `
+    if (tierId) {
+      tierCondition = "AND tier.id = $5";
+      values.push(tierId);
+    } else
+      tierCondition = `
         AND tier.id IN (
-        SELECT id FROM tier t
-        INNER JOIN lobby_tier lt
+          SELECT id FROM tier t
+          INNER JOIN lobby_tier lt
           ON t.id = lt.tier_id
-        WHERE lt.lobby_id = $2
-        )`;
+          WHERE lt.lobby_id = $2
+          )`;
 
-      const matchmakingQuery = {
-        text: `
-      SELECT lobby_player.*
+    const matchmakingQuery = {
+      text: `
+      SELECT player.*
       FROM lobby_player
+      INNER JOIN player
+      ON player.id = lobby_player.player_id
       INNER JOIN lobby
-        ON lobby.id = lobby_player.lobby_id
+      ON lobby.id = lobby_player.lobby_id
       INNER JOIN lobby_tier
-        ON lobby_tier.lobby_id = lobby_player.lobby_id
+      ON lobby_tier.lobby_id = lobby_player.lobby_id
       INNER JOIN tier
-        ON lobby_tier.tier_id = tier.id
+      ON lobby_tier.tier_id = tier.id
       LEFT JOIN yuzu_player
-        ON yuzu_player.player_id = lobby_player.player_id
-          AND yuzu_player.guild_id = $1
-          AND tier.yuzu
+      ON yuzu_player.player_id = lobby_player.player_id
+      AND yuzu_player.guild_id = $1
+      AND tier.yuzu
       WHERE lobby.guild_id = $1
       AND lobby_player.lobby_id <> $2
       AND lobby_player.status = 'SEARCHING'
@@ -174,15 +175,18 @@ class Lobby {
       ${tierCondition}
       ORDER BY tier.weight ASC, lobby_tier.created_at ASC
       `,
-        values,
-      };
+      values,
+    };
 
-      const matchmakingResult = await db.getQuery(matchmakingQuery);
+    const matchmakingResult = await db.getQuery(matchmakingQuery);
 
-      if (matchmakingResult == null) return null;
-      opponent = new LobbyPlayer(matchmakingResult);
-    }
+    if (matchmakingResult == null) return null;
 
+    const { getPlayer } = require("./player");
+    return await getPlayer(matchmakingResult.id, false);
+  };
+
+  setupMatch = async (opponent) => {
     const client = await db.getClient();
 
     // Update status
@@ -190,15 +194,16 @@ class Lobby {
       await client.query("BEGIN");
       await this.setStatus("CONFIRMATION", client);
 
-      const oppLobby = await opponent.getLobby(client);
+      const oppLobby = await opponent.getOwnLobby(client);
       if (!oppLobby) throw Error("matchmakingNoOppLobby");
 
       await oppLobby.setStatus("WAITING", client);
-      await this.addPlayer(opponent.playerId, "CONFIRMATION", client);
+      await oppLobby.setLobbyPlayersStatus("WAITING", client);
+      await this.addPlayer(opponent.id, "CONFIRMATION", client);
       await this.setLobbyPlayersStatus("CONFIRMATION", client);
       await client.query("COMMIT");
 
-      return await opponent.getPlayer(client);
+      return true;
     } catch (e) {
       await client.query("ROLLBACK");
       throw e;
