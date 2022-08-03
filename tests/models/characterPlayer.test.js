@@ -112,4 +112,11 @@ describe("test characterPlayer methods", () => {
     charPlayer = await player.getCharacterPlayer(character.id);
     expect(charPlayer.type).toEqual("POCKET");
   });
+
+  it("can get all character players of a player", async () => {
+    let cps = await player.getAllCharacterPlayers();
+    expect(cps.length).toBe(1);
+    expect(cps[0] instanceof CharacterPlayer).toBe(true);
+    expect(JSON.stringify(cps[0])).toEqual(JSON.stringify(charPlayer));
+  });
 });

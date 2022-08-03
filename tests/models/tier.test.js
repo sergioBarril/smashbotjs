@@ -64,10 +64,13 @@ describe("test Tier methods", () => {
   });
 
   it("can be get from role discordId", async () => {
-    const tierFromGet = await getTierByRole(mockTierDiscordId);
+    let tierFromGet = await getTierByRole(mockTierDiscordId);
 
     expect(tierFromGet instanceof Tier).toBe(true);
     expect(tierFromGet.id).toBe(tier.id);
+
+    tierFromGet = await getTierByRole(null);
+    expect(tierFromGet).toBeNull();
   });
 
   it("can be get from tier id", async () => {
@@ -78,10 +81,13 @@ describe("test Tier methods", () => {
   });
 
   it("can be get from the assigned #tier channel", async () => {
-    const tierFromGet = await getTierByChannel(mockChannelId);
+    let tierFromGet = await getTierByChannel(mockChannelId);
 
     expect(tierFromGet instanceof Tier).toBe(true);
     expect(tierFromGet.id).toBe(tier.id);
+
+    tierFromGet = await getTierByChannel(null);
+    expect(tierFromGet).toBeNull();
   });
 
   it("can set the search message", async () => {
@@ -154,6 +160,8 @@ describe("test Tier methods", () => {
 
     expect(secondTier.canSearchIn(nullWeightTier)).toBe(true);
     expect(nullWeightTier.canSearchIn(secondTier)).toBe(false);
+
+    expect(tier.canSearchIn(null)).toBe(false);
 
     await secondTier.remove();
     await nullWeightTier.remove();

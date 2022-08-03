@@ -69,6 +69,15 @@ class LobbyPlayer {
     await db.updateBy("lobby_player", { cancel_set: cancelSetVote }, whereConditions, client);
     this.cancelSet = cancelSetVote;
   };
+
+  remove = async (client = null) =>
+    await db.deleteQuery(
+      {
+        text: `DELETE FROM lobby_player WHERE lobby_id = $1 AND player_id = $2`,
+        values: [this.lobbyId, this.playerId],
+      },
+      client
+    );
 }
 
 module.exports = {

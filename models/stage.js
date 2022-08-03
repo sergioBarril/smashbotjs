@@ -23,7 +23,7 @@ const getStageByName = async (stageName, client = null) => {
 };
 
 const getAllStages = async (client = null) => {
-  const getQuery = `SELECT * FROM stage`;
+  const getQuery = { text: `SELECT * FROM stage`, values: [] };
   const stages = await db.getQuery(getQuery, client, true);
   return stages.map((row) => new Stage(row));
 };

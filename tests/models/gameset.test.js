@@ -128,4 +128,16 @@ describe("test Gameset methods", () => {
     gsFromGet = await getGameset(0);
     expect(gsFromGet).toBeNull();
   });
+
+  it("can get the current gameset from the player", async () => {
+    let currentGameset = await player.getCurrentGameset();
+    expect(currentGameset).not.toBeNull();
+    expect(currentGameset instanceof Gameset).toBe(true);
+    expect(JSON.stringify(currentGameset)).toEqual(JSON.stringify(gameset));
+
+    gameset.setFinish();
+
+    currentGameset = await player.getCurrentGameset();
+    expect(currentGameset).toBeNull();
+  });
 });

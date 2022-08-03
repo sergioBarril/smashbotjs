@@ -49,7 +49,7 @@ class Player {
           INNER JOIN lobby_player lp
             ON lp.lobby_id = lobby.id
           WHERE lobby.status = $1
-          AND lobby_player.player_id = $2
+          AND lp.player_id = $2
     `,
       values: [status, this.id],
     };
@@ -62,13 +62,22 @@ class Player {
   getCurrentGameset = async (client = null) => {
     const { Gameset } = require("./gameset");
     const getQuery = {
+      //   text: `SELECT gs.* FROM gameset gs
+      // // INNER JOIN game
+      // //   ON game.gameset_id = gs.id
+      // // INNER JOIN game_player gp
+      // //   ON gp.game_id = game.id
+      // // WHERE gp.player_id = $1
+      // // AND gs.winner_id IS NULL`,
       text: `SELECT gs.* FROM gameset gs
-    INNER JOIN game
-      ON game.gameset_id = gs.id
-    INNER JOIN game_player gp
-      ON gp.game_id = game.id
-    WHERE gp.player_id = $1
-    AND gs.winner_id IS NULL`,
+            INNER JOIN lobby
+              ON gs.lobby_id = lobby.id
+            INNER JOIN lobby_player lp
+              ON lp.lobby_id = lobby.id
+            WHERE lp.player_id = $1
+            AND gs.finished_at IS NULL
+            AND gs.winner_id IS NULL    
+      `,
       values: [this.id],
     };
 
@@ -190,12 +199,6 @@ class Player {
     return charPlayers.map((row) => new CharacterPlayer(row));
   };
 
-  getCharacter = async (characterId, client = null) => {
-    const charPlayer = await this.getCharacterPlayer(characterId, client);
-    if (charPlayer == null) return null;
-    else return await charPlayer.getCharacter(client);
-  };
-
   getCharactersByType = async (type, client = null) => {
     const charPlayers = await this.getAllCharacterPlayers(client);
     return await Promise.all(
@@ -227,6 +230,19 @@ class Player {
   canSearchYuzu = async (guildId, client = null) => {
     const yuzuPlayer = await this.getYuzuPlayer(guildId, client);
     return yuzuPlayer && (yuzuPlayer.yuzu || yuzuPlayer.parsec);
+  };
+
+  insertYuzuPlayer = async (guildId, yuzu, parsec, client = null) => {
+    const insertQuery = {
+      text: `
+    INSERT INTO yuzu_player(player_id, guild_id, yuzu, parsec)
+    VALUES ($1, $2, $3, $4)
+    `,
+      values: [this.id, guildId, yuzu, parsec],
+    };
+
+    await db.insertQuery(insertQuery, client);
+    return await this.getYuzuPlayer(guildId, client);
   };
 
   remove = async (client = null) => await db.basicRemove("player", this.id, false, client);

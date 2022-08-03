@@ -369,4 +369,38 @@ describe("test lobby.matchmaking() and setupMatch()", () => {
     expect(lobby.status).toEqual("SEARCHING");
     expect((await lobby.getLobbyPlayer(player.id)).status).toEqual("SEARCHING");
   });
+
+  it("can remove the lobby by player", async () => {
+    await player.removeOwnLobby();
+    const lobbyFromGet = await player.getOwnLobby();
+    expect(lobbyFromGet).toBeNull();
+
+    expect(await player.removeOwnLobby()).toBe(false);
+  });
+
+  it("can get lobby by player and lobby status", async () => {
+    const player2 = await insertPlayer("81481944957234");
+    const lobby2 = await player2.insertLobby(guild.id);
+
+    let lobbyFromGet = await player.getLobby("SEARCHING");
+    expect(lobbyFromGet instanceof Lobby).toBe(true);
+    expect(JSON.stringify(lobbyFromGet)).toEqual(JSON.stringify(lobby));
+
+    lobbyFromGet = await player.getLobby("CONFIRMATION");
+    expect(lobbyFromGet).toBeNull();
+
+    await lobby2.addPlayer(player.id, "CONFIRMATION");
+    await lobby2.setStatus("CONFIRMATION");
+    await lobby.setStatus("WAITING");
+
+    lobbyFromGet = await player.getLobby("CONFIRMATION");
+    expect(lobbyFromGet instanceof Lobby).toBe(true);
+    expect(JSON.stringify(lobbyFromGet)).toEqual(JSON.stringify(lobby2));
+
+    lobbyFromGet = await player.getLobby("WAITING");
+    expect(lobbyFromGet instanceof Lobby).toBe(true);
+    expect(JSON.stringify(lobbyFromGet)).toEqual(JSON.stringify(lobby));
+
+    await player2.remove();
+  });
 });

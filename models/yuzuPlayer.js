@@ -26,19 +26,6 @@ class YuzuPlayer {
   };
 }
 
-const insertYuzuPlayer = async (playerId, guildId, yuzu, parsec, client = null) => {
-  const insertQuery = {
-    text: `
-    INSERT INTO yuzu_player(player_id, guild_id, yuzu, parsec)
-    VALUES ($1, $2, $3, $4)
-    `,
-    values: [playerId, guildId, yuzu, parsec],
-  };
-
-  await db.insertQuery(insertQuery, client);
-};
-
 module.exports = {
   YuzuPlayer,
-  insertYuzuPlayer,
 };

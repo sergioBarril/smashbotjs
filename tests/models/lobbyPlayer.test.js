@@ -214,4 +214,14 @@ describe("test Lobby Player methods", () => {
     isCancelSetDecided = await lobby.isCancelSetDecided();
     expect(isCancelSetDecided).toBe(true);
   });
+
+  it("can check if there's a lobby player of a player (in any lobby)", async () => {
+    let hasLobbyPlayer = await secondPlayer.hasLobbyPlayer();
+    expect(hasLobbyPlayer).toBe(true);
+
+    await lobbyPlayer.remove();
+
+    hasLobbyPlayer = await secondPlayer.hasLobbyPlayer();
+    expect(hasLobbyPlayer).toBe(false);
+  });
 });

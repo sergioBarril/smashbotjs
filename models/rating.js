@@ -12,6 +12,12 @@ class Rating {
 
   setTier = async (tierId, client = null) => {
     await db.updateBy("rating", { tier_id: tierId }, { id: this.id }, client);
+    this.tierId = tierId;
+  };
+
+  setScore = async (newScore, client = null) => {
+    await db.updateBy("rating", { score: newScore }, { id: this.id }, client);
+    this.score = newScore;
   };
 
   remove = async (client = null) => await db.basicRemove("rating", this.id, false, client);
@@ -24,6 +30,6 @@ const getRating = async (ratingId, client = null) => {
 };
 
 module.exports = {
-  getRating,
   Rating,
+  getRating,
 };
