@@ -6,6 +6,8 @@ class Stage {
     this.name = name;
     this.starter = starter;
   }
+
+  remove = async (client = null) => await db.basicRemove("stage", this.id, false, client);
 }
 
 const getStage = async (stageId, client = null) => {
@@ -31,23 +33,24 @@ const getStarters = async (client = null) => {
   return starters.map((row) => new Stage(row));
 };
 
-const create = async (name, starter, client = null) => {
+const insertStage = async (name, starter, client = null) => {
   const insertQuery = {
     text: `
     INSERT INTO stage(name, starter)
-    VALUES ($1, $2, $3)
+    VALUES ($1, $2)
     `,
-    values: [name, emoji, starter],
+    values: [name, starter],
   };
 
   await db.insertQuery(insertQuery, client);
+  return await getStageByName(name, client);
 };
 
 module.exports = {
+  Stage,
   getStage,
   getStageByName,
   getAllStages,
   getStarters,
-  create,
-  Stage,
+  insertStage,
 };

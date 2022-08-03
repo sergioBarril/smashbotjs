@@ -319,6 +319,22 @@ class Lobby {
     return getMessagesResult.map((row) => new Message(row));
   };
 
+  newGameset = async (firstTo = 3, client = null) => {
+    if (this.status !== "PLAYING") throw new Error("notPlaying");
+
+    const insertQuery = {
+      text: `
+    INSERT INTO gameset(guild_id, lobby_id, first_to)
+    VALUES ($1, $2, $3)
+    `,
+      values: [this.guildId, this.id, firstTo],
+    };
+
+    await db.insertQuery(insertQuery, client);
+
+    return await this.getGameset(client);
+  };
+
   // ***********
   //    SETTERS
   // ************

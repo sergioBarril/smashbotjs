@@ -23,7 +23,7 @@ class Gameset {
   }
 
   getGameByNum = async (gameNum, client = null) => {
-    const game = await db.getBy("table", { gameset_id: this.id, num: gameNum }, client);
+    const game = await db.getBy("game", { gameset_id: this.id, num: gameNum }, client);
     if (game == null) return null;
     else return new Game(game);
   };
@@ -37,12 +37,12 @@ class Gameset {
     else return new Lobby(lobby);
   };
 
-  getCurrent = async (client = null) => {
+  getCurrentGame = async (client = null) => {
     const getQuery = {
       text: `SELECT * FROM game
-    WHERE gameset_id = $1
-    ORDER BY num DESC
-    LIMIT 1`,
+      WHERE gameset_id = $1
+      ORDER BY num DESC
+      LIMIT 1`,
       values: [this.id],
     };
 
@@ -53,24 +53,28 @@ class Gameset {
 
   getScore = async (client = null) => {
     const getQuery = {
-      text: `SELECT p.discord_id AS discord_id,
-      COUNT(game.winner_id) FILTER(WHERE p.id = game.winner_id) AS wins
-    FROM game_player gp
-    INNER JOIN game
-      ON game.id = gp.game_id
-    INNER JOIN player p
-      ON p.id = gp.player_id
-    WHERE game.gameset_id = $1
-    GROUP BY p.discord_id`,
+      text: `SELECT gp.player_id AS player_id,
+      COUNT(game.winner_id) FILTER(WHERE gp.player_id = game.winner_id) AS wins
+      FROM game_player gp
+      INNER JOIN game
+      ON game.id = gp.game_id      
+      WHERE game.gameset_id = $1
+      GROUP BY gp.player_id`,
       values: [this.id],
     };
 
     const scoreResults = await db.getQuery(getQuery, client, true);
-    return scoreResults;
+    const { getPlayer } = require("./player");
+    return await Promise.all(
+      scoreResults.map(async (row) => ({
+        player: await getPlayer(row.player_id),
+        wins: parseInt(row.wins),
+      }))
+    );
   };
 
   setWinner = async (winnerId, client = null) => {
-    await db.updateBy("gameset", { winnner_id: winnerId }, { id: this.id }, client);
+    await db.updateBy("gameset", { winner_id: winnerId }, { id: this.id }, client);
     this.winnerId = winnerId;
   };
 
@@ -91,14 +95,28 @@ class Gameset {
     this.finishedAt = Date.now();
   };
 
-  setSurrender = async (winnerId, client = null) => {
-    const setDict = { winner_id: winnerId, is_surrender: true };
+  setSurrender = async (client = null) => {
+    const setDict = { is_surrender: true };
     const whereCondition = { id: this.id };
 
     await db.updateBy("gameset", setDict, whereCondition, client);
 
-    this.winnerId = winnerId;
     this.isSurrender = true;
+  };
+
+  newGame = async (client = null) => {
+    let currentGame = await this.getCurrentGame(client);
+    const gameNum = (currentGame?.num ?? 0) + 1;
+    const insertQuery = {
+      text: `
+    INSERT INTO game(gameset_id, num)
+    VALUES ($1, $2)
+    `,
+      values: [this.id, gameNum],
+    };
+    await db.insertQuery(insertQuery, client);
+
+    return await this.getCurrentGame(client);
   };
 
   remove = async (client = null) => await db.basicRemove("gameset", this.id, false, client);
@@ -110,20 +128,7 @@ const getGameset = async (gameSetId, client = null) => {
   else return new Gameset(gameset);
 };
 
-const insertGameset = async (guildId, lobbyId, firstTo, client = null) => {
-  const insertQuery = {
-    text: `
-    INSERT INTO gameset(guild_id, lobby_id, first_to)
-    VALUES ($1, $2, $3)
-    `,
-    values: [guildId, lobbyId, firstTo],
-  };
-
-  await db.insertQuery(insertQuery, client);
-};
-
 module.exports = {
-  getGameset,
-  insertGameset,
   Gameset,
+  getGameset,
 };

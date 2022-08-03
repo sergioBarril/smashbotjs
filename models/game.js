@@ -1,6 +1,7 @@
 const db = require("./db");
 const { GamePlayer } = require("./gamePlayer");
 const { Message } = require("./message");
+
 const { StageBan } = require("./stageBan");
 
 class Game {
@@ -9,7 +10,7 @@ class Game {
     this.num = num;
     this.stageId = stage_id;
     this.winnerId = winner_id;
-    this.gameSetId = gameset_id;
+    this.gamesetId = gameset_id;
   }
 
   getGamePlayer = async (playerId, client = null) => {
@@ -53,14 +54,14 @@ class Game {
 
   haveAllPicked = async (client = null) => {
     const getQuery = {
-      text: `SELECT * FROM game_player gp      
-      WHERE game.id = $1 
+      text: `SELECT * FROM game_player      
+      WHERE game_id = $1 
       AND character_id IS NULL`,
       values: [this.id],
     };
 
     const getResult = await db.getQuery(getQuery, client, true);
-    return getResult.rows.length === 0;
+    return getResult.length === 0;
   };
 
   getStriker = async (client = null) => {
@@ -75,12 +76,8 @@ class Game {
   };
 
   getWinner = async (client = null) => {
-    const { Player } = require("./player");
-    if (this.winnerId == null) return null;
-    const winner = await db.getBy("player", { id: this.winnerId }, client);
-
-    if (winner == null) return null;
-    else return new Player(winner);
+    const { getPlayer } = require("./player");
+    return await getPlayer(this.winnerId, false, client);
   };
 
   calculateWinner = async (client = null) => {
@@ -112,6 +109,19 @@ class Game {
     this.winnerId = winnerId;
   };
 
+  addPlayer = async (playerId, client = null) => {
+    const insertQuery = {
+      text: `
+    INSERT INTO game_player(game_id, player_id)
+    VALUES ($1, $2)
+    `,
+      values: [this.id, playerId],
+    };
+
+    await db.insertQuery(insertQuery, client);
+    return this.getGamePlayer(playerId, client);
+  };
+
   remove = async (client = null) => await db.basicRemove("game", this.id, false, client);
 }
 
@@ -121,19 +131,7 @@ const getGame = async (gameId, client = null) => {
   else return new Game(game);
 };
 
-const insertGame = async (gameSetId, gameNum, client = null) => {
-  const insertQuery = {
-    text: `
-    INSERT INTO game(gameset_id, num)
-    VALUES ($1, $2)
-    `,
-    values: [gameSetId, gameNum],
-  };
-  await db.insertQuery(insertQuery, client);
-};
-
 module.exports = {
   Game,
   getGame,
-  insertGame,
 };
