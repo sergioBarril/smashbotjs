@@ -1,4 +1,6 @@
+const { NotFoundError } = require("../errors/notFound");
 const db = require("./db");
+const { insertMessage, MESSAGE_TYPES, Message } = require("./message");
 
 class Tier {
   constructor({
@@ -8,7 +10,6 @@ class Tier {
     threshold = null,
     role_id,
     weight = null,
-    matchmaking_message_id = null,
     yuzu = false,
     ranked_role_id = null,
   }) {
@@ -19,10 +20,14 @@ class Tier {
     this.threshold = threshold; // upper score limit of this tier
     this.roleId = role_id; // discordId of @Tier X
     this.weight = weight; // the number of the tier. Tier n => Weight n
-    this.matchmakingMessageId = matchmaking_message_id; // message on the matchmaking channel
     this.yuzu = yuzu; // is this a yuzu/parsec tier
     this.rankedRoleId = ranked_role_id; // discordId of @Tier X (Ranked)
   }
+
+  getGuild = async (client = null) => {
+    const { getGuild } = require("./guild");
+    return await getGuild(this.guildId, false, client);
+  };
 
   canSearchIn = (targetTier) => {
     // Can someone with this as their highest tier search in targetTier?
@@ -31,9 +36,46 @@ class Tier {
     return targetTier.weight === null || targetHasMoreWeight;
   };
 
-  setMatchmakingMessage = async (newMMmessageId, client = null) => {
-    await db.updateBy("tier", { matchmaking_message_id: newMMmessageId }, { id: this.id }, client);
-    this.matchmakingMessageId = newMMmessageId;
+  insertMessage = async (discordId, client = null) => {
+    const guild = await this.getGuild(client);
+
+    if (!guild.matchmakingChannelId) throw new NotFoundError("MatchmakingChannel");
+
+    return await insertMessage(
+      discordId,
+      MESSAGE_TYPES.GUILD_TIER_SEARCH,
+      this.id,
+      guild.matchmakingChannelId,
+      null,
+      guild.id,
+      null,
+      false,
+      client
+    );
+  };
+
+  getMessage = async (client = null) => {
+    const getResult = await db.getBy(
+      "message",
+      { tier_id: this.id, guild_id: this.guildId, type: MESSAGE_TYPES.GUILD_TIER_SEARCH },
+      client
+    );
+    if (!getResult) return null;
+    else return new Message(getResult);
+  };
+
+  setMessage = async (newDiscordId, client = null) => {
+    await db.updateBy(
+      "message",
+      { discord_id: newDiscordId },
+      { tier_id: this.id, guild_id: this.guildId, type: MESSAGE_TYPES.GUILD_TIER_SEARCH },
+      client
+    );
+  };
+
+  removeMessage = async (client = null) => {
+    const message = await this.getMessage(client);
+    if (message) await message.remove(client);
   };
 
   setRankedRole = async (newRankedRoleId, client = null) => {
@@ -84,32 +126,6 @@ const getTierByChannel = async (channelDiscordId, client = null) => {
   else return new Tier(tier);
 };
 
-const getTierBySearchMessage = async (messageDiscordId, client = null) => {
-  if (messageDiscordId == null) return null;
-  const { Message } = require("./message");
-
-  const message = await db.getBy("message", { discord_id: messageDiscordId.toString() });
-  if (message == null) return null;
-
-  const messageObj = new Message(message);
-  return await messageObj.getTier(client);
-};
-
-const getTierByTierMessage = async (messageDiscordId, client = null) => {
-  const getQuery = {
-    text: `SELECT t.*
-    FROM lobby_tier lt
-    INNER JOIN tier t
-      ON t.id = lt.tier_id
-    WHERE lt.message_id = $1`,
-    values: [messageDiscordId],
-  };
-
-  const tier = await db.getQuery(getQuery, client, false);
-  if (tier == null) return null;
-  else return new Tier(tier);
-};
-
 const insertTier = async (
   roleDiscordId,
   channelDiscordId,
@@ -137,8 +153,6 @@ module.exports = {
   getTier,
   getTierByRole,
   getTierByRankedRole,
-  getTierBySearchMessage,
-  getTierByTierMessage,
   getTierByChannel,
   insertTier,
 };

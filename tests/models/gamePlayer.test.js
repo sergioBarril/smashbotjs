@@ -76,7 +76,6 @@ describe("test Game Player methods", () => {
 
     expect(gamePlayer.characterId).toBeNull();
     expect(gamePlayer.banTurn).toBeFalsy();
-    expect(gamePlayer.charMessageId).toBeNull();
     expect(gamePlayer.winner).toBeFalsy();
   });
 

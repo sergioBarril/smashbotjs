@@ -1,4 +1,7 @@
+const { NotFoundError } = require("../errors/notFound");
 const db = require("./db");
+const { MESSAGE_TYPES } = require("./message");
+const { getPlayer } = require("./player");
 
 class GamePlayer {
   constructor({ game_id, player_id, character_id, ban_turn, char_message_id, winner }) {
@@ -7,7 +10,6 @@ class GamePlayer {
 
     this.characterId = character_id;
     this.banTurn = ban_turn;
-    this.charMessageId = char_message_id;
     this.winner = winner;
   }
   whereConditions = () => ({ game_id: this.gameId, player_id: this.playerId });
@@ -36,9 +38,22 @@ class GamePlayer {
     await db.insertQuery(insertQuery, client);
   };
 
-  setCharMessageId = async (messageId, client = null) => {
-    await db.updateBy("game_player", { char_message_id: messageId }, whereConditions, client);
-    this.charMessageId = messageId;
+  insertMessage = async (discordId, client = null) => {
+    const player = await getPlayer(this.playerId, false, client);
+    const lobby = await player.getLobby("PLAYING", client);
+    if (!lobby) throw NotFoundError("Lobby");
+
+    return await insertMessage(
+      discordId,
+      MESSAGE_TYPES.GAME_CHARACTER_SELECT,
+      null,
+      lobby.textChannelId,
+      this.playerId,
+      lobby.guildId,
+      lobby.id,
+      false,
+      client
+    );
   };
 
   setCharacter = async (charId, client = null) => {

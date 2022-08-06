@@ -52,7 +52,6 @@ describe("test Tier methods", () => {
     expect(tier.weight).toEqual(mockWeight);
     expect(tier.threshold).toEqual(mockThreshold);
     expect(tier.yuzu).toEqual(false);
-    expect(tier.matchmakingMessageId).toBeNull();
     expect(tier.rankedRoleId).toBeNull();
   });
 
@@ -90,19 +89,28 @@ describe("test Tier methods", () => {
     expect(tierFromGet).toBeNull();
   });
 
-  it("can set the search message", async () => {
-    expect(tier.matchmakingMessageId).toBeNull();
+  it("can insert the search message", async () => {
+    const messageDiscordId = "89149124";
+    const matchmakingChannel = "8458150";
 
-    const message = await insertMessage("85271", tier.id, "84884", null, false, guild.id, null);
+    await guild.setMatchmakingChannel(matchmakingChannel);
+
+    const message = await tier.insertMessage(messageDiscordId);
     expect(message instanceof Message).toBe(true);
 
-    await tier.setMatchmakingMessage(message.id);
-    expect(tier.matchmakingMessageId).toEqual(message.id);
-    tier = await getTier(tier.id);
-    expect(tier.matchmakingMessageId).toEqual(message.id);
+    let messageFromGet = await tier.getMessage();
+    expect(messageFromGet.discordId).toEqual(messageDiscordId);
+    expect(messageFromGet instanceof Message).toBe(true);
+    expect(JSON.stringify(messageFromGet)).toBe(JSON.stringify(message));
+
+    const secondMessageDiscordId = "333333";
+    await tier.setMessage(secondMessageDiscordId);
+    messageFromGet = await tier.getMessage();
+    expect(messageFromGet.discordId).toEqual(secondMessageDiscordId);
+    expect(messageFromGet instanceof Message).toBe(true);
 
     // Message cleanup
-    await message.remove();
+    await messageFromGet.remove();
   });
 
   it("can set the ranked role", async () => {

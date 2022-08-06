@@ -1,6 +1,6 @@
 const db = require("./db");
-const { getMessage } = require("./message");
 const { getTier } = require("./tier");
+const { insertMessage, MESSAGE_TYPES, Message } = require("./message");
 
 class LobbyTier {
   constructor({ lobby_id, tier_id, created_at, message_id }) {
@@ -11,15 +11,40 @@ class LobbyTier {
     this.messageId = message_id;
   }
 
-  getTier = async () => await getTier(this.tierId);
+  getTier = async (client = null) => {
+    return await getTier(this.tierId, client);
+  };
 
-  getMessage = async (client = null) => await getMessage(this.messageId, false, client);
+  getLobby = async (client = null) => {
+    const { getLobby } = require("./lobby");
+    return await getLobby(this.lobbyId, client);
+  };
 
-  setMessage = async (messageId, client = null) => {
-    const whereCondition = { lobby_id: this.lobbyId, tier_id: this.tierId };
-    await db.updateBy("lobby_tier", { message_id: messageId }, whereCondition, client);
+  getMessage = async (client = null) => {
+    const getResult = await db.getBy(
+      "message",
+      { lobby_id: this.lobbyId, tier_id: this.tierId },
+      client
+    );
+    if (!getResult) return null;
+    else return new Message(getResult);
+  };
 
-    this.messageId = messageId;
+  insertMessage = async (discordId, client = null) => {
+    const tier = await this.getTier(client);
+    const lobby = await this.getLobby(client);
+
+    return await insertMessage(
+      discordId,
+      MESSAGE_TYPES.LOBBY_TIER,
+      tier.id,
+      tier.channelId,
+      lobby.createdBy,
+      lobby.guildId,
+      lobby.id,
+      false,
+      client
+    );
   };
 
   remove = async (client = null) => {

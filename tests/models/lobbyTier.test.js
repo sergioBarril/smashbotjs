@@ -5,6 +5,8 @@ const { getGuild, insertGuild } = require("../../models/guild");
 const { getPlayer, insertPlayer } = require("../../models/player");
 const { getTier, insertTier, Tier } = require("../../models/tier");
 const { LobbyTier } = require("../../models/lobbyTier");
+const { Lobby } = require("../../models/lobby");
+const { Message, MESSAGE_TYPES } = require("../../models/message");
 
 afterAll(async () => await db.close());
 
@@ -92,7 +94,35 @@ describe("test Lobby methods", () => {
 
   it("can get the tier", async () => {
     const tierFromGet = await lobbyTier.getTier();
+    expect(tierFromGet).not.toBeNull();
     expect(tierFromGet instanceof Tier).toBe(true);
     expect(JSON.stringify(tierFromGet)).toEqual(JSON.stringify(tier));
+  });
+
+  it("can get the lobby", async () => {
+    const lobbyFromGet = await lobbyTier.getLobby();
+    expect(lobbyFromGet).not.toBeNull();
+    expect(lobbyFromGet instanceof Lobby).toBe(true);
+    expect(JSON.stringify(lobbyFromGet)).toEqual(JSON.stringify(lobby));
+  });
+
+  it("can insert the lobbyTier message", async () => {
+    let messageFromGet = await lobbyTier.getMessage();
+    expect(messageFromGet).toBeNull();
+
+    const messageDiscordId = "48958";
+    const message = await lobbyTier.insertMessage(messageDiscordId);
+
+    expect(message).not.toBe(null);
+    expect(message instanceof Message).toBe(true);
+    expect(message.discordId).toBe(messageDiscordId);
+    expect(message.type).toBe(MESSAGE_TYPES.LOBBY_TIER);
+    expect(message.tierId).toBe(lobbyTier.tierId);
+    expect(message.lobbyId).toBe(lobbyTier.lobbyId);
+
+    // Test get
+    messageFromGet = await lobbyTier.getMessage();
+    expect(messageFromGet instanceof Message).toBe(true);
+    expect(JSON.stringify(messageFromGet)).toEqual(JSON.stringify(message));
   });
 });
