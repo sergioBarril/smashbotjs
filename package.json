@@ -6,7 +6,8 @@
   "scripts": {
     "test": "jest -i --coverage",
     "test:models": "jest -i --coverage --testPathPattern=tests/models",
-    "test:api": "jest -i --coverage --testPathPattern=tests/api"
+    "test:api": "jest -i --coverage --testPathPattern=tests/api",
+    "test:views": "jest -i --coverage --testPathPattern=tests/views --detectOpenHandles"
   },
   "author": "Tropped",
   "license": "ISC",
@@ -22,9 +23,12 @@
     "eslint": "^8.6.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-import": "^2.25.4",
-    "jest": "^28.1.3"
+    "jest": "^28.1.3",
+    "rewire": "^6.0.0"
   },
-  "jest":{
-    "coveragePathIgnorePatterns": ["/errors/"]
+  "jest": {
+    "coveragePathIgnorePatterns": [
+      "/errors/"
+    ]
   }
 }

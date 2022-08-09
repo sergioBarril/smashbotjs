@@ -152,6 +152,17 @@ const rankedSearch = async (playerDiscordId, guildDiscordId) => {
   return true;
 };
 
+/**
+ *  Search a friendlies match
+ *
+ * @param {string} playerDiscordId DiscordId of the player searching
+ * @param {string} guildDiscordId DiscordId of the guild you are searching in
+ * @param {string} messageDiscordId DiscordId of the message in #matchmaking
+ * @returns Object with the properties:
+ *  - matched (boolean)
+ *  - players (Array<Player>) if matched
+ *  - tiers (Array<Tier>) if not matched
+ */
 const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   const isSearchAll = messageDiscordId === null;
 
@@ -227,7 +238,6 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   } else await lobby.addTiers(newTiers);
 
   const rivalPlayer = await lobby.matchmaking();
-
   // Unmatched, return info to send @Tier
   if (!rivalPlayer) {
     return {
@@ -235,6 +245,8 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
       tiers: targetTiers,
     };
   }
+
+  await lobby.setupMatch(rivalPlayer);
 
   return {
     matched: true,
@@ -353,25 +365,6 @@ const getMessages = async (playerDiscordId) => {
 
   const messages = await lobbyMessageDB.getMessages(lobby.id);
   return messages;
-};
-
-const getTierMessages = async (playerDiscordId, status = "CONFIRMATION") => {
-  const player = await playerDB.get(playerDiscordId, true);
-  if (!player) throw { name: "PLAYER_NOT_FOUND" };
-
-  const matchedLobby = await lobbyDB.getByPlayerStatus(player.id, status, false);
-
-  const tierData = await lobbyTierDB.getAllMessages(matchedLobby.id);
-  if (!tierData) throw { name: "MESSAGES_NOT_FOUND" };
-
-  return tierData.map((data) => {
-    return {
-      authorId: data.player_id,
-      channelId: data.channel_id,
-      messageId: data.message_id,
-      tierId: data.discord_id,
-    };
-  });
 };
 
 const getSearchingTiers = async (playerDiscordId) => {
@@ -616,7 +609,6 @@ module.exports = {
   rankedSearch,
   getPlayingPlayers,
   getMessages,
-  getTierMessages,
   acceptMatch,
   declineMatch,
   timeoutMatch,

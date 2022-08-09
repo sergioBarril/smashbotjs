@@ -1,7 +1,7 @@
 const db = require("./db");
 const { getGuild } = require("./guild");
 const { LobbyTier } = require("./lobbyTier");
-const { Message } = require("./message");
+const { Message, MESSAGE_TYPES } = require("./message");
 const { LobbyPlayer } = require("./lobbyPlayer");
 const { Gameset } = require("./gameset");
 const { YuzuPlayer } = require("./yuzuPlayer");
@@ -186,6 +186,11 @@ class Lobby {
     return await getPlayer(matchmakingResult.id, false);
   };
 
+  /**
+   * To be called after a match has been found.
+   * Sets up the lobby statuses and lobby players
+   * @param {Player} opponent
+   */
   setupMatch = async (opponent) => {
     const client = await db.getClient();
 
@@ -202,8 +207,6 @@ class Lobby {
       await this.addPlayer(opponent.id, "CONFIRMATION", client);
       await this.setLobbyPlayersStatus("CONFIRMATION", client);
       await client.query("COMMIT");
-
-      return true;
     } catch (e) {
       await client.query("ROLLBACK");
       throw e;
@@ -317,6 +320,27 @@ class Lobby {
   getOwnMessages = async (client = null) => {
     const getMessagesResult = await db.filterBy("message", { lobby_id: this.id }, client);
     return getMessagesResult.map((row) => new Message(row));
+  };
+
+  /**
+   * Returns the Search Tier Messages
+   * from all lobby players in this lobby
+   * @param {Client} client Optional pg client
+   * @returns Array of Messages of this lobby
+   */
+  getMessagesFromEveryone = async (client = null) => {
+    const queryString = {
+      text: `SELECT m.*
+      FROM message m
+      INNER JOIN lobby_player lp
+        ON m.player_id = lp.player_id
+      WHERE lp.lobby_id = $1
+      AND m.type = $2`,
+      values: [this.id, MESSAGE_TYPES.LOBBY_TIER],
+    };
+
+    const result = await db.getQuery(queryString, client, true);
+    return result.map((message) => new Message(message));
   };
 
   newGameset = async (firstTo = 3, client = null) => {

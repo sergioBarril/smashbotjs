@@ -339,8 +339,7 @@ describe("test lobby.matchmaking() and setupMatch()", () => {
     const opponent = await lobby.matchmaking();
     expect(opponent instanceof Player).toBe(true);
 
-    const isSetUp = await lobby.setupMatch(opponent);
-    expect(isSetUp).toBe(true);
+    await lobby.setupMatch(opponent);
 
     lobby = await player.getOwnLobby();
     expect(lobby.status).toBe("CONFIRMATION");

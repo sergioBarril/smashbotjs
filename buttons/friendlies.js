@@ -1,28 +1,49 @@
 const discordMatchingUtils = require("../utils/discordMatching");
 
 const lobbyAPI = require("../api/lobby");
+const { CustomError } = require("../errors/customError");
+const { Tier } = require("../models/tier");
+const { Player } = require("../models/player");
 
 const exceptionHandler = async (interaction, exception) => {
-  // Send reply
+  let message = exception.message;
+
+  if (!(exception instanceof CustomError)) {
+    message = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+    console.error(exception, exception.stack);
+  }
+
   await interaction.reply({
-    content: exception.message,
+    content: message,
     ephemeral: true,
   });
 };
 
+/**
+ * Actions to do after finding a match
+ * This includes:
+ *  - sending the confirmation DMs
+ *  - editing existing #tier-X messages
+ * @param {*} interaction
+ * @param {Array<Player>} players
+ */
 const matched = async (interaction, players) => {
   const guild = interaction.guild;
   await discordMatchingUtils.matched(guild, players);
 
-  return await interaction.reply({
+  await interaction.reply({
     content: "¡Te he encontrado rival! Mira tus MDs.",
     ephemeral: true,
   });
 };
 
+/**
+ * Actions to do after not finding a match
+ * This includes sending a message to #tier
+ * @param {*} interaction discord.js event interaction
+ * @param {Array<Tier>} tiers Tiers that have been added in this interaction
+ */
 const notMatched = async (interaction, tiers) => {
-  // Actions to do after not finding a match
-  // This includes sending a message to #tier
   const playerId = interaction.user.id;
   const guild = interaction.guild;
 
@@ -41,7 +62,7 @@ const notMatched = async (interaction, tiers) => {
   });
   const rolesNames = rolesFormatter.format(roles);
 
-  return await interaction.reply({
+  await interaction.reply({
     content: `A partir de ahora estás buscando en ${rolesNames}`,
     ephemeral: true,
   });
@@ -57,8 +78,7 @@ const execute = async (interaction) => {
     if (searchResult.matched) {
       await matched(interaction, searchResult.players);
     } else {
-      const { tiers, isYuzu } = searchResult;
-      await notMatched(interaction, tiers, isYuzu);
+      await notMatched(interaction, searchResult.tiers);
     }
   } catch (e) {
     await exceptionHandler(interaction, e);

@@ -1,4 +1,4 @@
-const { MessageActionRow, MessageButton } = require("discord.js");
+const { MessageActionRow, MessageButton, GuildMember } = require("discord.js");
 
 const lobbyAPI = require("../api/lobby");
 const guildAPI = require("../api/guild");
@@ -7,13 +7,19 @@ const rolesAPI = require("../api/roles");
 
 const smashCharacters = require("../params/smashCharacters.json");
 const { TooManyPlayersError } = require("../errors/tooManyPlayers");
+const { Player } = require("../models/player");
+const { Tier } = require("../models/tier");
 
 // This module is composed of Discord functionality that's
 // recurring in different buttons or commands
 
-const sendConfirmation = async (player, opponent) => {
-  // Sends a DM to player asking for confirmation
-  // about their match with opponent
+/**
+ * Sends a DM to player asking for confirmation
+ * about their match with opponent
+ * @param {GuildMember} player Receiver of this DM
+ * @param {GuildMember} opponent Opponent who 'player' is supposed to play against
+ */
+async function sendConfirmation(player, opponent) {
   const messageText = `¡Match encontrado! ${player}, te toca contra **${opponent.displayName}**`;
   const row = new MessageActionRow().addComponents(
     new MessageButton().setCustomId("accept-confirmation").setLabel("Aceptar").setStyle("SUCCESS"),
@@ -25,20 +31,18 @@ const sendConfirmation = async (player, opponent) => {
   });
 
   await messageAPI.saveConfirmationDM(player.id, directMessage.id);
-};
+}
 
+/**
+ * Actions to do after a match has been found
+ * This includes:
+ *  - sending the confirmation DMs
+ *  - editing existing #tier-X messages
+ *
+ * @param {Guild} guild The Discord object
+ * @param {Array<Player>} players List of players matched
+ */
 const matched = async (guild, players) => {
-  // Actions to do after a match has been found
-  //  This includes :
-  //   - sending the confirmation DMS
-  //   - editing existing #tier-X messages
-  // Arguments:
-  //   - guild: The Discord object
-  //   - playerIdList: list of discord_ids of the players matched
-
-  // Get players
-  // const players = [];
-
   players = await Promise.all(
     players.map(async (player) => await guild.members.fetch(player.discordId))
   );
@@ -50,7 +54,7 @@ const matched = async (guild, players) => {
   await Promise.all([sendConfirmation(player1, player2), sendConfirmation(player2, player1)]);
 
   // Update all your #tier messages
-  const messages = await lobbyAPI.getTierMessages(player1.id);
+  const messages = await messageAPI.getSearchTierMessages(player1.id);
 
   const button = new MessageActionRow().addComponents(
     new MessageButton()
@@ -60,23 +64,27 @@ const matched = async (guild, players) => {
       .setDisabled(true)
   );
 
-  for (messageInfo of messages) {
-    const { messageId, channelId, authorId } = messageInfo;
-    const channel = await guild.channels.fetch(channelId);
-    const message = await channel.messages.fetch(messageId);
-    const player = await guild.members.fetch(authorId);
+  for (let message of messages) {
+    const channel = await guild.channels.fetch(message.channelId);
+    const discordMessage = await channel.messages.fetch(message.discordId);
+    const player = await guild.members.fetch(message.authorId);
 
-    await message.edit({
+    await discordMessage.edit({
       content: `¡**${player.displayName}** ha encontrado partida! Esperando confirmación...`,
       components: [button],
     });
   }
 };
 
+/**
+ * Actions to do after not finding a match
+ * This includes sending a message to #tier-X
+ *
+ * @param {string} playerId DiscordId of the player
+ * @param {Guild} guild
+ * @param {Tier} tier Tier where last tried to match. Null if it's not only one tier.
+ */
 const notMatched = async (playerId, guild, tier = null) => {
-  // Actions to do after not finding a match
-  // This includes sending a message to #tier
-
   const button = new MessageActionRow().addComponents(
     new MessageButton().setCustomId("direct-match").setLabel("Jugar").setStyle("SUCCESS")
   );
