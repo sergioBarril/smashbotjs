@@ -53,7 +53,6 @@ describe("test Lobby Player methods", () => {
     expect(lobbyPlayer.lobbyId).toEqual(lobby.id);
     expect(lobbyPlayer.playerId).toEqual(secondPlayer.id);
     expect(lobbyPlayer.status).toEqual(lobbyPlayerStatus);
-    expect(lobbyPlayer.messageId).toBeNull();
 
     expect(lobbyPlayer.newSet).toBe(false);
     expect(lobbyPlayer.cancelSet).toBe(false);
