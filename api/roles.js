@@ -1,18 +1,6 @@
-const db = require("../db/index");
-
-const playerDB = require("../db/player");
-const guildDB = require("../db/guild");
-const characterDB = require("../db/character");
-const characterRoleDB = require("../db/characterRole");
-const characterPlayerDB = require("../db/characterPlayer");
-
-const regionDB = require("../db/region");
-const regionRoleDB = require("../db/regionRole");
-const regionPlayerDB = require("../db/regionPlayer");
-
-const yuzuPlayerDB = require("../db/yuzuPlayer");
 const { getPlayer } = require("../models/player");
 const { getGuild } = require("./lobby");
+const { NotFoundError } = require("../errors/notFound");
 
 const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
   // Assigns a player a role
@@ -107,11 +95,15 @@ const assignYuzu = async (playerDiscordId, guildDiscordId, yuzuRoleName) => {
   return { roleId, newStatus };
 };
 
-const getYuzuMessageRoles = async (playerDiscordId, guildDiscordId) => {
+const getYuzuRolesForMessage = async (playerDiscordId, guildDiscordId) => {
   const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
   const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
   const yuzuPlayer = await player.getYuzuPlayer(guild.id);
+  if (!yuzuPlayer) throw new NotFoundError("YuzuPlayer");
 
   const roles = [];
   if (yuzuPlayer.parsec) roles.push(guild.yuzuRoleId);
@@ -122,7 +114,7 @@ const getYuzuMessageRoles = async (playerDiscordId, guildDiscordId) => {
 
 const getCharacters = async (playerDiscordId) => {
   const player = await getPlayer(playerDiscordId, true);
-  if (!player) return null;
+  if (!player) throw new NotFoundError("Player");
 
   const mains = await player.getCharactersByType("MAIN");
   const seconds = await player.getCharactersByType("SECOND");
@@ -135,6 +127,6 @@ module.exports = {
   assignCharacter,
   assignRegion,
   assignYuzu,
-  getYuzuMessageRoles,
+  getYuzuRolesForMessage,
   getCharacters,
 };

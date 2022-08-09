@@ -1,5 +1,6 @@
+const { NotFoundError } = require("../errors/notFound");
 const db = require("./db");
-const { getMessage } = require("./message");
+const { getMessage, insertMessage, MESSAGE_TYPES } = require("./message");
 
 class LobbyPlayer {
   constructor({ lobby_id, player_id, status, message_id, new_set, cancel_set }) {
@@ -52,10 +53,21 @@ class LobbyPlayer {
     this.status = status;
   };
 
-  setMessage = async (messageId, client = null) => {
-    const whereConditions = { lobby_id: this.lobbyId, player_id: this.playerId };
-    await db.updateBy("lobby_player", { message_id: messageId }, whereConditions, client);
-    this.messageId = messageId;
+  insertMessage = async (messageId, client = null) => {
+    const lobby = await this.getLobby();
+    if (!lobby) throw new NotFoundError("Lobby");
+
+    return insertMessage(
+      messageId,
+      MESSAGE_TYPES.LOBBY_PLAYER,
+      null,
+      null,
+      this.playerId,
+      lobby.guildId,
+      lobby.id,
+      false,
+      client
+    );
   };
 
   setNewSet = async (newSet, client = null) => {

@@ -1,4 +1,6 @@
-class NotFoundError extends Error {
+const { CustomError } = require("./customError");
+
+class NotFoundError extends CustomError {
   constructor(type, message = null) {
     super(message);
 

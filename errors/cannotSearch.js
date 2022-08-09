@@ -1,4 +1,6 @@
-class CannotSearchError extends Error {
+const { CustomError } = require("./customError");
+
+class CannotSearchError extends CustomError {
   constructor(status, mode, message = null) {
     super(message);
     this.name = `CannotSearchError`;

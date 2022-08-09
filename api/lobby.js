@@ -1,27 +1,14 @@
-const db = require("../db/index");
-
-const lobbyDB = require("../db/lobby");
-const lobbyPlayerDB = require("../db/lobbyPlayer");
-const lobbyTierDB = require("../db/lobbyTier");
-const lobbyMessageDB = require("../db/lobbyMessage");
-const guildDB = require("../db/guild");
-const playerDB = require("../db/player");
-const tierDB = require("../db/tier");
-const yuzuPlayerDB = require("../db/yuzuPlayer");
-const gameSetDB = require("../db/gameSet");
-const ratingDB = require("../db/rating");
-
 const { getGuild } = require("../models/guild");
 const { getPlayer } = require("../models/player");
-const { getTierBySearchMessage, getTier } = require("../models/tier");
-const { getLobby, insertLobby } = require("../models/lobby");
 const { CannotSearchError } = require("../errors/cannotSearch");
 const { AlreadySearchingError } = require("../errors/alreadySearching");
 const { NotFoundError } = require("../errors/notFound");
-const { insertMessage } = require("../models/message");
+const { getMessage, MESSAGE_TYPES } = require("../models/message");
 const { NotSearchingError } = require("../errors/notSearching");
 const { TooNoobError } = require("../errors/tooNoob");
 const { NoCableError } = require("../errors/noCable");
+const { MessageTypeError } = require("../errors/messageType");
+const { NoYuzuError } = require("../errors/noYuzu");
 
 const matchNotAccepted = async (declinePlayer, isTimeout) => {
   // Handles a match not being accepted, whether by direct 'Decline' or timeout.
@@ -174,14 +161,25 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   const player = await getPlayer(playerDiscordId, true);
   if (!player) throw new NotFoundError("Player");
 
-  const targetTier = await getTierBySearchMessage(messageDiscordId);
-  if (!targetTier && !isSearchAll) throw new NotFoundError("Tier");
+  const message = await getMessage(messageDiscordId, true);
+  if (!message && !isSearchAll) throw new NotFoundError("TierMessage");
+  else if (message && message.type !== MESSAGE_TYPES.GUILD_TIER_SEARCH)
+    throw new MessageTypeError();
+
+  let targetTier = null;
+  if (message) {
+    targetTier = await message.getTier();
+    if (!targetTier) throw new NotFoundError("Tier");
+  }
 
   const isYuzu = !isSearchAll && targetTier.yuzu;
 
   let targetTiers = [];
   const allTiers = await guild.getTiers();
   const playerTier = await player.getTier(guild.id);
+
+  if (!playerTier && targetTier && targetTier.weight !== null)
+    throw new NotFoundError("Tier", "No tienes ninguna tier asignada: no puedes jugar aquí.");
 
   // Yuzu
   if (isYuzu) {
@@ -219,7 +217,8 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   const newTiers = targetTiers.filter((tier) => !searchingTiersIds.includes(tier.id));
 
   if (!lobby && !existsLobbyPlayer) {
-    lobby = await insertLobby({ guildId: guild.id, playerId: player.id, targetTiers });
+    lobby = await player.insertLobby(guild.id);
+    await lobby.addTiers(targetTiers);
   } else if (!isSearching || (!lobby && existsLobbyPlayer)) {
     if (!lobby) throw new CannotSearchError("PLAYING", "SEARCH");
     else throw new CannotSearchError(lobby.status, "SEARCH");
@@ -239,7 +238,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
 
   return {
     matched: true,
-    players: [player.discordId, rivalPlayer.discordId],
+    players: [player, rivalPlayer],
   };
 };
 
@@ -283,7 +282,7 @@ const directMatch = async (playerDiscordId, guildDiscordId, messageDiscordId) =>
 
   return {
     matched: true,
-    players: [newPlayer.discord_id, rivalPlayer.discord_id],
+    players: [newPlayer, rivalPlayer],
   };
 };
 
@@ -346,14 +345,6 @@ const stopSearch = async (playerDiscordId, messageId) => {
   } finally {
     client.release();
   }
-};
-
-const saveDirectMessage = async (playerDiscordId, messageId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  if (!player) throw { name: "PLAYER_NOT_FOUND" };
-
-  await lobbyPlayerDB.setMessage(player.id, messageId);
-  return true;
 };
 
 const getMessages = async (playerDiscordId) => {
@@ -623,7 +614,6 @@ module.exports = {
   getGuild,
   hasLobbyTiers,
   rankedSearch,
-  saveDirectMessage,
   getPlayingPlayers,
   getMessages,
   getTierMessages,

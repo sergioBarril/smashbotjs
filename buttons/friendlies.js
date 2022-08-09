@@ -4,15 +4,15 @@ const lobbyAPI = require("../api/lobby");
 
 const exceptionHandler = async (interaction, exception) => {
   // Send reply
-  return await interaction.reply({
+  await interaction.reply({
     content: exception.message,
     ephemeral: true,
   });
 };
 
-const matched = async (interaction, playerIdList) => {
+const matched = async (interaction, players) => {
   const guild = interaction.guild;
-  await discordMatchingUtils.matched(guild, playerIdList);
+  await discordMatchingUtils.matched(guild, players);
 
   return await interaction.reply({
     content: "¡Te he encontrado rival! Mira tus MDs.",

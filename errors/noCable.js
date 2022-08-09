@@ -1,4 +1,6 @@
-class NoCableError extends Error {
+const { CustomError } = require("./customError");
+
+class NoCableError extends CustomError {
   constructor(message = null) {
     super(message);
     this.name = `NoCableError`;

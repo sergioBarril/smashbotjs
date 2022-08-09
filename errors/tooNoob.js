@@ -1,4 +1,6 @@
-class TooNoobError extends Error {
+const { CustomError } = require("./customError");
+
+class TooNoobError extends CustomError {
   constructor(playerTierId, targetTierId, message = null) {
     super(message);
     this.name = `TooNoobError`;

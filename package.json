@@ -4,7 +4,9 @@
   "description": "Ranked bot for Smash Bros. Ultimate",
   "main": "index.js",
   "scripts": {
-    "test": "jest -i --coverage"
+    "test": "jest -i --coverage",
+    "test:models": "jest -i --coverage --testPathPattern=tests/models",
+    "test:api": "jest -i --coverage --testPathPattern=tests/api"
   },
   "author": "Tropped",
   "license": "ISC",

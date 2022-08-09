@@ -6,6 +6,7 @@ const messageAPI = require("../api/message");
 const rolesAPI = require("../api/roles");
 
 const smashCharacters = require("../params/smashCharacters.json");
+const { TooManyPlayersError } = require("../errors/tooManyPlayers");
 
 // This module is composed of Discord functionality that's
 // recurring in different buttons or commands
@@ -23,12 +24,10 @@ const sendConfirmation = async (player, opponent) => {
     components: [row],
   });
 
-  await lobbyAPI.saveDirectMessage(player.id, directMessage.id);
-
-  return true;
+  await messageAPI.saveConfirmationDM(player.id, directMessage.id);
 };
 
-const matched = async (guild, playerIdList) => {
+const matched = async (guild, players) => {
   // Actions to do after a match has been found
   //  This includes :
   //   - sending the confirmation DMS
@@ -38,13 +37,13 @@ const matched = async (guild, playerIdList) => {
   //   - playerIdList: list of discord_ids of the players matched
 
   // Get players
-  const players = [];
-  for (playerDiscordId of playerIdList) {
-    const player = await guild.members.fetch(playerDiscordId);
-    players.push(player);
-  }
+  // const players = [];
 
-  if (players.length > 2) throw { name: "TOO_MANY_PLAYERS" };
+  players = await Promise.all(
+    players.map(async (player) => await guild.members.fetch(player.discordId))
+  );
+
+  if (players.length > 2) throw new TooManyPlayersError();
 
   // Send DMs
   const [player1, player2] = players;
@@ -103,7 +102,7 @@ const notMatched = async (playerId, guild, tier = null) => {
     let messageContent = "";
 
     if (tier.yuzu) {
-      const roleIds = await rolesAPI.getYuzuMessageRoles(member.id, guild.id);
+      const roleIds = await rolesAPI.getYuzuRolesForMessage(member.id, guild.id);
       messageContent = roleIds.map((roleId) => `<@&${roleId}>`).join(" ");
       messageContent += ` - **${member.displayName}**${charsText} está buscando partida en **Yuzu**.`;
     } else {

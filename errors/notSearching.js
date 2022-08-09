@@ -1,4 +1,6 @@
-class NotSearchingError extends Error {
+const { CustomError } = require("./customError");
+
+class NotSearchingError extends CustomError {
   constructor(tierDiscordId, isYuzu, message = null) {
     super(message);
     this.name = `NotSearchingError`;

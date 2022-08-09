@@ -1,7 +1,6 @@
 const { NotFoundError } = require("../errors/notFound");
 const db = require("./db");
 const { MESSAGE_TYPES } = require("./message");
-const { getPlayer } = require("./player");
 
 class GamePlayer {
   constructor({ game_id, player_id, character_id, ban_turn, char_message_id, winner }) {
@@ -39,6 +38,8 @@ class GamePlayer {
   };
 
   insertMessage = async (discordId, client = null) => {
+    const { getPlayer } = require("./player");
+
     const player = await getPlayer(this.playerId, false, client);
     const lobby = await player.getLobby("PLAYING", client);
     if (!lobby) throw NotFoundError("Lobby");

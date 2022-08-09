@@ -1,4 +1,6 @@
-class NoYuzuError extends Error {
+const { CustomError } = require("./customError");
+
+class NoYuzuError extends CustomError {
   constructor(yuzuRoleId, parsecRoleId, message = null) {
     super(message);
     this.name = `NoYuzuError`;

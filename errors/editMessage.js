@@ -1,4 +1,6 @@
-class EditMessageError extends Error {
+const { CustomError } = require("./customError");
+
+class EditMessageError extends CustomError {
   constructor(message = null) {
     super(message);
     this.name = `EditMessageError`;

@@ -27,12 +27,8 @@ class Message {
   }
 
   getTier = async (client = null) => {
-    const { Tier } = require("./tier");
-
-    if (this.tierId == null) return null;
-    const tier = await db.getBy("tier", { id: this.tierId }, client);
-    if (tier == null) return null;
-    else return new Tier(tier);
+    const { getTier } = require("./tier");
+    return await getTier(this.tierId, client);
   };
 
   remove = async (client = null) => await db.basicRemove("message", this.id, false, client);

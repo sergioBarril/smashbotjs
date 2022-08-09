@@ -1,4 +1,6 @@
-class AlreadySearchingError extends Error {
+const { CustomError } = require("./customError");
+
+class AlreadySearchingError extends CustomError {
   constructor(tierDiscordId, isYuzu, message = null) {
     super(message);
     this.name = `AlreadySearchingError`;
