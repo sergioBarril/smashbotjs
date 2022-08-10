@@ -1,11 +1,19 @@
 const lobbyAPI = require("../api/lobby");
+const { CustomError } = require("../errors/customError");
 const { EditMessageError } = require("../errors/editMessage");
 
 const exceptionHandler = async (interaction, exception) => {
-  if (exception.name === "LobbyNotFoundError") exception.message = "¡No estabas buscando partida!";
+  let message = exception.message;
 
-  return await interaction.reply({
-    content: exception.message,
+  if (exception.name === "LobbyNotFoundError") {
+    message = "¡No estabas buscando partida!";
+  } else if (!(exception instanceof CustomError)) {
+    message = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+    console.error(exception, exception.stack);
+  }
+
+  await interaction.reply({
+    content: message,
     ephemeral: true,
   });
 };
@@ -62,6 +70,7 @@ module.exports = {
     try {
       const stopSearchResult = await lobbyAPI.stopSearch(playerId, messageId);
       const { isSearching, messages, tiers } = stopSearchResult;
+
       for (let message of messages) {
         await editMessage(interaction, message.channelId, message.discordId);
       }

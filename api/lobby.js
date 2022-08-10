@@ -9,6 +9,7 @@ const { TooNoobError } = require("../errors/tooNoob");
 const { NoCableError } = require("../errors/noCable");
 const { MessageTypeError } = require("../errors/messageType");
 const { NoYuzuError } = require("../errors/noYuzu");
+const db = require("../models/db");
 
 const matchNotAccepted = async (declinePlayer, isTimeout) => {
   // Handles a match not being accepted, whether by direct 'Decline' or timeout.
@@ -298,23 +299,49 @@ const directMatch = async (playerDiscordId, guildDiscordId, messageDiscordId) =>
   };
 };
 
-const stopSearch = async (playerDiscordId, messageId) => {
+/**
+ * Stop the friendlies search
+ * @param {string} playerDiscordId DiscordId of the player that stops playing
+ * @param {string} messageDiscordId DiscordId of the message in #matchmaking
+ * @returns An object with the following properties:
+ *  - isSearching (boolean) : true if still searching on some tiers
+ *  - messages (Array<Message>) : array of messages
+ *  - tiers (Array<Tier>) : tiers to stop
+ */
+const stopSearch = async (playerDiscordId, messageDiscordId) => {
+  const isStopAll = messageDiscordId === null;
+
   const player = await getPlayer(playerDiscordId, true);
   if (!player) throw new NotFoundError("Player");
 
-  const lobby = await player.getOwnLobby();
-  if (!lobby) throw new NotFoundError("Lobby");
+  let lobby = await player.getOwnLobby();
+  if (!lobby) {
+    lobby = await player.getLobby("PLAYING");
+    if (lobby) throw new CannotSearchError(lobby.status, "CANCEL");
+
+    lobby = await player.getLobby("CONFIRMATION");
+    if (lobby) throw new CannotSearchError(lobby.status, "CANCEL");
+
+    throw new NotFoundError("Lobby");
+  }
+
+  const message = await getMessage(messageDiscordId, true);
+  if (!message && !isStopAll) throw new NotFoundError("TierMessage");
+  else if (message && message.type !== MESSAGE_TYPES.GUILD_TIER_SEARCH)
+    throw new MessageTypeError();
 
   // Tiers to Stop
   let tiersToStop = [];
 
+  let targetTier = null;
+  if (message) {
+    targetTier = await message.getTier();
+    if (!targetTier) throw new NotFoundError("Tier");
+  }
   const searchingTiers = await lobby.getLobbyTiers();
 
-  if (messageId) {
-    const tier = await getTierBySearchMessage(messageId);
-    if (!tier) throw new NotFoundError("Tier");
-
-    if (searchingTiers.some((lt) => lt.tierId === tier.id)) tiersToStop.push(tier);
+  if (targetTier) {
+    if (searchingTiers.some((lt) => lt.tierId === targetTier.id)) tiersToStop.push(targetTier);
     else throw new NotSearchingError(tier.roleId, tier.yuzu);
   } else {
     const tiers = await Promise.all(searchingTiers.map(async (lt) => await lt.getTier()));
@@ -322,10 +349,6 @@ const stopSearch = async (playerDiscordId, messageId) => {
   }
 
   if (tiersToStop.length === 0) throw new NotSearchingError(null, null);
-
-  if (lobby.status === "PLAYING") throw new CannotSearchError(lobby.status, "CANCEL");
-  if (lobby.status === "CONFIRMATION" || lobby.status === "WAITING")
-    throw new CannotSearchError(lobby.status, "CANCEL");
 
   // Remove Tier
   const client = await db.getClient();
