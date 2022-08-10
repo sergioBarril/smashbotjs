@@ -2,10 +2,7 @@ const mockCredentials = require("../../config.json");
 jest.mock("../../../models/config.json", () => mockCredentials);
 const db = require("../../../models/db");
 const { search } = require("../../../api/lobby");
-const { insertPlayer, getPlayer } = require("../../../models/player");
-const { getGuild, insertGuild } = require("../../../models/guild");
 const { getMessage, insertMessage, MESSAGE_TYPES } = require("../../../models/message");
-const { getTierByRole, insertTier } = require("../../../models/tier");
 const { NotFoundError } = require("../../../errors/notFound");
 const { MessageTypeError } = require("../../../errors/messageType");
 const { AlreadySearchingError } = require("../../../errors/alreadySearching");
@@ -19,6 +16,7 @@ const {
 const { TooNoobError } = require("../../../errors/tooNoob");
 const { NoCableError } = require("../../../errors/noCable");
 const { CannotSearchError } = require("../../../errors/cannotSearch");
+const { NoYuzuError } = require("../../../errors/noYuzu");
 
 afterAll(async () => await db.close());
 
@@ -26,6 +24,8 @@ describe("test search method", () => {
   let guild;
   const guildDiscordId = "4851785";
   const searchChannelId = "89518951";
+  const yuzuRoleId = "81491912930";
+  const parsecRoleId = "189141282";
 
   let player;
   const playerDiscordId = "12489124";
@@ -36,6 +36,9 @@ describe("test search method", () => {
   let wifiTier;
   const wifiRoleId = "814381";
   const wifiChannelId = "81954915";
+
+  let yuzuTier;
+  const yuzuChannelId = "85915010182";
 
   let tier2;
   const tier2RoleId = "8518519";
@@ -55,6 +58,10 @@ describe("test search method", () => {
   const searchMessage3DiscordId = "451959442312";
   let message4;
   const searchMessage4DiscordId = "85184149";
+  let messageYuzu;
+  const searchMessageYuzuDiscordId = "851010323";
+  let messageWifi;
+  const searchMessageWifiDiscordId = "8144912";
 
   let rating;
   let rating2;
@@ -66,11 +73,14 @@ describe("test search method", () => {
     player2 = await getOrCreatePlayer(player2DiscordId);
 
     guild = await getOrCreateGuild(guildDiscordId);
-    guild.setMatchmakingChannel(searchChannelId);
+    await guild.setMatchmakingChannel(searchChannelId);
+    await guild.setYuzuRole(yuzuRoleId);
+    await guild.setParsecRole(parsecRoleId);
 
     tier2 = await getOrCreateTier(tier2RoleId, tier2ChannelId, guild.id, 2, 2100, false);
     tier3 = await getOrCreateTier(tier3RoleId, tier3ChannelId, guild.id, 3, 1800, false);
     tier4 = await getOrCreateTier(tier4RoleId, tier4ChannelId, guild.id, 4, 1500, false);
+    yuzuTier = await getOrCreateTier(null, yuzuChannelId, guild.id, null, null, true);
     wifiTier = await getOrCreateTier(wifiRoleId, wifiChannelId, guild.id, null, null, false);
 
     rating = await player.insertRating(guild.id, tier3.id, 1785);
@@ -98,6 +108,22 @@ describe("test search method", () => {
         searchMessage4DiscordId,
         MESSAGE_TYPES.GUILD_TIER_SEARCH,
         tier4.id
+      );
+
+    messageYuzu = await getMessage(searchMessageYuzuDiscordId, true);
+    if (!messageYuzu)
+      messageYuzu = await insertMessage(
+        searchMessageYuzuDiscordId,
+        MESSAGE_TYPES.GUILD_TIER_SEARCH,
+        yuzuTier.id
+      );
+
+    messageWifi = await getMessage(searchMessageWifiDiscordId, true);
+    if (!messageWifi)
+      messageWifi = await insertMessage(
+        searchMessageWifiDiscordId,
+        MESSAGE_TYPES.GUILD_TIER_SEARCH,
+        wifiTier.id
       );
   });
 
@@ -244,6 +270,35 @@ describe("test search method", () => {
     );
   });
 
-  it.todo("search, yuzu.");
-  it.todo("search, already playing / confirmation");
+  it("throws NoYuzuError if the player doesn't have their YuzuPlayer with at least some role", async () => {
+    await expect(search(player.discordId, guild.discordId, messageYuzu.discordId)).rejects.toThrow(
+      new NoYuzuError(guild.yuzuRoleId, guild.parsecRoleId)
+    );
+
+    await player.insertYuzuPlayer(guild.id, false, false);
+
+    await expect(search(player.discordId, guild.discordId, messageYuzu.discordId)).rejects.toThrow(
+      new NoYuzuError(guild.yuzuRoleId, guild.parsecRoleId)
+    );
+  });
+
+  it("searches in yuzu. no previous lobby", async () => {
+    await player.insertYuzuPlayer(guild.id, false, true); // Only parsec
+    const result = await search(player.discordId, guild.discordId, messageYuzu.discordId);
+
+    expect(result.matched).toBe(false);
+    expect(result.tiers.length).toBe(1);
+    expect(JSON.stringify(result.tiers[0])).toEqual(JSON.stringify(yuzuTier));
+  });
+
+  it("searches in yuzu, previous lobby", async () => {
+    await player.insertYuzuPlayer(guild.id, false, true);
+
+    await search(player.discordId, guild.discordId, message4.discordId);
+    const result = await search(player.discordId, guild.discordId, messageYuzu.discordId);
+
+    expect(result.matched).toBe(false);
+    expect(result.tiers.length).toBe(1);
+    expect(JSON.stringify(result.tiers[0])).toEqual(JSON.stringify(yuzuTier));
+  });
 });

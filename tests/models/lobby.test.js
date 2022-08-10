@@ -199,21 +199,30 @@ describe("test lobby.matchmaking() and setupMatch()", () => {
   let lobby;
   let lobby2;
 
+  let tier3;
+  const tier3RoleId = "1949194";
+  const tier3ChannelId = "945191";
+
   let tier4;
   const tier4RoleId = "81845491";
   const tier4ChannelId = "8419419";
 
-  let tier3;
-  const tier3RoleId = "1949194";
-  const tier3ChannelId = "945191";
+  let wifiTier;
+  const wifiRoleId = "814381";
+  const wifiChannelId = "81954915";
+
+  let yuzuTier;
+  const yuzuChannelId = "85915010182";
 
   beforeEach(async () => {
     guild = await getOrCreateGuild(guildDiscordId);
     player = await getOrCreatePlayer(playerDiscordId);
     player2 = await getOrCreatePlayer(player2DiscordId);
 
-    tier4 = await getOrCreateTier(tier4RoleId, tier4ChannelId, guild.id, 4, 1500, false);
     tier3 = await getOrCreateTier(tier3RoleId, tier3ChannelId, guild.id, 3, 1800, false);
+    tier4 = await getOrCreateTier(tier4RoleId, tier4ChannelId, guild.id, 4, 1500, false);
+    yuzuTier = await getOrCreateTier(null, yuzuChannelId, guild.id, null, null, true);
+    wifiTier = await getOrCreateTier(wifiRoleId, wifiChannelId, guild.id, null, null, false);
 
     await player.insertRating(guild.id, tier4.id, 1200);
 
@@ -369,5 +378,64 @@ describe("test lobby.matchmaking() and setupMatch()", () => {
     expect(JSON.stringify(lobbyFromGet)).toEqual(JSON.stringify(lobby));
 
     await player2.remove();
+  });
+
+  it("priority at matchmaking: tiers > wifi", async () => {
+    await lobby2.addTiers([tier4]);
+    let opponent = await lobby2.matchmaking();
+    expect(opponent).toBeNull();
+
+    const player3DiscordId = "385413";
+    const player3 = await getOrCreatePlayer(player3DiscordId);
+    const lobby3 = await player3.insertLobby(guild.id);
+    await lobby3.addTiers([wifiTier]);
+
+    opponent = await lobby3.matchmaking();
+    expect(opponent).toBeNull();
+
+    await lobby.addTiers([wifiTier, tier4]);
+    opponent = await lobby.matchmaking();
+    expect(JSON.stringify(opponent)).toEqual(JSON.stringify(player2));
+    await player3.remove();
+  });
+
+  it("priority at matchmaking: tier 3 > tier 4", async () => {
+    await lobby2.addTiers([tier4]);
+    let opponent = await lobby2.matchmaking();
+    expect(opponent).toBeNull();
+
+    const player3DiscordId = "385413";
+    const player3 = await getOrCreatePlayer(player3DiscordId);
+    const lobby3 = await player3.insertLobby(guild.id);
+    await lobby3.addTiers([tier3]);
+
+    opponent = await lobby3.matchmaking();
+    expect(opponent).toBeNull();
+
+    await lobby.addTiers([tier3, tier4]);
+    opponent = await lobby.matchmaking();
+    expect(JSON.stringify(opponent)).toEqual(JSON.stringify(player3));
+    await player3.remove();
+  });
+
+  it("priority at matchmaking: yuzu > tiers", async () => {
+    await lobby2.addTiers([tier3]);
+    let opponent = await lobby2.matchmaking();
+    expect(opponent).toBeNull();
+
+    const player3DiscordId = "385413";
+    const player3 = await getOrCreatePlayer(player3DiscordId);
+    const lobby3 = await player3.insertLobby(guild.id);
+    await player3.insertYuzuPlayer(guild.id, true, true);
+    await lobby3.addTiers([yuzuTier]);
+
+    opponent = await lobby3.matchmaking();
+    expect(opponent).toBeNull();
+
+    await player.insertYuzuPlayer(guild.id, false, true);
+    await lobby.addTiers([tier3, yuzuTier]);
+    opponent = await lobby.matchmaking();
+    expect(JSON.stringify(opponent)).toEqual(JSON.stringify(player3));
+    await player3.remove();
   });
 });

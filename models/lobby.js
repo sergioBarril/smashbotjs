@@ -173,7 +173,7 @@ class Lobby {
       AND lobby_player.status = 'SEARCHING'
       AND (NOT tier.yuzu OR yuzu_player.parsec = $3 OR yuzu_player.yuzu = $4)
       ${tierCondition}
-      ORDER BY tier.weight ASC, lobby_tier.created_at ASC
+      ORDER BY tier.yuzu DESC, tier.weight ASC, lobby_tier.created_at ASC
       `,
       values,
     };
