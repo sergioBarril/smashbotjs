@@ -1,7 +1,7 @@
 const { getCharacterByName, insertCharacter } = require("../../models/character");
 const { getGuild, insertGuild } = require("../../models/guild");
 const { getPlayer, insertPlayer } = require("../../models/player");
-const { getTierByRole, insertTier } = require("../../models/tier");
+const { getTierByRole, insertTier, getTierByChannel } = require("../../models/tier");
 
 // Create
 
@@ -24,8 +24,13 @@ async function getOrCreateGuild(guildDiscordId) {
 }
 
 async function getOrCreateTier(tierRoleId, tierChannelId, guildId, weight, threshold, yuzu) {
-  const tier = await getTierByRole(tierRoleId);
-  if (tier) return tier;
+  if (!yuzu) {
+    const tier = await getTierByRole(tierRoleId);
+    if (tier) return tier;
+  } else {
+    const tier = await getTierByChannel(tierChannelId);
+    if (tier) return tier;
+  }
   return insertTier(tierRoleId, tierChannelId, guildId, weight, threshold, yuzu);
 }
 
