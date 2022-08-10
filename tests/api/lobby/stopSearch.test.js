@@ -15,6 +15,8 @@ const {
   deleteIfExistsGuild,
 } = require("../../utils/testingUtils");
 const { Tier } = require("../../../models/tier");
+const { CannotSearchError } = require("../../../errors/cannotSearch");
+const { NotSearchingError } = require("../../../errors/notSearching");
 
 afterAll(async () => await db.close());
 
@@ -25,6 +27,9 @@ describe("test search method", () => {
 
   let player;
   const playerDiscordId = "12489124";
+
+  let player2;
+  const player2DiscordId = "8514781";
 
   let lobby;
 
@@ -52,6 +57,8 @@ describe("test search method", () => {
 
   beforeEach(async () => {
     player = await getOrCreatePlayer(playerDiscordId);
+    player2 = await getOrCreatePlayer(player2DiscordId);
+
     guild = await getOrCreateGuild(guildDiscordId);
 
     lobby = await player.insertLobby(guild.id);
@@ -108,6 +115,7 @@ describe("test search method", () => {
 
   afterEach(async () => {
     await deleteIfExistsPlayer(playerDiscordId);
+    await deleteIfExistsPlayer(player2DiscordId);
     await deleteIfExistsGuild(guildDiscordId);
 
     message = await getMessage(searchMessageDiscordId, true);
@@ -129,6 +137,49 @@ describe("test search method", () => {
     await message.remove();
     await expect(stopSearch(player.discordId, message.discordId)).rejects.toThrow(
       new NotFoundError("TierMessage")
+    );
+  });
+
+  it("throws CannotSearchError('PLAYING', 'CANCEL') if already playing", async () => {
+    await lobby.remove();
+
+    const lobby2 = await player2.insertLobby(guild.id, "FRIENDLIES", "PLAYING");
+    await lobby2.addPlayer(player.id);
+    await lobby2.setLobbyPlayersStatus("PLAYING");
+
+    await expect(stopSearch(player2DiscordId, message3.discordId)).rejects.toThrow(
+      new CannotSearchError("PLAYING", "CANCEL")
+    );
+
+    await expect(stopSearch(playerDiscordId, message3.discordId)).rejects.toThrow(
+      new CannotSearchError("PLAYING", "CANCEL")
+    );
+  });
+
+  it("throws CannotSearchError('CONFIRMATION', 'CANCEL') if already matched", async () => {
+    await lobby.setStatus("CONFIRMATION");
+    await lobby.addPlayer(player2.id);
+    await lobby.setLobbyPlayersStatus("CONFIRMATION");
+
+    const lobby2 = await player2.insertLobby(guild.id, "FRIENDLIES", "WAITING");
+    await lobby2.setLobbyPlayersStatus("WAITING");
+
+    await expect(stopSearch(player2DiscordId, message3.discordId)).rejects.toThrow(
+      new CannotSearchError("WAITING", "CANCEL")
+    );
+
+    await expect(stopSearch(playerDiscordId, message3.discordId)).rejects.toThrow(
+      new CannotSearchError("CONFIRMATION", "CANCEL")
+    );
+  });
+
+  it("throws NotSearchingError if trying to stop searching where not searching", async () => {
+    await expect(stopSearch(playerDiscordId, message3.discordId)).rejects.toThrow(
+      new NotSearchingError(tier3.roleId, tier3.yuzu)
+    );
+
+    await expect(stopSearch(playerDiscordId, null)).rejects.toThrow(
+      new NotSearchingError(null, null)
     );
   });
 

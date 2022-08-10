@@ -223,7 +223,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   const isSearching = lobby?.status === "SEARCHING";
 
   const searchingTiers = lobby == null ? [] : await lobby.getLobbyTiers();
-  const searchingTiersIds = searchingTiers.map((tier) => tier.id);
+  const searchingTiersIds = searchingTiers.map((tier) => tier.tierId);
 
   // Is already searching all those tiers?
   const newTiers = targetTiers.filter((tier) => !searchingTiersIds.includes(tier.id));
@@ -235,7 +235,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
     if (!lobby) throw new CannotSearchError("PLAYING", "SEARCH");
     else throw new CannotSearchError(lobby.status, "SEARCH");
   } else if (newTiers.length === 0) {
-    throw new AlreadySearchingError(targetTiers[0], isYuzu);
+    throw new AlreadySearchingError(targetTiers[0].roleId, isYuzu);
   } else await lobby.addTiers(newTiers);
 
   const rivalPlayer = await lobby.matchmaking();
@@ -243,7 +243,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   if (!rivalPlayer) {
     return {
       matched: false,
-      tiers: targetTiers,
+      tiers: newTiers,
     };
   }
 
@@ -315,7 +315,7 @@ const stopSearch = async (playerDiscordId, messageDiscordId) => {
   if (!player) throw new NotFoundError("Player");
 
   let lobby = await player.getOwnLobby();
-  if (!lobby) {
+  if (lobby?.status !== "SEARCHING") {
     lobby = await player.getLobby("PLAYING");
     if (lobby) throw new CannotSearchError(lobby.status, "CANCEL");
 
@@ -342,7 +342,7 @@ const stopSearch = async (playerDiscordId, messageDiscordId) => {
 
   if (targetTier) {
     if (searchingTiers.some((lt) => lt.tierId === targetTier.id)) tiersToStop.push(targetTier);
-    else throw new NotSearchingError(tier.roleId, tier.yuzu);
+    else throw new NotSearchingError(targetTier.roleId, targetTier.yuzu);
   } else {
     const tiers = await Promise.all(searchingTiers.map(async (lt) => await lt.getTier()));
     tiersToStop = tiers.filter((tier) => tier.weight !== null);
