@@ -213,8 +213,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
       canSearch = targetTiers.length > 0;
     }
 
-    if (!canSearch && targetTier)
-      throw new TooNoobError(playerTier.discordId, targetTier.discordId);
+    if (!canSearch && targetTier) throw new TooNoobError(playerTier.roleId, targetTier.roleId);
     else if (!canSearch) throw new NoCableError();
   }
 
