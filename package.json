@@ -28,7 +28,7 @@
   },
   "jest": {
     "coveragePathIgnorePatterns": [
-      "/errors/"
+      "/errors/", "/tests/utils/"
     ]
   }
 }

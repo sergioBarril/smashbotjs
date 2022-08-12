@@ -1,6 +1,6 @@
 const { getPlayer } = require("../models/player");
-const { getGuild } = require("./lobby");
 const { NotFoundError } = require("../errors/notFound");
+const { getGuild } = require("../models/guild");
 
 const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
   // Assigns a player a role

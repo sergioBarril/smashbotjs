@@ -1,9 +1,10 @@
 const lobbyAPI = require("../api/lobby");
 
-const lobbyDB = require("../db/lobby");
-const guildDB = require("../db/guild");
-
 const { MessageActionRow, MessageButton, Permissions } = require("discord.js");
+const { Player } = require("../models/player");
+const { Guild } = require("../models/guild");
+const { NotFoundError } = require("../errors/notFound");
+const { Message } = require("../models/message");
 
 // Disabled buttons
 const row = new MessageActionRow().addComponents(
@@ -26,13 +27,18 @@ const timeoutButtons = new MessageActionRow().addComponents(
     .setStyle("DANGER")
 );
 
-const createArena = async (interaction, players) => {
-  const playerDiscordId = players[0].id;
-  const lobby = await lobbyAPI.getByPlayer(playerDiscordId);
-  const guild = await lobbyAPI.getGuild(lobby.id);
-
-  const discordGuild = await interaction.client.guilds.fetch(guild.discord_id);
-  if (!discordGuild) throw { name: "NO_GUILD", args: { discordId: guild.discord_id } };
+/**
+ * Creates the private text and voice channels
+ * @param {*} interaction Discord interaction object.
+ * @param {Array<>} players Array of Discord User objects
+ * @param {Guild} guild Guild where the lobby is (not the Discord object)
+ * @returns Object with two properties:
+ *   - text (Channel) : Text channel discord object
+ *   - voice (Channel) : Voice channel discord object
+ */
+const createArena = async (interaction, players, guild) => {
+  const discordGuild = await interaction.client.guilds.fetch(guild.discordId);
+  if (!discordGuild) throw new NotFoundError("Guild");
   const arenaCategory = discordGuild.channels.cache.find(
     (chan) => chan.type === "GUILD_CATEGORY" && chan.name === "ARENAS"
   );
@@ -90,6 +96,12 @@ const createArena = async (interaction, players) => {
   return { text: channel, voice: voiceChannel };
 };
 
+/**
+ * Edits Direct messages
+ * @param {Object} channels Object with two properties: text has the TextChannel and
+ * voice has the VoiceChannel
+ * @param {Array<Message>} messages
+ */
 const editDMs = async (channels, messages) => {
   const { text: textChannel, voice: voiceChannel } = channels;
   // DM messages
@@ -105,18 +117,21 @@ const editDMs = async (channels, messages) => {
   }
 };
 
-const editTierMessages = async (interaction, tierMessages, players) => {
-  // Update #tier messages
-  if (tierMessages.length < 0) return;
+/**
+ * Updates the #tier-X messages
+ * @param {Interaction} interaction DiscordJS interaction object
+ * @param {string} guildDiscordId Discord ID of the Guild
+ * @param {Array<Message>} tierMessages List of messages to edit
+ * @param {Array<Player>} players List of players
+ */
+const editTierMessages = async (interaction, guildDiscordId, tierMessages, players) => {
+  if (tierMessages.length === 0) return;
 
-  const guildId = tierMessages[0].guild_id;
-  const guild = await interaction.client.guilds.fetch(guildId);
+  const guild = await interaction.client.guilds.fetch(guildDiscordId);
 
-  const members = [];
-  for (player of players) {
-    const member = await guild.members.fetch(player.id);
-    members.push(member);
-  }
+  const members = await Promise.all(
+    players.map(async (player) => await guild.members.fetch(player.discordId))
+  );
 
   const memberFormatter = new Intl.ListFormat("es", {
     style: "long",
@@ -127,8 +142,8 @@ const editTierMessages = async (interaction, tierMessages, players) => {
   updatedText = `${memberNames} están jugando.`;
 
   for (messageInfo of tierMessages) {
-    const channel = await guild.channels.fetch(messageInfo.channel_id);
-    const message = await channel.messages.fetch(messageInfo.message_id);
+    const channel = await guild.channels.fetch(messageInfo.channelId);
+    const message = await channel.messages.fetch(messageInfo.discordId);
 
     await message.edit({
       content: updatedText,
@@ -137,10 +152,17 @@ const editTierMessages = async (interaction, tierMessages, players) => {
   }
 };
 
-const timeOutMessage = async (message, lobbyId, acceptedPlayerId, notAcceptedPlayerId) => {
+/**
+ * Promise that sleeps some time, and then if the opponent hasn't accepted yet,
+ * gives the option to cancel
+ * @param {Message} message Discord message object
+ * @param {string} acceptedPlayerId DiscordId of the player that already accepted before
+ * @param {Date} acceptedAt Timestamp when accepted
+ */
+const timeOutMessage = async (message, acceptedPlayerId, acceptedAt) => {
   await new Promise((r) => setTimeout(r, 5000));
 
-  const isAfk = await lobbyAPI.timeOutCheck(lobbyId, acceptedPlayerId, notAcceptedPlayerId);
+  const isAfk = await lobbyAPI.timeOutCheck(acceptedPlayerId, acceptedAt);
 
   if (isAfk)
     await message.edit({
@@ -149,35 +171,50 @@ const timeOutMessage = async (message, lobbyId, acceptedPlayerId, notAcceptedPla
     });
 };
 
-const allAccepted = async (interaction, lobbyPlayers) => {
-  const players = [];
-  const messages = [];
+/**
+ * Edits all messages (DMs and #tier) and setups the arena
+ *
+ * @param {Interaction} interaction Discord interaction object
+ * @param {Array<Player>} players Array of players in the lobby
+ * @param {Guild} guild Guild model where the lobby is
+ */
+const allAccepted = async (interaction, players, guild) => {
+  const discordPlayers = await Promise.all(
+    players.map(async (player) => await interaction.client.users.fetch(player.discordId))
+  );
 
-  for (dm of lobbyPlayers) {
-    const player = await interaction.client.users.fetch(dm.discord_id);
-    const message = await player.dmChannel.messages.fetch(dm.message_id);
-    players.push(player);
-    messages.push(message);
-  }
-
-  const channels = await createArena(interaction, players);
-  const { messages: tierMessages } = await lobbyAPI.afterConfirmation(
+  const channels = await createArena(interaction, discordPlayers, guild);
+  let { tierMessages, directMessages } = await lobbyAPI.setupArena(
     interaction.user.id,
     channels.text.id,
     channels.voice.id
   );
 
-  await editDMs(channels, messages);
-  await editTierMessages(interaction, tierMessages, players);
+  // Fetch Discord DMs
+  const dms = await Promise.all(
+    directMessages.map(async (message) => {
+      const player = players.find((p) => p.id === message.playerId);
+      const discordPlayer = discordPlayers.find((dp) => dp.id === player.discordId);
+      return await discordPlayer.dmChannel.messages.fetch(message.discordId);
+    })
+  );
+
+  await editDMs(channels, dms);
+  await editTierMessages(interaction, guild.discordId, tierMessages, players);
 };
 
-const notAllAccepted = async (interaction, notAcceptedPlayers) => {
-  // If there's someone who hasn't accepted yet, disable buttons
-  // and edit the message
-  // Launch timeout button promise
+/**
+ * If there's someone who hasn't accepted yet, disable buttons
+ * for those that have.
+ * Also edits the message, and launches timeout button promise
+ * @param {Interaction} interaction
+ * @param {Array<Player>} notAcceptedPlayers
+ * @param {Date} acceptedAt
+ */
+const notAllAccepted = async (interaction, notAcceptedPlayers, acceptedAt) => {
   const notAcceptedPlayersNames = [];
-  for (playerInfo of notAcceptedPlayers) {
-    const player = await interaction.client.users.fetch(playerInfo.discord_id);
+  for (let playerInfo of notAcceptedPlayers) {
+    const player = await interaction.client.users.fetch(playerInfo.discordId);
     notAcceptedPlayersNames.push(`**${player.username}**`);
   }
   const missingNames = notAcceptedPlayersNames.join(", ");
@@ -187,23 +224,19 @@ const notAllAccepted = async (interaction, notAcceptedPlayers) => {
     components: [row],
   });
 
-  timeOutMessage(
-    interaction.message,
-    notAcceptedPlayers[0].lobby_id,
-    interaction.user.id,
-    notAcceptedPlayers[0].discord_id
-  );
+  timeOutMessage(interaction.message, interaction.user.id, acceptedAt);
 };
 
 const execute = async (interaction) => {
   const playerDiscordId = interaction.user.id;
-  const lobbyPlayers = await lobbyAPI.acceptMatch(playerDiscordId);
-  const notAcceptedPlayers = lobbyPlayers.filter((player) => player.status !== "ACCEPTED");
+  const { hasEveryoneAccepted, players, acceptedAt, guild } = await lobbyAPI.acceptMatch(
+    playerDiscordId
+  );
 
-  if (notAcceptedPlayers.length > 0) {
-    await notAllAccepted(interaction, notAcceptedPlayers);
+  if (hasEveryoneAccepted) {
+    await allAccepted(interaction, players, guild);
   } else {
-    await allAccepted(interaction, lobbyPlayers);
+    await notAllAccepted(interaction, players, acceptedAt);
   }
 };
 

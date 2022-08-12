@@ -1,4 +1,5 @@
 const { NotFoundError } = require("../errors/notFound");
+const { MESSAGE_TYPES } = require("../models/message");
 const { getPlayer } = require("../models/player");
 const { getTierByRole, getTier } = require("../models/tier");
 
@@ -33,7 +34,7 @@ const getSearchTierMessages = async (playerId, status = "CONFIRMATION") => {
   const lobby = await player.getLobby(status);
   if (!lobby) throw new NotFoundError("Lobby");
 
-  const messages = await lobby.getMessagesFromEveryone();
+  const messages = await lobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_TIER);
 
   for (let message of messages) {
     const author = await getPlayer(message.playerId, false);

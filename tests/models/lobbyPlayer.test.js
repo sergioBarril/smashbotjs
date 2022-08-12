@@ -126,6 +126,17 @@ describe("test Lobby Player methods", () => {
     expect(lobbyPlayer.status).toEqual(newStatus);
   });
 
+  it("can accept the match for a single lobbyPlayer", async () => {
+    expect(lobbyPlayer.status).toEqual(lobbyPlayerStatus);
+    expect(lobbyPlayer.acceptedAt).toBeNull();
+    await lobbyPlayer.acceptMatch();
+
+    expect(lobbyPlayer.status).toEqual("ACCEPTED");
+    lobbyPlayer = await lobby.getLobbyPlayer(secondPlayer.id);
+    expect(lobbyPlayer.status).toEqual("ACCEPTED");
+    expect(lobbyPlayer.acceptedAt instanceof Date).toBe(true);
+  });
+
   it("can set the status of all lobbyPlayers from a lobby", async () => {
     const newStatus = "NEWSTATUS";
     await lobby.setLobbyPlayersStatus(newStatus);
@@ -163,21 +174,6 @@ describe("test Lobby Player methods", () => {
     await secondPlayer.remove();
     const finalNumRows = await db.countRows("lobby_player");
     expect(finalNumRows).toEqual(initialNumRows - 1);
-  });
-
-  it("can check when all players have accepted the game", async () => {
-    let allAccepted = await lobby.allAccepted();
-    expect(allAccepted).toBe(false);
-
-    let lp1 = await lobby.getLobbyPlayer(player.id);
-    await lp1.setStatus("ACCEPTED");
-    allAccepted = await lobby.allAccepted();
-    expect(allAccepted).toBe(false);
-
-    let lp2 = await lobby.getLobbyPlayer(secondPlayer.id);
-    await lp2.setStatus("ACCEPTED");
-    allAccepted = await lobby.allAccepted();
-    expect(allAccepted).toBe(true);
   });
 
   it("can check if all players have asked for a new set", async () => {

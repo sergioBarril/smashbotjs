@@ -92,24 +92,11 @@ class Lobby {
     return await db.deleteQuery(removeOtherQuery, client);
   };
 
-  allAccepted = async (client = null) => {
-    const checkAcceptedQuery = {
-      text: `
-        SELECT NOT EXISTS(
-          SELECT 1 FROM lobby_player
-          WHERE lobby_id = $1
-          AND status <> 'ACCEPTED'
-          ) AS result
-          `,
-      values: [this.id],
-    };
-
-    const checkAcceptedResult = await db.getQuery(checkAcceptedQuery, client);
-    return checkAcceptedResult.result;
-  };
-
+  /**
+   * Remove all the messages of this lobby
+   * @param {Client} client Optional PG client
+   */
   removeMessages = async (client = null) => {
-    // Remove #tier messages from every lobbyTier of this lobby
     const queryString = {
       text: `DELETE FROM message WHERE lobby_id = $1`,
       values: [this.id],
@@ -325,22 +312,54 @@ class Lobby {
   /**
    * Returns the Search Tier Messages
    * from all lobby players in this lobby
+   * @param {MESSAGE_TYPES} type Message type. Returns all if null
    * @param {Client} client Optional pg client
    * @returns Array of Messages of this lobby
    */
-  getMessagesFromEveryone = async (client = null) => {
+  getMessagesFromEveryone = async (type = null, client = null) => {
+    const values = [this.id];
+
+    let typeCondition = "";
+    if (type !== null) {
+      typeCondition = `AND m.type = $2`;
+      values.push(type);
+    }
+
     const queryString = {
       text: `SELECT m.*
       FROM message m
       INNER JOIN lobby_player lp
         ON m.player_id = lp.player_id
       WHERE lp.lobby_id = $1
-      AND m.type = $2`,
-      values: [this.id, MESSAGE_TYPES.LOBBY_TIER],
+      ${typeCondition}`,
+      values,
     };
 
     const result = await db.getQuery(queryString, client, true);
     return result.map((message) => new Message(message));
+  };
+
+  /**
+   * Sets the lobbyId of all lobbyTier messages from all
+   * players in this lobby to this current lobby
+   * @param {Client} client Optional pg client
+   */
+  setLobbyForAllMessages = async (client = null) => {
+    const queryString = {
+      text: `UPDATE message
+      SET lobby_id = $1
+      WHERE type = $2
+      AND player_id IN (
+        SELECT player_id
+        FROM lobby_player
+        WHERE lobby_id = $1
+      )
+      AND guild_id = $3
+      `,
+      values: [this.id, MESSAGE_TYPES.LOBBY_TIER, this.guildId],
+    };
+
+    await db.updateQuery(queryString, client);
   };
 
   newGameset = async (firstTo = 3, client = null) => {

@@ -45,7 +45,7 @@ describe("test getSearchTierMessages function", () => {
   });
 
   it("retrieves the message", async () => {
-    const messages = await lobby.getMessagesFromEveryone();
+    const messages = await lobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_TIER);
     expect(messages).not.toBeNull();
     expect(messages.length).toBe(1);
 
@@ -67,7 +67,7 @@ describe("test getSearchTierMessages function", () => {
     const secondMessageDiscordId = "84184190";
     await saveSearchTierMessage(player2DiscordId, tier3RoleId, secondMessageDiscordId, false);
 
-    const messages = await lobby.getMessagesFromEveryone();
+    const messages = await lobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_TIER);
     expect(messages).not.toBeNull();
     expect(messages.length).toBe(2);
 

@@ -81,7 +81,7 @@ const matched = async (guild, players) => {
  * This includes sending a message to #tier-X
  *
  * @param {string} playerId DiscordId of the player
- * @param {Guild} guild
+ * @param {Guild} guild Discord Guild object
  * @param {Tier} tier Tier where last tried to match. Null if it's not only one tier.
  */
 const notMatched = async (playerId, guild, tier = null) => {
