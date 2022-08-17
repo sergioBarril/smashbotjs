@@ -9,6 +9,7 @@ const smashCharacters = require("../params/smashCharacters.json");
 const { TooManyPlayersError } = require("../errors/tooManyPlayers");
 const { Player } = require("../models/player");
 const { Tier } = require("../models/tier");
+const { MESSAGE_TYPES } = require("../models/message");
 
 // This module is composed of Discord functionality that's
 // recurring in different buttons or commands
@@ -141,33 +142,46 @@ const newSearchMessageText = (message, tier, playerNames) => {
   return messageText;
 };
 
-const updateSearch = async (guild) => {
-  const groupedTiers = await guildAPI.getCurrentList(guild.id);
-  const searchChannelId = await guildAPI.getMatchmakingChannel(guild.id);
+/**
+ * Edits the messages sent in #tier-X
+ * @param {Interaction} interaction Discord Button interaction
+ * @param {Array<Message>} messages Messages to edit
+ * @param {Object} newMessage Content and components of the new message
+ * @param {string} guildDiscordId Discord ID of the guild of the lobby
+ */
+const editMessages = async (interaction, messages, newMessage, guildDiscordId) => {
+  if (messages.length < 0) return;
 
-  const searchChannel = await guild.channels.fetch(searchChannelId);
+  const guild = await interaction.client.guilds.fetch(guildDiscordId);
 
-  for (const [key, value] of Object.entries(groupedTiers)) {
-    const [tierId, messageId] = key.split(",");
-    const tier = await guild.roles.fetch(tierId);
-    const message = await searchChannel.messages.fetch(messageId);
+  const discordMessages = await Promise.all(
+    messages.map(async (message) => {
+      const channel = await guild.channels.fetch(message.channelId);
+      return await channel.messages.fetch(message.discordId);
+    })
+  );
 
-    const playerNames = await Promise.all(
-      value.map(async (playerId) => {
-        const player = await guild.members.fetch(playerId);
-        return player.displayName;
-      })
-    );
-
-    const newText = newSearchMessageText(message, tier, playerNames);
-
-    await message.edit({ content: newText });
-    console.log(`Updated ${tier.name}`);
+  for (let message of discordMessages) {
+    await message.edit(newMessage);
   }
+};
+
+/**
+ * Edits the direct message
+ * @param {Interaction} interaction Discord Button interaction
+ * @param {Message} message Message to edit
+ * @param {Player} player Player that needs their message edited
+ * @param {Object} newMessage Content and components of the new message
+ */
+const editDirectMessage = async (interaction, message, player, newMessage) => {
+  const discordPlayer = await interaction.client.users.fetch(player.discordId);
+  const discordMessage = await discordPlayer.dmChannel.messages.fetch(message.discordId);
+  await discordMessage.edit(newMessage);
 };
 
 module.exports = {
   matched,
   notMatched,
-  updateSearch,
+  editMessages,
+  editDirectMessage,
 };

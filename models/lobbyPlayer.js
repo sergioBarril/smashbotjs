@@ -1,7 +1,7 @@
 const { Client } = require("pg");
 const { NotFoundError } = require("../errors/notFound");
 const db = require("./db");
-const { getMessage, insertMessage, MESSAGE_TYPES } = require("./message");
+const { getMessage, insertMessage, MESSAGE_TYPES, Message } = require("./message");
 
 class LobbyPlayer {
   constructor({ lobby_id, player_id, status, message_id, new_set, cancel_set, accepted_at }) {
@@ -46,8 +46,13 @@ class LobbyPlayer {
   };
 
   getMessage = async (client = null) => {
-    const message = await getMessage(this.messageId, false, client);
-    return message;
+    const message = await db.getBy(
+      "message",
+      { lobby_id: this.lobbyId, player_id: this.playerId, type: MESSAGE_TYPES.LOBBY_PLAYER },
+      client
+    );
+    if (message == null) return null;
+    return new Message(message);
   };
 
   setStatus = async (status, client = null) => {

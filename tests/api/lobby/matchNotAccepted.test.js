@@ -13,7 +13,7 @@ const {
 const { acceptMatch, matchNotAccepted } = require("../../../api/lobby");
 const { Player } = require("../../../models/player");
 const { Guild } = require("../../../models/guild");
-const { Message } = require("../../../models/message");
+const { Message, MESSAGE_TYPES, getMessage } = require("../../../models/message");
 const { getLobby } = require("../../../models/lobby");
 
 afterAll(async () => await db.close());
@@ -102,25 +102,59 @@ describe("test LobbyAPI.matchNotAccepted()", () => {
     );
   });
 
+  const testLobbyPlayerMessagesRemoved = async () => {
+    const lp1MessageFromGet = await getMessage(messageLp.id, false);
+    const lp2MessageFromGet = await getMessage(messageLp2.id, false);
+
+    if (lp1MessageFromGet) expect(lp1MessageFromGet.type).toEqual(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
+    else expect(lp1MessageFromGet).toBeNull();
+
+    if (lp2MessageFromGet) expect(lp2MessageFromGet.type).toEqual(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
+    else expect(lp2MessageFromGet).toBeNull();
+  };
+
+  const testDeclinedPlayerIs = (declinedPlayer, player) => {
+    expect(declinedPlayer instanceof Player).toBe(true);
+    expect(JSON.stringify(declinedPlayer)).toEqual(JSON.stringify(player));
+  };
+
+  const testOtherPlayers = (otherPlayers, player2) => {
+    expect(otherPlayers.length).toBe(1);
+    expect(otherPlayers[0] instanceof Player).toBe(true);
+    expect(JSON.stringify(otherPlayers[0])).toEqual(JSON.stringify(player2));
+  };
+
+  const testResultMessages = (messages) => {
+    expect(messages.length).toBe(5);
+    expect(messages.every((m) => m instanceof Message)).toBe(true);
+  };
+
+  /**
+   * Lobby Tier messages from all lobbies have been removed from DB
+   */
+  const testLobbyTierMessagesRemoved = async () => {
+    const messagelt3FromGet = await getMessage(messageLt3.id, false);
+    const message2lt3FromGet = await getMessage(message2Lt3.id, false);
+
+    expect(messagelt3FromGet).toBeNull();
+    expect(message2lt3FromGet).toBeNull();
+  };
+
   test("declines match in his own lobby", async () => {
     const result = await matchNotAccepted(playerDiscordId, false);
-    expect(result.declined instanceof Player).toBe(true);
-    expect(JSON.stringify(result.declined)).toEqual(JSON.stringify(player));
+    testDeclinedPlayerIs(result.declinedPlayer, player);
+    testOtherPlayers(result.otherPlayers, player2);
+    testResultMessages(result.messages);
 
-    expect(result.otherPlayers.length).toBe(1);
-    expect(result.otherPlayers[0] instanceof Player).toBe(true);
-    expect(JSON.stringify(result.otherPlayers[0])).toEqual(JSON.stringify(player2));
-
-    expect(result.messages.length).toBe(5);
-    expect(result.messages.every((m) => m instanceof Message)).toBe(true);
-
-    await expect(lobby.getMessagesFromEveryone(null)).resolves.toStrictEqual([]);
+    await testLobbyPlayerMessagesRemoved();
+    await testLobbyTierMessagesRemoved();
 
     lobby = await getLobby(lobby.id);
     expect(lobby).toBeNull();
 
     lobby2 = await getLobby(lobby2.id);
     expect(lobby2.status).toEqual("SEARCHING");
+
     let lps = await lobby2.getLobbyPlayers();
     expect(lps.length).toBe(1);
 
@@ -130,18 +164,12 @@ describe("test LobbyAPI.matchNotAccepted()", () => {
 
   test("declines match in the other lobby", async () => {
     const result = await matchNotAccepted(player2DiscordId, false);
-    expect(result.declined instanceof Player).toBe(true);
-    expect(JSON.stringify(result.declined)).toEqual(JSON.stringify(player2));
+    testDeclinedPlayerIs(result.declinedPlayer, player2);
+    testOtherPlayers(result.otherPlayers, player);
 
-    expect(result.otherPlayers.length).toBe(1);
-    expect(result.otherPlayers[0] instanceof Player).toBe(true);
-    expect(JSON.stringify(result.otherPlayers[0])).toEqual(JSON.stringify(player));
-
-    expect(result.messages.length).toBe(5);
-    expect(result.messages.every((m) => m instanceof Message)).toBe(true);
-
-    const newLobbyMessages = await lobby.getMessagesFromEveryone(null);
-    expect(newLobbyMessages.length).toBe(2);
+    testResultMessages(result.messages);
+    await testLobbyPlayerMessagesRemoved();
+    await testLobbyTierMessagesRemoved();
 
     lobby2 = await getLobby(lobby2.id);
     expect(lobby2).toBeNull();
@@ -155,27 +183,48 @@ describe("test LobbyAPI.matchNotAccepted()", () => {
     expect(JSON.stringify(result.guild)).toBe(JSON.stringify(guild));
   });
 
+  test("timeout in own lobby", async () => {
+    await lp2.setStatus("ACCEPTED");
+    const result = await matchNotAccepted(playerDiscordId, true);
+
+    testDeclinedPlayerIs(result.declinedPlayer, player);
+    testOtherPlayers(result.otherPlayers, player2);
+    testResultMessages(result.messages);
+
+    await testLobbyPlayerMessagesRemoved();
+    await testLobbyTierMessagesRemoved();
+
+    lobby = await getLobby(lobby.id);
+    expect(lobby.status).toEqual("AFK");
+    const afkLobbyMessages = await lobby.getMessagesFromEveryone(null);
+    expect(afkLobbyMessages.length).toBe(1);
+    expect(afkLobbyMessages[0].type).toEqual(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
+
+    lobby2 = await getLobby(lobby2.id);
+    expect(lobby2.status).toEqual("SEARCHING");
+    let lps = await lobby2.getLobbyPlayers();
+    expect(lps.length).toBe(1);
+
+    expect(result.guild instanceof Guild).toBe(true);
+    expect(JSON.stringify(result.guild)).toBe(JSON.stringify(guild));
+  });
+
   test("timeout in other lobby", async () => {
     await lp.setStatus("ACCEPTED");
     const result = await matchNotAccepted(player2DiscordId, true);
 
-    expect(result.declined instanceof Player).toBe(true);
-    expect(JSON.stringify(result.declined)).toEqual(JSON.stringify(player2));
+    testDeclinedPlayerIs(result.declinedPlayer, player2);
+    testOtherPlayers(result.otherPlayers, player);
+    testResultMessages(result.messages);
 
-    expect(result.otherPlayers.length).toBe(1);
-    expect(result.otherPlayers[0] instanceof Player).toBe(true);
-    expect(JSON.stringify(result.otherPlayers[0])).toEqual(JSON.stringify(player));
-
-    expect(result.messages.length).toBe(5);
-    expect(result.messages.every((m) => m instanceof Message)).toBe(true);
-
-    const newLobbyMessages = await lobby.getMessagesFromEveryone(null);
-    expect(newLobbyMessages.length).toBe(2);
+    await testLobbyPlayerMessagesRemoved();
+    await testLobbyTierMessagesRemoved();
 
     lobby2 = await getLobby(lobby2.id);
     expect(lobby2.status).toEqual("AFK");
     const afkLobbyMessages = await lobby2.getMessagesFromEveryone(null);
-    expect(afkLobbyMessages.length).toBe(0);
+    expect(afkLobbyMessages.length).toBe(1);
+    expect(afkLobbyMessages[0].type).toEqual(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
 
     lobby = await getLobby(lobby.id);
     expect(lobby.status).toEqual("SEARCHING");

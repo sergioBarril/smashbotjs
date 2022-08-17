@@ -1,3 +1,4 @@
+const { Client } = require("pg");
 const db = require("./db");
 
 class Message {
@@ -29,6 +30,26 @@ class Message {
   getTier = async (client = null) => {
     const { getTier } = require("./tier");
     return await getTier(this.tierId, client);
+  };
+
+  /**
+   * Sets a new lobby to this message
+   * @param {string} lobbyId Id of the new lobby for this message
+   * @param {Client} client Optional PG client
+   */
+  setLobby = async (lobbyId, client = null) => {
+    await db.updateBy("message", { lobby_id: lobbyId }, { discord_id: this.discordId }, client);
+    this.lobbyId = lobbyId;
+  };
+
+  /**
+   * Sets a new type to this message
+   * @param {MESSAGE_TYPES} type New type for this message
+   * @param {Client} client Optional PG client
+   */
+  setType = async (type, client = null) => {
+    await db.updateBy("message", { type }, { discord_id: this.discordId }, client);
+    this.type = type;
   };
 
   remove = async (client = null) => await db.basicRemove("message", this.id, false, client);
@@ -68,6 +89,7 @@ const MESSAGE_TYPES = {
   LOBBY_PLAYER: "LOBBY_PLAYER",
   GUILD_TIER_SEARCH: "GUILD_TIER_SEARCH",
   GAME_CHARACTER_SELECT: "GAME_CHARACTER_SELECT",
+  LOBBY_PLAYER_AFK: "LOBBY_PLAYER_AFK",
 };
 
 module.exports = {

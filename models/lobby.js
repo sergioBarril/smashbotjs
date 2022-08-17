@@ -93,13 +93,22 @@ class Lobby {
   };
 
   /**
-   * Remove all the messages of this lobby
+   * Remove all the messages of this lobby.
+   * Can choose the target type
+   * @param {MESSAGE_TYPES} type Type of message that will be removed (all of them if null)
    * @param {Client} client Optional PG client
    */
-  removeMessages = async (client = null) => {
+  removeMessages = async (type = null, client = null) => {
+    const values = [this.id];
+    let typeCondition = "";
+    if (type != null) {
+      typeCondition = " AND type = $2";
+      values.push(type);
+    }
+
     const queryString = {
-      text: `DELETE FROM message WHERE lobby_id = $1`,
-      values: [this.id],
+      text: `DELETE FROM message WHERE lobby_id = $1 ${typeCondition}`,
+      values,
     };
 
     await db.deleteQuery(queryString, client);

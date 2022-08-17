@@ -3,6 +3,7 @@ const discordMatchingUtils = require("../utils/discordMatching");
 
 const { MESSAGE_TYPES, Message } = require("../models/message");
 const { Player } = require("../models/player");
+const { TooManyPlayersError } = require("../errors/tooManyPlayers");
 
 /**
  * Edits the messages sent in #tier-X
@@ -10,97 +11,75 @@ const { Player } = require("../models/player");
  * @param {Array<Message>} tierMessages Messages sent in #tier-X
  * @param {string} guildDiscordId Discord ID of the guild of the lobby
  * @param {Player} declinedPlayer Player that declined
- * @param {Array<Player>} otherPlayers Players that didn't decline
+ * @param {Player} otherPlayer Player that didn't decline
  */
 const editTierMessages = async (
   interaction,
   tierMessages,
   guildDiscordId,
   declinedPlayer,
-  otherPlayers
+  otherPlayer
 ) => {
-  const declinerMessagesInfo = tierMessages.filter((m) => m.playerId === declinedPlayer.id);
-  const otherMessagesInfo = tierMessages.filter((m) => m.playerId !== declinedPlayer.id);
-
   if (tierMessages.length < 0) return;
+
+  const declinerMessages = tierMessages.filter((m) => m.playerId === declinedPlayer.id);
+  const otherMessages = tierMessages.filter((m) => m.playerId === otherPlayer.id);
 
   const guild = await interaction.client.guilds.fetch(guildDiscordId);
 
-  const declinerMessages = [];
-  for (let messageInfo of declinerMessagesInfo) {
-    const channel = await guild.channels.fetch(messageInfo.channelId);
-    const message = await channel.messages.fetch(messageInfo.discordId);
+  const discordDecliner = await guild.members.fetch(declinedPlayer.discordId);
+  const declinerMessage = {
+    content: `**${discordDecliner.displayName}** rechazó la partida encontrada.`,
+    components: [],
+  };
 
-    const player = await guild.members.fetch(declinedPlayer.discordId);
-    declinerMessages.push({ message, player });
-  }
+  await discordMatchingUtils.editMessages(interaction, declinerMessages, declinerMessage, guild.id);
 
-  const otherMessages = [];
-  for (let messageInfo of otherMessagesInfo) {
-    const channel = await guild.channels.fetch(messageInfo.channelId);
-    const message = await channel.messages.fetch(messageInfo.discordId);
-
-    const otherPlayer = otherPlayers.find((player) => player.id === messageInfo.playerId);
-    const player = await guild.members.fetch(otherPlayer.discordId);
-    otherMessages.push({ message, player });
-  }
-
-  // Edit messages
-  for (let { message, player } of declinerMessages) {
-    await message.edit({
-      content: `**${player.displayName}** rechazó la partida encontrada.`,
-      components: [],
-    });
-  }
-
-  for (let { message, player } of otherMessages) {
-    await message.edit({
-      content: `**${player.displayName}** fue brutalmente rechazado.`,
-      components: [],
-    });
-  }
+  const discordRejected = await guild.members.fetch(otherPlayer.discordId);
+  const rejectedMessage = {
+    content: `**${discordRejected.displayName}** fue brutalmente rechazado.`,
+    components: [],
+  };
+  await discordMatchingUtils.editMessages(interaction, otherMessages, rejectedMessage, guild.id);
 };
 
 /**
- * Edits the DMs, and checks if the opponent is searching
- * @param {*} interaction DiscordJS Interaction
- * @param {Array<Player>} otherPlayers List of players that didn't decline
- * @param {Array<Message>} directMessages List of DMs
+ * Edits the DM of the rejected player
+ * @param {Interaction} interaction DiscordJS Interaction
+ * @param {Player} otherPlayer Player that didn't decline
+ * @param {Message} dm DM of the player that didn't decline
  * @returns
  */
-const editDirectMessages = async (interaction, otherPlayers, directMessages) => {
-  let rejectedIsSearching;
+const editRejectedDM = async (interaction, otherPlayer, dm) => {
+  const rejectedIsSearching = await lobbyAPI.isSearching(otherPlayer.discordId);
 
-  for (let otherPlayer of otherPlayers) {
-    const player = await interaction.client.users.fetch(otherPlayer.discordId);
-    const messageInfo = directMessages.find((m) => m.playerId === otherPlayer.id);
-    const message = await player.dmChannel.messages.fetch(messageInfo.discordId);
+  let rejectedText = `Tu rival ha **rechazado** la partida.`;
+  if (rejectedIsSearching) rejectedText += ` Te he vuelto a poner a buscar partida.`;
+  else rejectedText += ` Ahora no estás buscando partida.`;
 
-    rejectedIsSearching = await lobbyAPI.isSearching(player.id);
+  const newMessage = {
+    content: rejectedText,
+    components: [],
+  };
 
-    let rejectedText = `Tu rival ha **rechazado** la partida.`;
-    if (rejectedIsSearching) rejectedText += ` Te he vuelto a poner a buscar partida.`;
-    else rejectedText += ` Ahora no estás buscando partida.`;
-    await message.edit({
-      content: rejectedText,
-      components: [],
-    });
-  }
+  await discordMatchingUtils.editDirectMessage(interaction, dm, otherPlayer, newMessage);
+};
 
-  await interaction.update({
+const editDeclinerDM = async (interaction) => {
+  await interaction.editReply({
     content:
       `Has rechazado la partida, y te he sacado de todas las búsquedas de partida.\n` +
       `¡Espero volver a verte pronto!`,
     components: [],
   });
-
-  return rejectedIsSearching;
 };
 
 const execute = async (interaction) => {
+  await interaction.deferUpdate();
+
   const playerDiscordId = interaction.user.id;
   const {
-    declined,
+    declinedPlayer,
     otherPlayers,
     messages,
     guild: guildInfo,
@@ -112,22 +91,25 @@ const execute = async (interaction) => {
   const tierMessages = messages.filter((message) => message.type === MESSAGE_TYPES.LOBBY_TIER);
 
   const dms = messages.filter((message) => message.type === MESSAGE_TYPES.LOBBY_PLAYER);
-  const otherDms = dms.filter((dm) => dm.playerId != declined.id);
 
-  await editTierMessages(interaction, tierMessages, guild.id, declined, otherPlayers);
-  await editDirectMessages(interaction, otherPlayers, otherDms);
+  if (otherPlayers.length > 1) throw new TooManyPlayersError();
 
-  for (let otherPlayer of otherPlayers) {
-    const isSearching = await lobbyAPI.isSearching(otherPlayer.discordId);
-    if (!isSearching) continue;
+  const otherPlayer = otherPlayers[0];
+  const otherDm = dms.find((dm) => dm.playerId == otherPlayer.id);
 
-    const rivalPlayer = await lobbyAPI.matchmaking(otherPlayer.discordId);
-    const players = [otherPlayer, rivalPlayer];
-    if (rivalPlayer) {
-      await discordMatchingUtils.matched(guild, players);
-    } else {
-      await discordMatchingUtils.notMatched(otherPlayer.discordId, guild);
-    }
+  await editDeclinerDM(interaction);
+  await editRejectedDM(interaction, otherPlayer, otherDm);
+  await editTierMessages(interaction, tierMessages, guild.id, declinedPlayer, otherPlayer);
+
+  const isSearching = await lobbyAPI.isSearching(otherPlayer.discordId);
+  if (!isSearching) return;
+
+  const rivalPlayer = await lobbyAPI.matchmaking(otherPlayer.discordId);
+  const players = [otherPlayer, rivalPlayer];
+  if (rivalPlayer) {
+    await discordMatchingUtils.matched(guild, players);
+  } else {
+    await discordMatchingUtils.notMatched(otherPlayer.discordId, guild);
   }
 };
 
