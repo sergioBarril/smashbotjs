@@ -519,28 +519,47 @@ const setupArena = async (playerDiscordId, textChannelId, voiceChannelId) => {
   }
 };
 
-const unAFK = async (playerDiscordId) => {
-  // Removes the status of "AFK" to the lobby, and starts searching again
-  const player = await playerDB.get(playerDiscordId, true);
-  const lobby = await lobbyDB.getByPlayer(player.id, false);
+/**
+ * Removes the status of "AFK" to the lobby, and starts searching again
+ * @param {string} playerDiscordId Discord ID of the player that was AFK
+ * @returns
+ */
+const searchAgainAfkLobby = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const client = await db.getClient();
-  try {
-    await client.query("BEGIN");
-    await lobbyPlayerDB.updateStatus(lobby.id, player.id, "SEARCHING", client);
-    await lobbyDB.updateStatus(lobby.id, "SEARCHING");
-    await client.query("COMMIT");
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
+  const lobby = await player.getOwnLobby();
+  if (!lobby) throw new NotFoundError("Lobby");
+  if (lobby.status !== "AFK") throw new NotFoundError("AFKLobby");
+  await lobby.setStatus("SEARCHING");
+  await lobby.setLobbyPlayersStatus("SEARCHING");
 
-  const rivalPlayer = await matchmaking(player.id, lobby.id, lobby.guild_id);
-  const guild = await guildDB.get(lobby.guild_id, false);
+  const players = [player];
+  const rivalPlayer = await matchmaking(player.discordId);
+  const guild = await lobby.getGuild();
 
-  return { rival: rivalPlayer, guild: guild.discord_id };
+  if (rivalPlayer) players.push(rivalPlayer);
+
+  return {
+    matched: rivalPlayer !== null,
+    players,
+    guild,
+  };
+};
+
+/**
+ * Removes the lobby of the player that was AFK
+ * @param {string} playerDiscordId Discord ID of the player that declined the AFK search again
+ */
+const removeAfkLobby = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const lobby = await player.getOwnLobby();
+  if (!lobby) throw new NotFoundError("Lobby");
+
+  if (lobby.status !== "AFK") throw new NotFoundError("AFKLobby");
+  await lobby.remove();
 };
 
 const closeArena = async (playerDiscordId) => {
@@ -673,11 +692,12 @@ module.exports = {
   timeoutMatch,
   setupArena,
   directMatch,
-  unAFK,
+  searchAgainAfkLobby,
   closeArena,
   timeOutCheck,
   voteNewSet,
   voteCancelSet,
   getOpponent,
   isInCurrentLobby,
+  removeAfkLobby,
 };
