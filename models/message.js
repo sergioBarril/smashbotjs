@@ -32,6 +32,11 @@ class Message {
     return await getTier(this.tierId, client);
   };
 
+  getLobby = async (client = null) => {
+    const { getLobby } = require("./lobby");
+    return await getLobby(this.lobbyId, client);
+  };
+
   /**
    * Sets a new lobby to this message
    * @param {string} lobbyId Id of the new lobby for this message

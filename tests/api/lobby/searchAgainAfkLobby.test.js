@@ -14,7 +14,7 @@ const {
 
 afterAll(async () => await db.close());
 
-describe("test search method", () => {
+describe("test lobbyAPI.searchAgainAFK() method", () => {
   let guild;
   const guildDiscordId = "4851785";
 

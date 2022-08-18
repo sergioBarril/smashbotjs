@@ -10,6 +10,10 @@ const { NoCableError } = require("../errors/noCable");
 const { MessageTypeError } = require("../errors/messageType");
 const { NoYuzuError } = require("../errors/noYuzu");
 const db = require("../models/db");
+const { InvalidMessageTypeError } = require("../errors/invalidMessageType");
+const { InvalidLobbyStatusError } = require("../errors/invalidLobbyStatus");
+const { SamePlayerError } = require("../errors/samePlayer");
+const { IncomaptibleYuzuError } = require("../errors/incompatibleYuzu");
 
 /**
  * Declines the match. If declined due to timeout, leaves the lobby in AFK
@@ -260,47 +264,70 @@ const matchmaking = async (playerDiscordId) => {
   return rivalPlayer;
 };
 
-const directMatch = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
-  if (!guild) throw { name: "GUILD_NOT_FOUND" };
+/**
+ *
+ * @param {string} playerDiscordId Discord ID of the player that clicked the button
+ * @param {string} messageDiscordId Discord ID of the message whose button was clicked
+ * @returns
+ */
+const directMatch = async (playerDiscordId, messageDiscordId) => {
+  // const guild = await guildDB.get(guildDiscordId, true);
+  // if (!guild) throw { name: "GUILD_NOT_FOUND" };
 
-  const newPlayer = await playerDB.get(playerDiscordId, true);
-  if (!newPlayer) throw { name: "PLAYER_NOT_FOUND" };
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const lobbyTierMessage = await getMessage(messageDiscordId, true);
+  if (!lobbyTierMessage) throw new NotFoundError("Message");
+  else if (lobbyTierMessage.type !== MESSAGE_TYPES.LOBBY_TIER)
+    throw new InvalidMessageTypeError(lobbyTierMessage.type, MESSAGE_TYPES.LOBBY_TIER);
 
   // Checks rival lobby
-  const rivalLobby = await lobbyDB.getByTierChannelMessage(messageDiscordId);
-  if (!rivalLobby) throw { name: "NO_RIVAL_LOBBY" };
-  if (rivalLobby.status != "SEARCHING") throw { name: "RIVAL_NOT_SEARCHING" };
-  if (rivalLobby.created_by === newPlayer.id) throw { name: "SAME_PLAYER" };
+  const rivalLobby = await lobbyTierMessage.getLobby();
+  if (!rivalLobby) throw new NotFoundError("Lobby");
+  if (rivalLobby.status != "SEARCHING")
+    throw new InvalidLobbyStatusError(rivalLobby.status, "SEARCHING");
+  if (rivalLobby.createdBy === player.id) {
+    throw new SamePlayerError();
+  }
+
+  const guild = await rivalLobby.getGuild();
 
   // Check tier in case of yuzu
-  const tier = await tierDB.getByTierMessage(messageDiscordId);
+  const tier = await lobbyTierMessage.getTier();
+  const playerTier = await player.getTier(guild.id);
+  if (!playerTier) throw new NotFoundError("Tier");
+  if (!tier.yuzu && !playerTier.canSearchIn(tier)) throw new TooNoobError(playerTier.id, tier.id);
+
+  const rivalPlayer = await getPlayer(rivalLobby.createdBy, false);
   if (tier.yuzu) {
-    const yp = await yuzuPlayerDB.get(newPlayer.id, guild.id);
-    const rivalYp = await yuzuPlayerDB.get(rivalLobby.created_by, guild.id);
-    if (!yp || !rivalYp) throw { name: "NO_YUZU_PLAYER" };
-    if (!((yp.parsec && rivalYp.yuzu) || (yp.yuzu && rivalYp.parsec)))
-      throw { name: "YUZU_INCOMPATIBLE" };
+    const yp = await player.getYuzuPlayer(guild.id);
+    const rivalYp = await rivalPlayer.getYuzuPlayer(guild.id);
+    if (!yp || !rivalYp) throw new NotFoundError("YuzuPlayer");
+    if (!yp.yuzu && !yp.parsec) throw new NoYuzuError(guild.yuzuRoleId, guild.parsecRoleId);
+    if (!((yp.parsec && rivalYp.yuzu) || (yp.yuzu && rivalYp.parsec))) {
+      if (rivalYp.yuzu) throw new IncomaptibleYuzuError(guild.yuzuRoleId, guild.parsecRoleId);
+      else throw new IncomaptibleYuzuError(guild.parsecRoleId, guild.yuzuRoleId);
+    }
   }
 
   // Checks player lobby
-  let newPlayerLobby = await lobbyDB.getByPlayer(newPlayer.id, false);
-  if (newPlayerLobby) {
-    if (newPlayerLobby.status == "PLAYING") throw { name: "ALREADY_PLAYING" };
-    if (["CONFIRMATION", "WAITING"].includes(newPlayerLobby.status))
-      throw { name: "IN_CONFIRMATION" };
+  let playerLobby = await player.getOwnLobby();
+  const lobbyPlaying = await player.getLobby("PLAYING");
+
+  if (playerLobby || lobbyPlaying) {
+    if (playerLobby.status == "PLAYING" || lobbyPlaying)
+      throw new CannotSearchError("PLAYING", "SEARCH");
+    if (["CONFIRMATION", "WAITING"].includes(playerLobby.status))
+      throw new CannotSearchError(playerLobby.status, "SEARCH");
   } else {
-    newPlayerLobby = await lobbyDB.create(guild.id, newPlayer.id, null, "FRIENDLIES", "WAITING");
+    playerLobby = await player.insertLobby(guild.id, "FRIENDLIES", "WAITING");
   }
 
-  const player = { player_id: newPlayer.id, lobby_id: newPlayerLobby.id };
-  await matchmaking(rivalLobby.created_by, rivalLobby.id, guild.id, null, player);
-
-  const rivalPlayer = await playerDB.get(rivalLobby.created_by, false);
-
+  await rivalLobby.setupMatch(player);
   return {
     matched: true,
-    players: [newPlayer, rivalPlayer],
+    players: [player, rivalPlayer],
   };
 };
 
