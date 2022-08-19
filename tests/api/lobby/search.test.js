@@ -301,4 +301,22 @@ describe("test search method", () => {
     expect(result.tiers.length).toBe(1);
     expect(JSON.stringify(result.tiers[0])).toEqual(JSON.stringify(yuzuTier));
   });
+
+  test("search while being AFK", async () => {
+    lobby = await player.insertLobby(guild.id, "FRIENDLIES", "AFK", false);
+    const lp = await lobby.getLobbyPlayer(player.id);
+    await lp.setStatus("AFK");
+
+    const afkMessageId = "94194";
+    const afkMessage = await lp.insertMessage(afkMessageId);
+    await afkMessage.setType(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
+
+    const result = await search(player.discordId, guild.discordId, message4.discordId);
+
+    expect(result.afkMessage).not.toBeNull();
+    expect(result.matched).toBe(false);
+
+    const messageFromGet = await getMessage(afkMessageId, true);
+    expect(messageFromGet).toBeNull();
+  });
 });

@@ -181,4 +181,22 @@ describe("test lobbyAPI.directMatch() method", () => {
     expect(result.players.some((p) => p.id == player.id)).toBe(true);
     expect(result.players.some((p) => p.id == player2.id)).toBe(true);
   });
+
+  test("search while being AFK", async () => {
+    lobby = await player.insertLobby(guild.id, "FRIENDLIES", "AFK", false);
+    const lp = await lobby.getLobbyPlayer(player.id);
+    await lp.setStatus("AFK");
+
+    const afkMessageId = "94194";
+    const afkMessage = await lp.insertMessage(afkMessageId);
+    await afkMessage.setType(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
+
+    const result = await directMatch(player.discordId, messageLt3.discordId);
+
+    expect(result.afkMessage).not.toBeNull();
+    expect(result.matched).toBe(true);
+
+    const messageFromGet = await getMessage(afkMessageId, true);
+    expect(messageFromGet).toBeNull();
+  });
 });
