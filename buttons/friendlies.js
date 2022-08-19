@@ -4,6 +4,8 @@ const lobbyAPI = require("../api/lobby");
 const { CustomError } = require("../errors/customError");
 const { Tier } = require("../models/tier");
 const { Player } = require("../models/player");
+const { Message } = require("../models/message");
+const { User } = require("discord.js");
 
 const exceptionHandler = async (interaction, exception) => {
   let message = exception.message;
@@ -13,7 +15,7 @@ const exceptionHandler = async (interaction, exception) => {
     console.error(exception, exception.stack);
   }
 
-  await interaction.reply({
+  await interaction.followUp({
     content: message,
     ephemeral: true,
   });
@@ -31,7 +33,7 @@ const matched = async (interaction, players) => {
   const guild = interaction.guild;
   await discordMatchingUtils.matched(guild, players);
 
-  await interaction.reply({
+  await interaction.editReply({
     content: "¡Te he encontrado rival! Mira tus MDs.",
     ephemeral: true,
   });
@@ -62,10 +64,21 @@ const notMatched = async (interaction, tiers) => {
   });
   const rolesNames = rolesFormatter.format(roles);
 
-  await interaction.reply({
+  await interaction.editReply({
     content: `A partir de ahora estás buscando en ${rolesNames}`,
     ephemeral: true,
   });
+};
+
+/**
+ * If the player was afk and started searching, delete the AFK message.
+ * @param {*} interaction Discord Interaction
+ * @param {Message} message Message model
+ */
+const deleteAfkMessage = async (interaction, message) => {
+  if (!message) return;
+  const discordMessage = await interaction.user.dmChannel.messages.fetch(message.discordId);
+  await discordMessage.delete();
 };
 
 const execute = async (interaction) => {
@@ -73,8 +86,11 @@ const execute = async (interaction) => {
   const playerId = interaction.user.id;
   const messageId = interaction.customId === "friendlies" ? interaction.message.id : null;
 
+  await interaction.deferReply({ ephemeral: true });
+
   try {
     const searchResult = await lobbyAPI.search(playerId, guildId, messageId);
+    await deleteAfkMessage(interaction, searchResult.afkMessage);
     if (searchResult.matched) {
       await matched(interaction, searchResult.players);
     } else {

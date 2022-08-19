@@ -14,6 +14,7 @@ const { InvalidMessageTypeError } = require("../errors/invalidMessageType");
 const { InvalidLobbyStatusError } = require("../errors/invalidLobbyStatus");
 const { SamePlayerError } = require("../errors/samePlayer");
 const { IncomaptibleYuzuError } = require("../errors/incompatibleYuzu");
+const { CustomError } = require("../errors/customError");
 
 /**
  * Declines the match. If declined due to timeout, leaves the lobby in AFK
@@ -218,6 +219,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   let lobby = await player.getOwnLobby();
   const existsLobbyPlayer = await player.hasLobbyPlayer();
   const isSearching = lobby?.status === "SEARCHING";
+  const isAfk = lobby?.status === "AFK";
 
   const searchingTiers = lobby == null ? [] : await lobby.getLobbyTiers();
   const searchingTiersIds = searchingTiers.map((tier) => tier.tierId);
@@ -230,17 +232,29 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
     await lobby.addTiers(targetTiers);
   } else if (!isSearching || (!lobby && existsLobbyPlayer)) {
     if (!lobby) throw new CannotSearchError("PLAYING", "SEARCH");
-    else throw new CannotSearchError(lobby.status, "SEARCH");
+    else if (!isAfk) throw new CannotSearchError(lobby.status, "SEARCH");
   } else if (newTiers.length === 0) {
     throw new AlreadySearchingError(targetTiers[0].roleId, isYuzu);
   } else await lobby.addTiers(newTiers);
 
+  if (isAfk) {
+    await lobby.setStatus("SEARCHING");
+    await lobby.setLobbyPlayersStatus("SEARCHING");
+  }
+
   const rivalPlayer = await matchmaking(player.discordId);
+
+  // Remove afk messages (from the person that searched)
+  const afkMessages = await lobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
+  if (afkMessages.length > 1) throw new CustomError("Too many afk messages. Bug!");
+  const afkMessage = afkMessages.length > 0 ? afkMessages[0] : null;
+  if (afkMessage) await afkMessage.remove();
 
   return {
     matched: rivalPlayer !== null,
     tiers: newTiers,
     players: [player, rivalPlayer],
+    afkMessage,
   };
 };
 
@@ -324,10 +338,17 @@ const directMatch = async (playerDiscordId, messageDiscordId) => {
     playerLobby = await player.insertLobby(guild.id, "FRIENDLIES", "WAITING");
   }
 
+  // Remove afk messages (from the person that clicked the button)
+  const afkMessages = await playerLobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
+  if (afkMessages.length > 1) throw new CustomError("Too many afk messages. Bug!");
+  const afkMessage = afkMessages.length > 0 ? afkMessages[0] : null;
+  if (afkMessage) await afkMessage.remove();
+
   await rivalLobby.setupMatch(player);
   return {
     matched: true,
     players: [player, rivalPlayer],
+    afkMessage,
   };
 };
 

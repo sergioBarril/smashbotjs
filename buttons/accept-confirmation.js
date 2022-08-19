@@ -219,7 +219,7 @@ const notAllAccepted = async (interaction, notAcceptedPlayers, acceptedAt) => {
   }
   const missingNames = notAcceptedPlayersNames.join(", ");
 
-  await interaction.update({
+  await interaction.editReply({
     content: `Has aceptado, pero todavía falta que acepte ${missingNames}.`,
     components: [row],
   });
@@ -229,6 +229,7 @@ const notAllAccepted = async (interaction, notAcceptedPlayers, acceptedAt) => {
 
 const execute = async (interaction) => {
   const playerDiscordId = interaction.user.id;
+  await interaction.deferUpdate();
   const { hasEveryoneAccepted, players, acceptedAt, guild } = await lobbyAPI.acceptMatch(
     playerDiscordId
   );
