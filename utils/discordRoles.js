@@ -80,6 +80,12 @@ const assignRegion = async (interaction, name) => {
   else return `Ya no estás en la región de **${key}** ${emoji}.`;
 };
 
+/**
+ * Assigns yuzu role
+ * @param {Interaction} interaction DiscordJS interaction
+ * @param {string} name YUZU or PARSEC
+ * @returns
+ */
 const assignYuzu = async (interaction, name) => {
   const player = interaction.member;
   const guild = interaction.guild;

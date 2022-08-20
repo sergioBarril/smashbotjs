@@ -3,6 +3,7 @@ const { NotFoundError } = require("../errors/notFound");
 const { getGuild } = require("../models/guild");
 const { getCharacterByName } = require("../models/character");
 const { TooManyCharactersError } = require("../errors/tooManyCharacters");
+const { CustomError } = require("../errors/customError");
 
 const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
   // Assigns a player a role
@@ -80,26 +81,37 @@ const assignCharacter = async (playerDiscordId, characterName, guildDiscordId, t
   return { characterRole, action };
 };
 
+/**
+ * Toggles the yuzu / parsec roles
+ * @param {string} playerDiscordId Discord ID of the player
+ * @param {string} guildDiscordId Discord ID of the guild
+ * @param {string} yuzuRoleName YUZU or PARSEC
+ * @returns
+ */
 const assignYuzu = async (playerDiscordId, guildDiscordId, yuzuRoleName) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const guild = await guildDB.get(guildDiscordId, true);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
   if (!["YUZU", "PARSEC"].includes(yuzuRoleName))
-    throw { name: "WRONG_YUZU_TOGGLE", args: { yuzuRoleName } };
+    throw new CustomError("Wrong Yuzu Toggle. Contact admins.");
 
   const isYuzu = yuzuRoleName == "YUZU";
   let newStatus;
 
-  const yuzuPlayer = await yuzuPlayerDB.get(player.id, guild.id);
+  const yuzuPlayer = await player.getYuzuPlayer(guild.id);
   if (!yuzuPlayer) {
-    await yuzuPlayerDB.create(player.id, guild.id, isYuzu, !isYuzu);
+    await player.insertYuzuPlayer(guild.id, isYuzu, !isYuzu);
     newStatus = true;
   } else {
     newStatus = !yuzuPlayer[yuzuRoleName.toLowerCase()];
-    await yuzuPlayerDB.setRole(player.id, guild.id, yuzuRoleName, newStatus);
+    if (isYuzu) await yuzuPlayer.setYuzu(newStatus);
+    else await yuzuPlayer.setParsec(newStatus);
   }
 
-  const roleId = isYuzu ? guild.yuzu_role_id : guild.parsec_role_id;
+  const roleId = isYuzu ? guild.yuzuRoleId : guild.parsecRoleId;
 
   return { roleId, newStatus };
 };

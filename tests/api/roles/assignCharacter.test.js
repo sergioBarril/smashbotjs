@@ -9,6 +9,7 @@ const {
   deleteIfExistsPlayer,
   deleteIfExistsCharacter,
   getOrCreateGuild,
+  deleteIfExistsGuild,
 } = require("../../utils/testingUtils");
 const { assignCharacter, getCharacters } = require("../../../api/roles");
 
@@ -53,6 +54,7 @@ describe("test rolesAPI.assignCharacter() method", () => {
 
   afterEach(async () => {
     await deleteIfExistsPlayer(playerDiscordId);
+    await deleteIfExistsGuild(guildDiscordId);
     await deleteIfExistsCharacter(character1Name);
     await deleteIfExistsCharacter(character2Name);
     await deleteIfExistsCharacter(character3Name);
