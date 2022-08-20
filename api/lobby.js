@@ -15,6 +15,7 @@ const { InvalidLobbyStatusError } = require("../errors/invalidLobbyStatus");
 const { SamePlayerError } = require("../errors/samePlayer");
 const { IncomaptibleYuzuError } = require("../errors/incompatibleYuzu");
 const { CustomError } = require("../errors/customError");
+const { InGamesetError } = require("../errors/inGameset");
 
 /**
  * Declines the match. If declined due to timeout, leaves the lobby in AFK
@@ -453,6 +454,11 @@ const getSearchingTiers = async (playerDiscordId) => {
   return await Promise.all(lts.map(async (lt) => await lt.getTier()));
 };
 
+/**
+ *
+ * @param {*} playerDiscordId
+ * @returns LobbyPlayers of the lobby
+ */
 const getPlayingPlayers = async (playerDiscordId) => {
   const lobby = await lobbyDB.getByPlayerStatus(playerDiscordId, "PLAYING", true);
   if (!lobby) throw { name: "NOT_PLAYING" };
@@ -610,31 +616,41 @@ const removeAfkLobby = async (playerDiscordId) => {
   await lobby.remove();
 };
 
+/**
+ * Closes the arena
+ * @param {string} playerDiscordId Discord ID of the player that closes the arena
+ * @returns Object with these properties:
+ * - channels: discordIds of the text and voice channels
+ * - guild: Guild model
+ * - messages: all Messages with the extra property "message.playerDiscordId"
+ */
 const closeArena = async (playerDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const lobby = await lobbyDB.getByPlayerStatus(player.id, "PLAYING", false);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  if (!lobby) throw { name: "NOT_PLAYING" };
-  const gameset = await gameSetDB.getByLobby(lobby.id);
-  if (gameset) throw { name: "IN_GAMESET" };
+  const lobby = await player.getLobby("PLAYING");
+  if (!lobby) throw new NotFoundError("Lobby");
 
-  const client = await db.getClient();
+  const gameset = await lobby.getGameset();
+  if (gameset) throw new InGamesetError();
 
-  // Send guild discord Id
-  const guild = await guildDB.get(lobby.guild_id, false);
-  lobby.guild_id = guild.discord_id;
+  const guild = await lobby.getGuild();
+  const messages = await lobby.getMessagesFromEveryone();
+  const lobbyPlayers = await lobby.getLobbyPlayers();
+  const players = await Promise.all(lobbyPlayers.map(async (lp) => await lp.getPlayer()));
 
-  try {
-    await client.query("BEGIN");
-    await lobbyDB.remove(lobby.id, false, client);
-    await client.query("COMMIT");
-    return lobby;
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
+  for (let message of messages)
+    message.playerDiscordId = players.find((p) => p.id === message.playerId).discordId;
+
+  await lobby.remove();
+  return {
+    channels: {
+      text: lobby.textChannelId,
+      voice: lobby.voiceChannelId,
+    },
+    guild,
+    messages,
+  };
 };
 
 /**
