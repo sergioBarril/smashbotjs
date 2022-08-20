@@ -1,9 +1,9 @@
 const db = require("./db");
 
 class RegionRole {
-  constructor({ id, discord_id, guild_id, region_id }) {
+  constructor({ id, role_id, guild_id, region_id }) {
     this.id = id;
-    this.discordId = discord_id;
+    this.roleId = role_id;
 
     this.guildId = guild_id;
     this.regionId = region_id;
@@ -14,14 +14,14 @@ class RegionRole {
   // ***********
   //   SETTER
   // **********
-  setDiscordId = async (roleDiscordId, client = null) => {
-    await db.updateBy("region_role", { discord_id: roleDiscordId }, { id: this.id }, client);
-    this.discordId = roleDiscordId;
+  setRoleId = async (roleDiscordId, client = null) => {
+    await db.updateBy("region_role", { role_id: roleDiscordId }, { id: this.id }, client);
+    this.roleId = roleDiscordId;
   };
 }
 
-const getRegionRole = async (roleId, discord = false, client = null) => {
-  const regionRole = await db.basicGet("region_role", roleId, discord, client);
+const getRegionRole = async (roleId, client = null) => {
+  const regionRole = await db.getBy("region_role", { role_id: roleId }, client);
   if (regionRole == null) return null;
   else return new RegionRole(regionRole);
 };

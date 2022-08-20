@@ -20,7 +20,7 @@ class Region {
   insertRegionRole = async (roleDiscordId, guildId, client = null) => {
     const insertQuery = {
       text: `
-    INSERT INTO region_role (region_id, guild_id, discord_id)
+    INSERT INTO region_role (region_id, guild_id, role_id)
     VALUES ($1, $2, $3)
     `,
       values: [this.id, guildId, roleDiscordId],

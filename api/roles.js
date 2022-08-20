@@ -4,33 +4,44 @@ const { getGuild } = require("../models/guild");
 const { getCharacterByName } = require("../models/character");
 const { TooManyCharactersError } = require("../errors/tooManyCharacters");
 const { CustomError } = require("../errors/customError");
+const { getRegionByName } = require("../models/region");
+const { TooManyRegionsError } = require("../errors/tooManyRegions");
 
+/**
+ * Assigns the region role to a player
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} regionName Name of the region
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @returns
+ */
 const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
-  // Assigns a player a role
-  const player = await playerDB.get(playerDiscordId, true);
-  const guild = await guildDB.get(guildDiscordId, true);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const region = await regionDB.getByName(regionName);
-  if (!region) throw { name: "DB_ERR_NO_REGION" };
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
-  const regions = await regionPlayerDB.getByPlayer(player.id);
+  const region = await getRegionByName(regionName);
+  if (!region) throw new NotFoundError("Region");
 
-  const rp = await regionPlayerDB.get(region.id, player.id);
+  const regions = await player.getAllRegions();
 
+  const rp = await player.getRegionPlayer(region.id);
+
+  // Manage RegionPlayer
   let action = null;
-  // Add region
   if (rp) {
-    await regionPlayerDB.remove(region.id, player.id);
+    await rp.remove();
     action = "REMOVE";
   } else {
-    if (regions.length >= 2) throw { name: "TOO_MANY_REGIONS", args: { current: regions } };
-    await regionPlayerDB.create(region.id, player.id);
+    if (regions.length >= 2) throw new TooManyRegionsError(regions);
+    await player.insertRegion(region.id);
     action = "CREATE";
   }
 
-  // Return role id
-  const regionRole = await regionRoleDB.getByRegion(region.id, guild.id);
-  return { roleId: regionRole.discord_id, action };
+  // Return role
+  const regionRole = await region.getRole(guild.id);
+  return { regionRoleId: regionRole.roleId, action };
 };
 
 /**

@@ -4,7 +4,7 @@ const smashCharacters = require("../params/smashCharacters.json");
 class TooManyCharactersError extends CustomError {
   constructor(type, currentCharacters, message = null) {
     super(message);
-    this.name = `TooManyRolesError`;
+    this.name = `TooManyCharactersError`;
 
     if (message == null) {
       const listFormatter = new Intl.ListFormat("es", {

@@ -41,7 +41,7 @@ describe("test regionRole methods", () => {
   it("inserts a new regionRole", async () => {
     expect(regionRole).not.toBeNull();
     expect(regionRole instanceof RegionRole).toBe(true);
-    expect(regionRole.discordId).toBe(mockRoleDiscordId);
+    expect(regionRole.roleId).toBe(mockRoleDiscordId);
     expect(regionRole.regionId).toBe(region.id);
     expect(regionRole.guildId).toBe(guild.id);
   });
@@ -67,12 +67,12 @@ describe("test regionRole methods", () => {
   });
 
   it("can get a region role by role discordId", async () => {
-    let regRole = await getRegionRole(mockRoleDiscordId, true);
+    let regRole = await getRegionRole(mockRoleDiscordId);
     expect(regRole).not.toBeNull();
     expect(regRole instanceof RegionRole).toBe(true);
     expect(regRole.id).toBe(regionRole.id);
 
-    regRole = await getRegionRole(0, true);
+    regRole = await getRegionRole(0);
     expect(regRole).toBeNull();
   });
 
@@ -107,18 +107,13 @@ describe("test regionRole methods", () => {
   });
 
   it("can set the role discord Id", async () => {
-    expect(regionRole.discordId).toEqual(mockRoleDiscordId);
+    expect(regionRole.roleId).toEqual(mockRoleDiscordId);
 
     const newRoleId = "8911939";
-    await regionRole.setDiscordId(newRoleId);
-    expect(regionRole.discordId).toEqual(newRoleId);
+    await regionRole.setRoleId(newRoleId);
+    expect(regionRole.roleId).toEqual(newRoleId);
 
     regionRole = await guild.getRegionRoleByName(regionName);
-    expect(regionRole.discordId).toEqual(newRoleId);
-  });
-
-  it("can get regionrole by regionrole id", async () => {
-    const regionRoleFromGet = await getRegionRole(regionRole.id, false);
-    expect(JSON.stringify(regionRoleFromGet)).toEqual(JSON.stringify(regionRole));
+    expect(regionRole.roleId).toEqual(newRoleId);
   });
 });

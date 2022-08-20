@@ -5,18 +5,16 @@ const { NotFoundError } = require("../../../errors/notFound");
 
 const {
   getOrCreatePlayer,
-  getOrCreateCharacter,
   deleteIfExistsPlayer,
-  deleteIfExistsCharacter,
   getOrCreateGuild,
   deleteIfExistsGuild,
 } = require("../../utils/testingUtils");
-const { assignCharacter, getCharacters, assignYuzu } = require("../../../api/roles");
+const { assignYuzu } = require("../../../api/roles");
 const { CustomError } = require("../../../errors/customError");
 
 afterAll(async () => await db.close());
 
-describe("test rolesAPI.assignCharacter() method", () => {
+describe("test rolesAPI.assignYuzu() method", () => {
   let guild;
   const guildDiscordId = "85419049";
 

@@ -1,6 +1,7 @@
 const { getCharacterByName, insertCharacter } = require("../../models/character");
 const { getGuild, insertGuild } = require("../../models/guild");
 const { getPlayer, insertPlayer } = require("../../models/player");
+const { getRegionByName, insertRegion } = require("../../models/region");
 const { getTierByRole, insertTier, getTierByChannel } = require("../../models/tier");
 
 // Create
@@ -15,6 +16,12 @@ async function getOrCreateCharacter(characterName) {
   const character = await getCharacterByName(characterName);
   if (character) return character;
   return insertCharacter(characterName);
+}
+
+async function getOrCreateRegion(regionName) {
+  const region = await getRegionByName(regionName);
+  if (region) return region;
+  return insertRegion(regionName);
 }
 
 async function getOrCreateGuild(guildDiscordId) {
@@ -46,6 +53,11 @@ async function deleteIfExistsCharacter(characterName) {
   if (character) await character.remove();
 }
 
+async function deleteIfExistsRegion(regionName) {
+  const region = await getRegionByName(regionName);
+  if (region) await region.remove();
+}
+
 async function deleteIfExistsGuild(guildDiscordId) {
   const guild = await getGuild(guildDiscordId, true);
   if (guild) await guild.remove();
@@ -59,10 +71,12 @@ async function deleteIfExistsTier(tierDiscordId) {
 module.exports = {
   getOrCreatePlayer,
   getOrCreateCharacter,
+  getOrCreateRegion,
   getOrCreateGuild,
   getOrCreateTier,
   deleteIfExistsPlayer,
   deleteIfExistsCharacter,
+  deleteIfExistsRegion,
   deleteIfExistsGuild,
   deleteIfExistsTier,
 };

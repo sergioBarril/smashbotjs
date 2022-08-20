@@ -7,6 +7,7 @@ const rolesAPI = require("../api/roles");
 const { CharacterNameError } = require("../errors/characterName");
 const { Interaction } = require("discord.js");
 const { CustomError } = require("../errors/customError");
+const { RegionNameError } = require("../errors/regionName");
 
 const YUZU_EMOJI = "<:yuzu:945850935035441202>";
 const PARSEC_EMOJI = "<:parsec:945853565405114510>";
@@ -58,16 +59,22 @@ const assignCharacter = async (interaction, characterName, type) => {
   else if (action === "REMOVE") return `**${key}** ${emoji} ya no será tu ${type.toLowerCase()}.`;
 };
 
+/**
+ * Assigns a region to a player
+ * @param {Interaction} interaction DiscordJS interaction
+ * @param {string} name Region name
+ * @returns
+ */
 const assignRegion = async (interaction, name) => {
   const key = normalizeRegion(name);
-  if (!key) throw { name: "REGION_NAME_NOT_FOUND", args: { name } };
+  if (!key) throw new RegionNameError(name);
 
   const player = interaction.user;
   const guild = interaction.guild;
 
-  const { roleId, action } = await rolesAPI.assignRegion(player.id, key, guild.id);
+  const { regionRoleId, action } = await rolesAPI.assignRegion(player.id, key, guild.id);
 
-  const role = await guild.roles.fetch(roleId);
+  const role = await guild.roles.fetch(regionRoleId);
   const member = interaction.member;
 
   if (action === "REMOVE") await member.roles.remove(role);
