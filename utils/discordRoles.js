@@ -4,85 +4,45 @@ const spanishRegions = require("../params/spanishRegions.json");
 const { normalizeCharacter, normalizeRegion } = require("./normalize");
 
 const rolesAPI = require("../api/roles");
+const { CharacterNameError } = require("../errors/characterName");
+const { Interaction } = require("discord.js");
+const { CustomError } = require("../errors/customError");
 
 const YUZU_EMOJI = "<:yuzu:945850935035441202>";
 const PARSEC_EMOJI = "<:parsec:945853565405114510>";
 
 const exceptionHandler = async (interaction, exception) => {
-  EXCEPTION_MESSAGES = {
-    GUILD_NOT_FOUND: `__**ERROR**__: No se ha encontrado el servidor.`,
-    PLAYER_NOT_FOUND: `__**ERROR**__: No se ha encontrado al jugador.`,
-    DB_ERR_NO_CHAR: `__**ERROR**__: No se ha encontrado al personaje en la base de datos.`,
-    DB_ERR_NO_rEGION: `__**ERROR**__: No se ha encontrado la región en la base de datos.`,
-  };
+  let message = exception.message;
 
-  const { name, args } = exception;
+  if (!(exception instanceof CustomError)) {
+    message = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+    console.error(exception, exception.stack);
+  }
 
-  const listFormatter = new Intl.ListFormat("es", {
-    style: "long",
-    type: "conjunction",
-  });
-
-  // Get message
-  let response = EXCEPTION_MESSAGES[name];
-  if (!response)
-    switch (name) {
-      case "CHAR_NAME_NOT_FOUND": {
-        response = `No he encontrado el personaje _${args.name}_. ¿Lo has escrito bien?`;
-        break;
-      }
-      case "REGION_NAME_NOT_FOUND": {
-        response = `No he encontrado la región _${args.name}_. ¿Lo has escrito bien?`;
-        break;
-      }
-      case "TOO_MANY_MAINS":
-      case "TOO_MANY_SECONDS":
-      case "TOO_MANY_POCKETS":
-        const listString = listFormatter.format(
-          args.current.map((char) => `**${char.name}** ${smashCharacters[char.name].emoji}`)
-        );
-
-        if (name === "TOO_MANY_MAINS")
-          response = `El máximo de mains son 2. Ya tienes 2 mains asignados: ${listString}.`;
-        else if (name === "TOO_MANY_SECONDS")
-          response = `El máximo de seconds son 3. Ya tienes 3 seconds asignados: ${listString}.`;
-        else response = `El máximo de pockets son 5. Ya tienes 5 pockets asignados: ${listString}.`;
-        break;
-      case "TOO_MANY_REGIONS": {
-        const listString = listFormatter.format(
-          args.current.map((region) => `**${region.name}** ${spanishRegions[region.name].emoji}`)
-        );
-
-        response = `El máximo de regiones son 2. Ya tienes 2 regiones asignadas: ${listString}`;
-        break;
-      }
-    }
-
-  if (!response) throw exception;
-
-  // Send reply
-  return await interaction.reply({
-    content: response,
+  await interaction.followUp({
+    content: message,
     ephemeral: true,
   });
 };
 
-const assignCharacter = async (interaction, name, type) => {
-  const key = normalizeCharacter(name);
-  if (!key) throw { name: "CHAR_NAME_NOT_FOUND", args: { name } };
+/**
+ * Assigns (or removes) a character for a player
+ * @param {Interaction} interaction DiscordJs interaction
+ * @param {string} characterName Character name
+ * @param {string} type MAIN, SECOND or POCKET
+ * @returns
+ */
+const assignCharacter = async (interaction, characterName, type) => {
+  const key = normalizeCharacter(characterName);
+  if (!key) throw new CharacterNameError(characterName);
 
   const player = interaction.user;
   const guild = interaction.guild;
 
-  const { roleId: charRoleId, action } = await rolesAPI.assignCharacter(
-    player.id,
-    key,
-    guild.id,
-    type
-  );
+  const { characterRole, action } = await rolesAPI.assignCharacter(player.id, key, guild.id, type);
 
   // Manage discord role
-  const role = await guild.roles.fetch(charRoleId);
+  const role = await guild.roles.fetch(characterRole.roleId);
   const member = interaction.member;
 
   if (action === "REMOVE") await member.roles.remove(role);
@@ -142,6 +102,7 @@ const assignYuzu = async (interaction, name) => {
 
 const assignRole = async (interaction, name, type) => {
   let responseText;
+  await interaction.deferReply({ ephemeral: true });
 
   try {
     if (["MAIN", "SECOND", "POCKET"].includes(type))
@@ -151,7 +112,7 @@ const assignRole = async (interaction, name, type) => {
     // else if (type === "WIFI")
     // responseText = await assignWifi(interaction, name)
 
-    return await interaction.reply({
+    return await interaction.editReply({
       content: responseText,
       ephemeral: true,
     });

@@ -1,6 +1,8 @@
 const { getPlayer } = require("../models/player");
 const { NotFoundError } = require("../errors/notFound");
 const { getGuild } = require("../models/guild");
+const { getCharacterByName } = require("../models/character");
+const { TooManyCharactersError } = require("../errors/tooManyCharacters");
 
 const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
   // Assigns a player a role
@@ -30,45 +32,52 @@ const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
   return { roleId: regionRole.discord_id, action };
 };
 
+/**
+ * Assigns a character role to a player
+ * @param {string} playerDiscordId Discord ID of the player
+ * @param {string} characterName Character name
+ * @param {string} guildDiscordId Discord ID of the guild
+ * @param {string} type MAIN, SECOND or POCKET
+ * @returns
+ */
 const assignCharacter = async (playerDiscordId, characterName, guildDiscordId, type) => {
-  // Assigns a player a role
-  const player = await playerDB.get(playerDiscordId, true);
-  const guild = await guildDB.get(guildDiscordId, true);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const character = await characterDB.getByName(characterName);
-  if (!character) throw { name: "DB_ERR_NO_CHAR" };
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
-  const mains = await characterPlayerDB.getByType(player.id, "MAIN");
-  const seconds = await characterPlayerDB.getByType(player.id, "SECOND");
-  const pockets = await characterPlayerDB.getByType(player.id, "POCKET");
+  const character = await getCharacterByName(characterName);
+  if (!character) throw new NotFoundError("Character");
 
-  const cp = await characterPlayerDB.get(character.id, player.id);
+  const mains = await player.getCharactersByType("MAIN");
+  const seconds = await player.getCharactersByType("SECOND");
+  const pockets = await player.getCharactersByType("POCKET");
+
+  const cp = await player.getCharacterPlayer(character.id);
 
   let action = null;
-  // Add main
+  // Manage ChacterPlayer
   if (cp && cp.type === type) {
-    await characterPlayerDB.remove(character.id, player.id);
+    await cp.remove();
     action = "REMOVE";
   } else {
-    if (type === "MAIN" && mains.length >= 2)
-      throw { name: "TOO_MANY_MAINS", args: { current: mains } };
-    if (type === "SECOND" && seconds.length >= 3)
-      throw { name: "TOO_MANY_SECONDS", args: { current: seconds } };
-    if (type === "POCKET" && pockets.length >= 5)
-      throw { name: "TOO_MANY_POCKETS", args: { current: pockets } };
-
+    if (type === "MAIN" && mains.length >= 2) throw new TooManyCharactersError(type, mains);
+    if (type === "SECOND" && seconds.length >= 3) throw new TooManyCharactersError(type, seconds);
+    if (type === "POCKET" && pockets.length >= 5) throw new TooManyCharactersError(type, pockets);
     if (cp) {
-      await characterPlayerDB.update(character.id, player.id, type);
+      await cp.setType(type);
       action = "UPDATE";
     } else {
-      await characterPlayerDB.create(character.id, player.id, type);
+      await player.insertCharacter(character.id, type);
       action = "CREATE";
     }
   }
 
   // Return role id
-  const characterRole = await characterRoleDB.getByChar(character.id, guild.id);
-  return { roleId: characterRole.discord_id, action };
+  const characterRole = await character.getRole(guild.id);
+  if (!characterRole) throw NotFoundError("CharacterRole");
+  return { characterRole, action };
 };
 
 const assignYuzu = async (playerDiscordId, guildDiscordId, yuzuRoleName) => {
@@ -112,6 +121,11 @@ const getYuzuRolesForMessage = async (playerDiscordId, guildDiscordId) => {
   return roles;
 };
 
+/**
+ * Get the characters associated with a player
+ * @param {string} playerDiscordId Discord ID of the player
+ * @returns Object with three arrays: mains, seconds and pockets.
+ */
 const getCharacters = async (playerDiscordId) => {
   const player = await getPlayer(playerDiscordId, true);
   if (!player) throw new NotFoundError("Player");

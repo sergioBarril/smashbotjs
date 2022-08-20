@@ -26,7 +26,7 @@ class Character {
   insertCharacterRole = async (roleDiscordId, guildId, client = null) => {
     const insertQuery = {
       text: `
-    INSERT INTO character_role (character_id, guild_id, discord_id)
+    INSERT INTO character_role (character_id, guild_id, role_id)
     VALUES ($1, $2, $3)
     `,
       values: [this.id, guildId, roleDiscordId],

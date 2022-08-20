@@ -38,7 +38,7 @@ describe("test characterRole methods", () => {
 
     expect(charRole).not.toBeNull();
     expect(charRole instanceof CharacterRole).toBe(true);
-    expect(charRole.discordId).toBe(mockRoleDiscordId);
+    expect(charRole.roleId).toBe(mockRoleDiscordId);
     expect(charRole.characterId).toBe(character.id);
     expect(charRole.guildId).toBe(guild.id);
   });
@@ -81,16 +81,16 @@ describe("test characterRole methods", () => {
   it("can get a character role by role discordId", async () => {
     const createdRole = await character.insertCharacterRole(mockRoleDiscordId, guild.id);
 
-    const charRole = await getCharacterRole(mockRoleDiscordId, true);
+    const charRole = await getCharacterRole(mockRoleDiscordId);
     expect(charRole).not.toBeNull();
     expect(charRole.id).toBe(createdRole.id);
   });
 
   it("removes character roles when character is deleted", async () => {
     await character.insertCharacterRole(mockRoleDiscordId, guild.id);
-    expect(await getCharacterRole(mockRoleDiscordId, true)).not.toBeNull();
+    expect(await getCharacterRole(mockRoleDiscordId)).not.toBeNull();
     await character.remove();
-    expect(await getCharacterRole(mockRoleDiscordId, true)).toBeNull();
+    expect(await getCharacterRole(mockRoleDiscordId)).toBeNull();
   });
 
   it("gets character roles for the guild", async () => {
@@ -123,13 +123,13 @@ describe("test characterRole methods", () => {
   it("can set the role discord Id", async () => {
     let charRole = await character.insertCharacterRole(mockRoleDiscordId, guild.id);
 
-    expect(charRole.discordId).toEqual(mockRoleDiscordId);
+    expect(charRole.roleId).toEqual(mockRoleDiscordId);
 
     const newRoleId = "8911939";
-    await charRole.setDiscordId(newRoleId);
-    expect(charRole.discordId).toEqual(newRoleId);
+    await charRole.setRoleId(newRoleId);
+    expect(charRole.roleId).toEqual(newRoleId);
 
     charRole = await guild.getCharacterRoleByName(characterName);
-    expect(charRole.discordId).toEqual(newRoleId);
+    expect(charRole.roleId).toEqual(newRoleId);
   });
 });
