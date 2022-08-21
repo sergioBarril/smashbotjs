@@ -127,6 +127,17 @@ const assignYuzu = async (playerDiscordId, guildDiscordId, yuzuRoleName) => {
   return { roleId, newStatus };
 };
 
+/**
+ * Gets the yuzu role that the opponents must have to play yuzu
+ * with this player
+ *
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @returns An array containing:
+ *  - yuzuRoleId if the player has parsec role
+ *  - parsecRoleId if the player has yuzu role
+ *  - both if has both
+ */
 const getYuzuRolesForMessage = async (playerDiscordId, guildDiscordId) => {
   const player = await getPlayer(playerDiscordId, true);
   if (!player) throw new NotFoundError("Player");

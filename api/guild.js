@@ -1,19 +1,20 @@
-const guildDB = require("../db/guild");
-const tierDB = require("../db/tier");
+const { getGuild: getGuildByDiscord, Guild } = require("../models/guild");
 
-const getGuild = async (guildDiscordId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
-  return guild;
-};
+/**
+ * Returns the Guild Model
+ * @param {string} guildDiscordId DiscordId of the guild
+ * @returns {Promise<Guild>} Guild model
+ */
+const getGuild = async (guildDiscordId) => getGuildByDiscord(guildDiscordId, true);
 
-const getRolesChannel = async (guildDiscordId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
-  return guild.roles_channel_id;
-};
-
+/**
+ * Sets the #roles channel
+ * @param {string} guildDiscordId DiscordId of the guild
+ * @param {*} channelId DiscordID of the channel
+ */
 const setRolesChannel = async (guildDiscordId, channelId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
-  await guildDB.setRolesChannel(guild.id, channelId);
+  const guild = await getGuild(guildDiscordId);
+  await guild.setRolesChannel(channelId);
 };
 
 const getMatchmakingChannel = async (guildDiscordId) => {
@@ -54,7 +55,6 @@ const getCurrentList = async (guildDiscordId) => {
 
 module.exports = {
   getGuild,
-  getRolesChannel,
   setRolesChannel,
   getMatchmakingChannel,
   setMatchmakingChannel,

@@ -6,14 +6,14 @@ const YUZU_EMOJI = "<:yuzu:945850935035441202>";
 const PARSEC_EMOJI = "<:parsec:945853565405114510>";
 
 const channelCommand = async (interaction) => {
-  await interaction.deferReply({ ephehemral: true });
+  await interaction.deferReply({ ephemeral: true });
 
   const guild = interaction.guild;
 
   // Delete old channel
-  let rolesChannel = await guildAPI.getRolesChannel(guild.id);
-  if (rolesChannel) {
-    const channel = await guild.channels.fetch(rolesChannel);
+  let { rolesChannelId } = await guildAPI.getGuild(guild.id);
+  if (rolesChannelId) {
+    const channel = await guild.channels.fetch(rolesChannelId);
     await channel.delete();
   }
 
@@ -23,7 +23,7 @@ const channelCommand = async (interaction) => {
     (chan) => chan.name === "PERFIL" && chan.type === "GUILD_CATEGORY"
   );
 
-  // PERMISSIONS MISSING
+  let rolesChannel;
   if (category) {
     rolesChannel = await guild.channels.create("roles", {
       parent: category.id,
