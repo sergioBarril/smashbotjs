@@ -97,6 +97,12 @@ class Guild {
     else return new Tier(tier);
   };
 
+  getWifiTier = async (client = null) => {
+    const tier = await db.getBy("tier", { guild_id: this.id, wifi: true }, client);
+    if (tier == null) return null;
+    else return new Tier(tier);
+  };
+
   // *******
   // SETTERS
   // *******

@@ -11,6 +11,7 @@ class Tier {
     role_id,
     weight = null,
     yuzu = false,
+    wifi = false,
     ranked_role_id = null,
   }) {
     this.id = id;
@@ -21,6 +22,7 @@ class Tier {
     this.roleId = role_id; // discordId of @Tier X
     this.weight = weight; // the number of the tier. Tier n => Weight n
     this.yuzu = yuzu; // is this a yuzu/parsec tier
+    this.wifi = wifi;
     this.rankedRoleId = ranked_role_id; // discordId of @Tier X (Ranked)
   }
 
@@ -96,6 +98,11 @@ class Tier {
   setWeight = async (newWeight, client = null) => {
     await db.updateBy("tier", { weight: newWeight }, { id: this.id }, client);
     this.weight = newWeight;
+  };
+
+  setWifi = async (newWifi, client = null) => {
+    await db.updateBy("tier", { wifi: newWifi }, { id: this.id }, client);
+    this.wifi = newWifi;
   };
 
   remove = async (client = null) => await db.basicRemove("tier", this.id, false, client);

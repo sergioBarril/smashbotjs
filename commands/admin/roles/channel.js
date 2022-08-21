@@ -1,9 +1,9 @@
-const tierAPI = require("../../../api/tier");
 const guildAPI = require("../../../api/guild");
 const { MessageActionRow, MessageButton } = require("discord.js");
 
 const YUZU_EMOJI = "<:yuzu:945850935035441202>";
 const PARSEC_EMOJI = "<:parsec:945853565405114510>";
+const WIFI_EMOJI = "<:wifi:945988666994602065>";
 
 const channelCommand = async (interaction) => {
   await interaction.deferReply({ ephemeral: true });
@@ -46,6 +46,14 @@ const channelCommand = async (interaction) => {
       .setEmoji(PARSEC_EMOJI)
   );
 
+  const wifiButton = new MessageActionRow().addComponents(
+    new MessageButton()
+      .setCustomId("wifi-role")
+      .setLabel("Wifi")
+      .setStyle("SECONDARY")
+      .setEmoji(WIFI_EMOJI)
+  );
+
   // Send messages
   await rolesChannel.send({
     content:
@@ -53,6 +61,13 @@ const channelCommand = async (interaction) => {
       `Para jugar partidas en Yuzu necesitaréis alguno de estos roles. ` +
       `Si podéis hostear partidas, dadle a **Yuzu** ${YUZU_EMOJI} y si podéis hacer de client dadle a **Parsec** ${PARSEC_EMOJI}.`,
     components: [yuzuButtons],
+  });
+
+  await rolesChannel.send({
+    content:
+      `**__WIFI__**\n` +
+      `Para que os notifique cuando alguien busque partida sin cable, necesitaréis el rol de **Wifi**. Os lo podéis poner/quitar dándole a este botón:`,
+    components: [wifiButton],
   });
 
   await interaction.editReply({

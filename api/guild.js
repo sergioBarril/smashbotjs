@@ -17,6 +17,16 @@ const setRolesChannel = async (guildDiscordId, channelId) => {
   await guild.setRolesChannel(channelId);
 };
 
+/**
+ * Returns the Wifi Tier
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @returns {Promise<Tier>} Wifi Tier
+ */
+const getWifiTier = async (guildDiscordId) => {
+  const guild = await getGuild(guildDiscordId);
+  return await guild.getWifiTier();
+};
+
 const getMatchmakingChannel = async (guildDiscordId) => {
   const guild = await guildDB.get(guildDiscordId, true);
   return guild.search_channel_id;
@@ -61,4 +71,5 @@ module.exports = {
   getRankedChannel,
   setRankedChannel,
   getCurrentList,
+  getWifiTier,
 };

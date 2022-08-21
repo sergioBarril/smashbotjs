@@ -8,9 +8,12 @@ const { CharacterNameError } = require("../errors/characterName");
 const { Interaction } = require("discord.js");
 const { CustomError } = require("../errors/customError");
 const { RegionNameError } = require("../errors/regionName");
+const { getWifiTier } = require("../api/guild");
+const { NotFoundError } = require("../errors/notFound");
 
 const YUZU_EMOJI = "<:yuzu:945850935035441202>";
 const PARSEC_EMOJI = "<:parsec:945853565405114510>";
+const WIFI_EMOJI = "<:wifi:945988666994602065>";
 
 const exceptionHandler = async (interaction, exception) => {
   let message = exception.message;
@@ -113,6 +116,32 @@ const assignYuzu = async (interaction, name) => {
   }
 };
 
+/**
+ * Assigns wifi role
+ * @param {Interaction} interaction DiscordJS interaction
+ * @returns
+ */
+const assignWifi = async (interaction) => {
+  const player = interaction.member;
+  const guild = interaction.guild;
+
+  const wifiTier = await getWifiTier(guild.id);
+
+  if (!wifiTier) throw NotFoundError("WifiTier");
+
+  // Get changed role
+  const role = await guild.roles.fetch(wifiTier.roleId);
+  await player.fetch();
+
+  if (player.roles.cache.has(role.id)) {
+    await player.roles.remove(role);
+    return `Te he quitado el rol **${role}** ${WIFI_EMOJI}.`;
+  } else {
+    await player.roles.add(role);
+    return `Te he añadido el rol **${role}** ${WIFI_EMOJI}.`;
+  }
+};
+
 const assignRole = async (interaction, name, type) => {
   let responseText;
   await interaction.deferReply({ ephemeral: true });
@@ -122,8 +151,7 @@ const assignRole = async (interaction, name, type) => {
       responseText = await assignCharacter(interaction, name, type);
     else if (type === "REGION") responseText = await assignRegion(interaction, name);
     else if (type === "YUZU") responseText = await assignYuzu(interaction, name);
-    // else if (type === "WIFI")
-    // responseText = await assignWifi(interaction, name)
+    else if (type === "WIFI") responseText = await assignWifi(interaction, name);
 
     return await interaction.editReply({
       content: responseText,
