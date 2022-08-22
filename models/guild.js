@@ -1,6 +1,8 @@
+const { Client } = require("pg");
 const { getCharacterByName } = require("./character");
 const { CharacterRole } = require("./characterRole");
 const db = require("./db");
+const { insertMessage, MESSAGE_TYPES, Message } = require("./message");
 const { getRegionByName } = require("./region");
 const { RegionRole } = require("./regionRole");
 const { Tier } = require("./tier");
@@ -31,6 +33,13 @@ class Guild {
   // **********
   //  GETTERS
   // *********
+
+  /**
+   * Return the tiers, ordered from less weight (tier 1)
+   * to more (tier 4)
+   * @param {Client} client Optional pg client
+   * @returns {Promise<Array<Tier>>}
+   */
   getTiers = async (client = null) => {
     const queryString = {
       text: `
@@ -45,26 +54,75 @@ class Guild {
     return getResult.map((row) => new Tier(row));
   };
 
-  getCurrentList = async (client = null) => {
-    const getQueryString = {
-      text: `
-      SELECT tier.discord_id AS tier_id, player.discord_id AS player_id, 
-      tier.search_message_id AS message_id
-      FROM tier
-      INNER JOIN lobby_tier lt
-      ON tier.id = lt.tier_id
-      INNER JOIN lobby l
-      ON l.id = lt.lobby_id
-      INNER JOIN lobby_player lp
-      ON lp.player_id = l.created_by
-      INNER JOIN player
-      ON player.id = lp.player_id
-      WHERE tier.guild_id = $1
-      `,
-      values: [this.id],
+  /**
+   * Inserts new message to the DB, of the type GUILD_CURRENT_LIST
+   * @param {string} listMessageId DiscordID of the new List message
+   * @param {Client} client Optional PG client
+   * @returns
+   */
+  insertListMessage = async (listMessageId, client = null) => {
+    return insertMessage(
+      listMessageId,
+      MESSAGE_TYPES.GUILD_CURRENT_LIST,
+      null,
+      this.matchmakingChannelId,
+      null,
+      this.id,
+      null,
+      null,
+      client
+    );
+  };
+
+  /**
+   * Returns the list message of this guild
+   * @param {Client} client Optional PG client
+   * @returns {Promise<Message>}
+   */
+  getListMessage = async (client = null) => {
+    const message = await db.getBy("message", {
+      guild_id: this.id,
+      type: MESSAGE_TYPES.GUILD_CURRENT_LIST,
+    });
+
+    if (!message) return null;
+    else return new Message(message);
+  };
+
+  /**
+   * Inserts new message to the DB, of type GUILD_TIER_SEARCH
+   * @param {string} messageDiscordId DiscordID of the new matchmaking message
+   * @param {string} tierId ID of the tier (not roleId) associated with the message
+   * @param {Client} client Optional PG client
+   */
+  insertMatchmakingMessage = async (messageDiscordId, tierId, client = null) => {
+    await insertMessage(
+      messageDiscordId,
+      MESSAGE_TYPES.GUILD_TIER_SEARCH,
+      tierId,
+      this.matchmakingChannelId,
+      null,
+      this.id,
+      null,
+      null,
+      client
+    );
+  };
+
+  /**
+   * Removes all messages of the channel #matchmaking,
+   * so message_types = GUILD_TIER_SEARCH and GUILD_CURRENT_LIST
+   * @param {Client} client Optional PG Client
+   */
+  removeMatchmakingMessages = async (client = null) => {
+    const deleteQuery = {
+      text: `DELETE FROM message
+      WHERE guild_id = $1
+      AND (type = $2 OR type = $3)`,
+      values: [this.id, MESSAGE_TYPES.GUILD_TIER_SEARCH, MESSAGE_TYPES.GUILD_CURRENT_LIST],
     };
-    const getResult = await db.getQuery(getQueryString, client, true);
-    return getResult;
+
+    await db.deleteQuery(deleteQuery, client);
   };
 
   getCharacterRoles = async (client = null) => {
@@ -101,6 +159,17 @@ class Guild {
     const tier = await db.getBy("tier", { guild_id: this.id, wifi: true }, client);
     if (tier == null) return null;
     else return new Tier(tier);
+  };
+
+  /**
+   * Get all lobbies happening in this guild
+   * @param {Client} client Optional pg Client
+   * @returns {Promise<Array<Lobby>>} Array of lobbies
+   */
+  getLobbies = async (client = null) => {
+    const { Lobby } = require("./lobby");
+    let lobbies = await db.filterBy("lobby", { guild_id: this.id }, client);
+    return lobbies.map((lobby) => new Lobby(lobby));
   };
 
   // *******

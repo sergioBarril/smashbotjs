@@ -1,5 +1,7 @@
 const guildDB = require("../db/guild");
 const tierDB = require("../db/tier");
+const { NotFoundError } = require("../errors/notFound");
+const { getGuild } = require("../models/guild");
 
 const addTier = async (roleDiscordId, guildDiscordId, channelDiscordId, weight, threshold) => {
   // Add tier to DB
@@ -24,8 +26,16 @@ const addYuzuTier = async (yuzuDiscordId, parsecDiscordId, guildDiscordId, chann
   await guildDB.setParsecRole(guild.id, parsecDiscordId);
 };
 
+/**
+ * Gets all the tiers of the guild
+ * @param {string} guildDiscordId Discord ID of the guild
+ * @returns All the tiers of the guild. Weighted property for the LAN Cable, open for the rest
+ */
 const getTiers = async (guildDiscordId) => {
-  const tiers = await tierDB.getByGuild(guildDiscordId, true);
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
+
+  const tiers = await guild.getTiers();
 
   const weighted = tiers.filter((tier) => tier.weight !== null);
   const open = tiers.filter((tier) => tier.weight === null);

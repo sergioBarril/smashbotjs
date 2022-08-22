@@ -17,6 +17,7 @@
     "discord-api-types": "^0.26.1",
     "discord.js": "^13.5.1",
     "dotenv": "^10.0.0",
+    "node-cron": "^3.0.2",
     "pg": "^8.7.1"
   },
   "devDependencies": {
@@ -28,7 +29,8 @@
   },
   "jest": {
     "coveragePathIgnorePatterns": [
-      "/errors/", "/tests/utils/"
+      "/errors/",
+      "/tests/utils/"
     ]
   }
 }
