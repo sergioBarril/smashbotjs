@@ -12,6 +12,7 @@ const {
   getOrCreateTier,
   deleteIfExistsPlayer,
   deleteIfExistsGuild,
+  deletePlayerRejects,
 } = require("../../utils/testingUtils");
 const { TooNoobError } = require("../../../errors/tooNoob");
 const { NoCableError } = require("../../../errors/noCable");
@@ -107,6 +108,7 @@ describe("test lobbyAPI.directMatch() method", () => {
     await deleteIfExistsPlayer(playerDiscordId);
     await deleteIfExistsPlayer(player2DiscordId);
     await deleteIfExistsGuild(guildDiscordId);
+    await deletePlayerRejects();
   });
 
   it("throws NotFoundError if player's null / not found", async () => {

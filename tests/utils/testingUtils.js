@@ -1,4 +1,5 @@
 const { getCharacterByName, insertCharacter } = require("../../models/character");
+const db = require("../../models/db");
 const { getGuild, insertGuild } = require("../../models/guild");
 const { getPlayer, insertPlayer } = require("../../models/player");
 const { getRegionByName, insertRegion } = require("../../models/region");
@@ -63,9 +64,13 @@ async function deleteIfExistsGuild(guildDiscordId) {
   if (guild) await guild.remove();
 }
 
-async function deleteIfExistsTier(tierDiscordId) {
+async function deleteIfExistsTier(tierRoleId) {
   const tier = await getTierByRole(tierRoleId);
   if (tier) await tier.remove();
+}
+
+async function deletePlayerRejects() {
+  await db.deleteQuery({ text: "DELETE FROM player_reject" });
 }
 
 module.exports = {
@@ -79,4 +84,5 @@ module.exports = {
   deleteIfExistsRegion,
   deleteIfExistsGuild,
   deleteIfExistsTier,
+  deletePlayerRejects,
 };

@@ -17,8 +17,11 @@ async function formatListMessage(discordGuild, searching, confirmation, playing)
   // *************
   //  SEARCHING
   // *************
-  let searchingTiers = searching.map(({ tier }) => tier);
-  searchingTiers = Array.from(new Set(searchingTiers));
+  let auxSearchingTiers = searching.map(({ tier }) => tier);
+  const searchingTiers = [];
+  auxSearchingTiers.forEach((tier) => {
+    if (!searchingTiers.some((t) => t.id === tier.id)) searchingTiers.push(tier);
+  });
 
   const playerNamesDict = {};
 

@@ -9,6 +9,7 @@ const {
   deleteIfExistsPlayer,
   deleteIfExistsGuild,
   getOrCreateTier,
+  deletePlayerRejects,
 } = require("../../utils/testingUtils");
 const { acceptMatch, matchNotAccepted } = require("../../../api/lobby");
 const { Player } = require("../../../models/player");
@@ -85,6 +86,7 @@ describe("test LobbyAPI.matchNotAccepted()", () => {
     await deleteIfExistsPlayer(playerDiscordId);
     await deleteIfExistsPlayer(player2DiscordId);
     await deleteIfExistsGuild(guildDiscordId);
+    await deletePlayerRejects();
   });
 
   test("throws NotFoundError if not player", async () => {

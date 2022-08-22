@@ -131,13 +131,13 @@ class Lobby {
     let yp = null;
     if (ypResult) yp = new YuzuPlayer(ypResult);
 
-    const values = [this.guildId, this.id, !!yp?.yuzu, !!yp?.parsec];
+    const values = [this.guildId, this.id, this.createdBy, !!yp?.yuzu, !!yp?.parsec];
 
     // Tier Conditions
     let tierCondition = "";
 
     if (tierId) {
-      tierCondition = "AND tier.id = $5";
+      tierCondition = "AND tier.id = $6";
       values.push(tierId);
     } else
       tierCondition = `
@@ -163,11 +163,16 @@ class Lobby {
       LEFT JOIN yuzu_player
       ON yuzu_player.player_id = lobby_player.player_id
       AND yuzu_player.guild_id = $1
-      AND tier.yuzu
+      AND tier.yuzu      
       WHERE lobby.guild_id = $1
       AND lobby_player.lobby_id <> $2
       AND lobby_player.status = 'SEARCHING'
-      AND (NOT tier.yuzu OR yuzu_player.parsec = $3 OR yuzu_player.yuzu = $4)
+      AND (NOT tier.yuzu OR yuzu_player.parsec = $4 OR yuzu_player.yuzu = $5)
+      AND NOT EXISTS ( 
+        SELECT 1 FROM player_reject pr 
+        WHERE (pr.rejected_player_id = $3 AND pr.rejecter_player_id = player.id)
+        OR (pr.rejected_player_id = player.id AND pr.rejecter_player_id = $3)
+      )
       ${tierCondition}
       ORDER BY tier.yuzu DESC, tier.weight ASC, lobby_tier.created_at ASC
       `,

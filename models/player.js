@@ -8,6 +8,8 @@ const { getRegion } = require("./region");
 const { YuzuPlayer } = require("./yuzuPlayer");
 const { Tier } = require("./tier");
 const { RegionPlayer } = require("./regionPlayer");
+const { Client } = require("pg");
+const { PlayerReject } = require("./playerReject");
 
 class Player {
   constructor({ id, discord_id }) {
@@ -152,6 +154,54 @@ class Player {
     } finally {
       client.release();
     }
+  };
+
+  /**
+   * Checks if this player has rejected another
+   * @param {int} rejectedPlayerId PlayerID of the rejected player
+   * @param {Client} client Optional PG client
+   */
+  hasRejected = async (rejectedPlayerId, client = null) => {
+    const pr = await this.getRejected(rejectedPlayerId, client);
+    return pr != null;
+  };
+
+  /**
+   * Get playerReject
+   */
+  getRejected = async (rejectedPlayerId, client = null) => {
+    const pr = await db.getBy(
+      "player_reject",
+      {
+        rejected_player_id: rejectedPlayerId,
+        rejecter_player_id: this.id,
+      },
+      client
+    );
+
+    if (!pr) return null;
+    else return new PlayerReject(pr);
+  };
+
+  /**
+   * Rejects the player
+   * @param {int} rejectedPlayerId PlayerID of the rejected player
+   * @param {Client} client Optional PG client
+   */
+  rejectPlayer = async (rejectedPlayerId, client = null) => {
+    const pr = await this.getRejected(rejectedPlayerId, client);
+    if (pr) {
+      return await pr.setRejectedAt();
+    }
+
+    const queryString = {
+      text: `INSERT INTO player_reject(rejected_player_id, rejecter_player_id)
+      VALUES ($1, $2)`,
+      values: [rejectedPlayerId, this.id],
+    };
+
+    await db.insertQuery(queryString, client);
+    return this.getRejected(rejectedPlayerId, client);
   };
 
   getRating = async (guildId, client = null) => {

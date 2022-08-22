@@ -16,6 +16,7 @@ const { SamePlayerError } = require("../errors/samePlayer");
 const { IncomaptibleYuzuError } = require("../errors/incompatibleYuzu");
 const { CustomError } = require("../errors/customError");
 const { InGamesetError } = require("../errors/inGameset");
+const { RejectedPlayerError } = require("../errors/rejectedPlayer");
 
 /**
  * Declines the match. If declined due to timeout, leaves the lobby in AFK
@@ -93,6 +94,14 @@ const matchNotAccepted = async (playerDiscordId, isTimeout) => {
     await client.query("COMMIT");
 
     const otherPlayers = await Promise.all(otherLps.map(async (lp) => await lp.getPlayer()));
+
+    // Reject player
+    if (!isTimeout) {
+      for (let rejectedPlayer of otherPlayers) {
+        await player.rejectPlayer(rejectedPlayer.id);
+      }
+    }
+
     return {
       declinedPlayer: player,
       otherPlayers,
@@ -286,9 +295,6 @@ const matchmaking = async (playerDiscordId) => {
  * @returns
  */
 const directMatch = async (playerDiscordId, messageDiscordId) => {
-  // const guild = await guildDB.get(guildDiscordId, true);
-  // if (!guild) throw { name: "GUILD_NOT_FOUND" };
-
   const player = await getPlayer(playerDiscordId, true);
   if (!player) throw new NotFoundError("Player");
 
@@ -325,6 +331,15 @@ const directMatch = async (playerDiscordId, messageDiscordId) => {
       else throw new IncomaptibleYuzuError(guild.parsecRoleId, guild.yuzuRoleId);
     }
   }
+
+  // Check rejects
+  const isRejected = await rivalPlayer.hasRejected(player.id);
+  if (isRejected) {
+    throw new RejectedPlayerError(rivalPlayer.discordId);
+  }
+
+  const rejecter = await player.getRejected(rivalPlayer.id);
+  if (rejecter) await rejecter.remove();
 
   // Checks player lobby
   let playerLobby = await player.getOwnLobby();
