@@ -1,4 +1,5 @@
 const { searchListJob } = require("../jobs/list");
+const { clearRejectsJob } = require("../jobs/rejects");
 
 module.exports = {
   name: "ready",
@@ -6,10 +7,6 @@ module.exports = {
   execute(client) {
     console.log(`Ready! Logged in as ${client.user.tag}`);
     searchListJob(client);
-
-    // console.log("preout");
-    // const discordGuild = await client.guilds.fetch("885501308805738577");
-    // console.log("discGuildPostout");
-    // console.log(discordGuild);
+    clearRejectsJob();
   },
 };

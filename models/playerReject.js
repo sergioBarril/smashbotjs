@@ -32,4 +32,23 @@ class PlayerReject {
     );
 }
 
-module.exports = { PlayerReject };
+const removeOldRejects = async (timeMargin, client = null) => {
+  const queryString = {
+    text: `DELETE FROM player_reject
+    WHERE rejected_at < (CURRENT_TIMESTAMP - ${timeMargin} * interval '1 minute')`,
+  };
+
+  await db.deleteQuery(queryString, client);
+};
+
+const countOldRejects = async (timeMargin, client = null) => {
+  const queryString = {
+    text: `SELECT COUNT(1) AS num_old FROM player_reject
+    WHERE rejected_at < (CURRENT_TIMESTAMP - ${timeMargin} * interval '1 minute')`,
+  };
+
+  const result = await db.getQuery(queryString, client);
+  return result.num_old;
+};
+
+module.exports = { PlayerReject, removeOldRejects, countOldRejects };
