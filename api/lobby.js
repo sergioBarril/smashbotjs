@@ -688,33 +688,6 @@ const timeOutCheck = async (acceptedPlayerId, acceptedAt) => {
   return lps.some((lp) => lp.status === "CONFIRMATION");
 };
 
-const voteNewSet = async (playerDiscordId, textChannelId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const lobby = await lobbyDB.getByTextChannel(textChannelId);
-  const lobbyPlayer = await lobbyPlayerDB.get(lobby.id, player.id);
-
-  const client = await db.getClient();
-  try {
-    await client.query("BEGIN");
-    await lobbyPlayerDB.setNewSet(lobby.id, player.id, !lobbyPlayer.new_set, client);
-    const decided = await lobbyPlayerDB.isNewSetDecided(lobby.id, client);
-
-    if (decided) {
-      const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id, client);
-      await lobbyPlayerDB.setNewSet(lobby.id, player.id, false, client);
-      await lobbyPlayerDB.setNewSet(lobby.id, opponent.id, false, client);
-    }
-
-    await client.query("COMMIT");
-    return { decided, status: !lobbyPlayer.new_set };
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
-};
-
 const voteCancelSet = async (playerDiscordId, textChannelId) => {
   const player = await playerDB.get(playerDiscordId, true);
   const lobby = await lobbyDB.getByTextChannel(textChannelId);
@@ -774,7 +747,6 @@ module.exports = {
   searchAgainAfkLobby,
   closeArena,
   timeOutCheck,
-  voteNewSet,
   voteCancelSet,
   getOpponent,
   isInCurrentLobby,

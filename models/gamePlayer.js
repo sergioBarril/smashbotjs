@@ -1,6 +1,7 @@
+const { Client } = require("pg");
 const { NotFoundError } = require("../errors/notFound");
 const db = require("./db");
-const { MESSAGE_TYPES } = require("./message");
+const { MESSAGE_TYPES, insertMessage, Message } = require("./message");
 
 class GamePlayer {
   constructor({ game_id, player_id, character_id, ban_turn, char_message_id, winner }) {
@@ -37,7 +38,13 @@ class GamePlayer {
     await db.insertQuery(insertQuery, client);
   };
 
-  insertMessage = async (discordId, client = null) => {
+  /**
+   * Inserts a CharacterSelect message
+   * @param {string} discordId MessageDiscordID
+   * @param {Client} client Optional PG client
+   * @returns
+   */
+  insertCharacterMessage = async (discordId, client = null) => {
     const { getPlayer } = require("./player");
 
     const player = await getPlayer(this.playerId, false, client);
@@ -57,6 +64,34 @@ class GamePlayer {
     );
   };
 
+  /**
+   * Get the character select message
+   * @param {Client} client Optional pg client
+   * @returns The Character Select Message
+   */
+  getCharacterMessage = async (client = null) => {
+    const { getPlayer } = require("./player");
+
+    const player = await getPlayer(this.playerId, false, client);
+    const lobby = await player.getLobby("PLAYING", client);
+    if (!lobby) throw NotFoundError("Lobby");
+
+    const message = await db.getBy("message", {
+      type: MESSAGE_TYPES.GAME_CHARACTER_SELECT,
+      player_id: this.playerId,
+      guild_id: lobby.guildId,
+      lobby_id: lobby.id,
+    });
+
+    if (message == null) return null;
+    return new Message(message);
+  };
+
+  /**
+   * Set the character that is played this game
+   * @param {int} charId Id of the character
+   * @param {Client} client Optional PG client
+   */
   setCharacter = async (charId, client = null) => {
     await db.updateBy("game_player", { character_id: charId }, this.whereConditions(), client);
     this.characterId = charId;

@@ -1,6 +1,7 @@
+const { NotFoundError } = require("../errors/notFound");
 const db = require("./db");
 const { GamePlayer } = require("./gamePlayer");
-const { Message } = require("./message");
+const { Message, MESSAGE_TYPES } = require("./message");
 
 const { StageBan } = require("./stageBan");
 
@@ -19,37 +20,84 @@ class Game {
     else return new GamePlayer(gp);
   };
 
+  getGameset = async (client = null) => {
+    const { getGameset: getGamesetGs } = require("./gameset");
+    return getGamesetGs(this.gamesetId, client);
+  };
+
   getGamePlayers = async (client = null) => {
     const gps = await db.filterBy("game_player", { game_id: this.id }, client);
     return gps.map((row) => new GamePlayer(row));
   };
 
-  getCharMessages = async (client = null) => {
-    const getQuery = {
-      text: `
-    SELECT m.* FROM message m
-    INNER JOIN game_player gp
-      ON gp.char_message_id = m.id
-    WHERE gp.game_id = $1`,
-      values: [this.id],
-    };
+  /**
+   * Get the character messages of this game
+   * @param {Client} client Optional PG Client
+   * @returns Array of char messages
+   */
+  getCharacterMessages = async (client = null) => {
+    const gameset = await this.getGameset(client);
 
-    const messages = await db.getQuery(getQuery, client, true);
-    return messages.map((row) => Message(row));
+    const lobby = await gameset.getLobby(client);
+    if (!lobby) throw NotFoundError("Lobby");
+
+    const messages = await db.filterBy("message", {
+      type: MESSAGE_TYPES.GAME_CHARACTER_SELECT,
+      guild_id: lobby.guildId,
+      lobby_id: lobby.id,
+    });
+
+    return messages.map((row) => new Message(row));
   };
 
-  removeCharMessages = async (client = null) => {
-    const deleteQuery = {
-      text: `
-      DELETE FROM message
-      USING game_player
-      WHERE message.id = game_player.char_message_id
-      AND game_player.game_id = $1
+  /**
+   * Delete all character messages of this game from the database
+   * @param {Client} client Optional PG Client
+   */
+  deleteCharacterMessages = async (client = null) => {
+    const gameset = await this.getGameset(client);
+
+    const lobby = await gameset.getLobby(client);
+    if (!lobby) throw NotFoundError("Lobby");
+
+    const deleteString = {
+      text: `DELETE FROM message 
+      WHERE type = $1
+      AND guild_id = $2
+      AND lobby_id = $3`,
+      values: [MESSAGE_TYPES.GAME_CHARACTER_SELECT, lobby.guildId, lobby.id],
+    };
+    await db.deleteQuery(deleteString, client);
+  };
+
+  /**
+   * Get the characters being played and their player discordId
+   * @param {Client} client Optional PG Client
+   * @returns Array of objects with two properties: playerDiscordId and characterName
+   */
+  getCharacters = async (client = null) => {
+    const gameset = await this.getGameset(client);
+
+    const lobby = await gameset.getLobby(client);
+    if (!lobby) throw NotFoundError("Lobby");
+
+    const getString = {
+      text: `SELECT p.discord_id AS player_discord_id, c.name AS character_name
+      FROM game_player gp
+      INNER JOIN character c
+        ON c.id = gp.character_id
+      INNER JOIN player p
+        ON p.id = gp.player_id
+      WHERE gp.game_id = $1
       `,
       values: [this.id],
     };
 
-    await db.deleteQuery(deleteQuery, client);
+    const result = await db.getQuery(getString, client, true);
+    return result.map((res) => ({
+      playerDiscordId: res.player_discord_id,
+      characterName: res.character_name,
+    }));
   };
 
   haveAllPicked = async (client = null) => {

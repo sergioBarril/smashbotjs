@@ -4,7 +4,13 @@ const lobbyAPI = require("../api/lobby");
 const stageEmojis = require("../params/stageEmojis.json");
 const smashCharacters = require("../params/smashCharacters.json");
 
-const { MessageActionRow, MessageButton, Message } = require("discord.js");
+const {
+  MessageActionRow,
+  MessageButton,
+  Channel,
+  GuildMember,
+  Interaction,
+} = require("discord.js");
 
 const stageText = (nextPlayer, gameNum, bannedStagesLength, isBan) => {
   let text = `${nextPlayer}, te toca `;
@@ -84,8 +90,14 @@ const stageFinalButtons = (stages, pickedStage) => {
   return rows;
 };
 
-const setupCharacter = async (channel, player, guildId, gameNum) => {
-  const { mains, seconds, pockets } = await rolesAPI.getCharacters(player.id, guildId);
+/**
+ * Sets up the message asking for the character
+ * @param {Channel} channel DiscordJs Channel object
+ * @param {GuildMember} player DiscordJS GuildMember
+ * @param {int} gameNum Game Number
+ */
+const setupCharacter = async (channel, player, gameNum) => {
+  const { mains, seconds, pockets } = await rolesAPI.getCharacters(player.id);
 
   const characters = mains.concat(seconds).concat(pockets);
 
@@ -115,7 +127,7 @@ const setupCharacter = async (channel, player, guildId, gameNum) => {
     components: [...rows],
   });
 
-  await setAPI.setCharMessage(player.id, message.id);
+  await setAPI.setCharacterSelectMessage(player.id, message.id);
 };
 
 const stageFinalText = (gameNum, stage) => {
@@ -239,22 +251,34 @@ const setupFirstGame = async (interaction, members) => {
 // **********************************
 //    C H A R A C T E R    P I C K
 // **********************************
-const allHavePicked = async (interaction, playerId, gameNum) => {
+/**
+ * Things to do after everyone has picked their character.
+ * This includes:
+ * - Delete all character Select messages
+ * - Send a new one
+ * - Go to stage bans or play directly depending on game num
+ * @param {Interaction} interaction DiscordJS interaction
+ * @param {string} playerDiscordId DiscordID of one of the players
+ * @param {int} gameNum Number of the game
+ * @returns
+ */
+const allHavePicked = async (interaction, playerDiscordId, gameNum) => {
   // Delete all charpick messages
-  const { charMessages } = await setAPI.popCharacterMessages(playerId);
-  for ({ char_message: messageId } of charMessages) {
-    const message = await interaction.channel.messages.fetch(messageId);
+  const { charMessages } = await setAPI.popCharacterMessages(playerDiscordId);
+  for (let charMessage of charMessages) {
+    const message = await interaction.channel.messages.fetch(charMessage.discordId);
     await message.delete();
   }
 
   // Get players and emojis for the response
-  const pc = await setAPI.getPlayersAndCharacters(playerId);
+  const pcs = await setAPI.getPlayersAndCharacters(playerDiscordId);
   const playerEmojis = [];
-  for ({ discord_id: playerId, character_name: charName } of pc) {
-    const player = await interaction.guild.members.fetch(playerId);
-    const emoji = smashCharacters[charName].emoji;
+  for (let pc of pcs) {
+    const player = await interaction.guild.members.fetch(pc.playerDiscordId);
+    const emoji = smashCharacters[pc.characterName].emoji;
     playerEmojis.push(`**${player.displayName}** ${emoji}`);
   }
+
   const playersText = new Intl.ListFormat("es").format(playerEmojis);
   await interaction.channel.send({
     content: `El **Game ${gameNum}** será entre ${playersText}.`,
@@ -277,14 +301,33 @@ const disableAllButtons = (message) => {
   return disabledComponents;
 };
 
-const pickingIsNotOver = async (interaction, gameNum, charName, charMessage, opponent) => {
-  const message = await interaction.channel.messages.fetch(charMessage);
+/**
+ * Things to do if not everyone has picked their character.
+ * - Deactivate buttons
+ * - Change the charMessage content
+ * - Reply
+ * - If not game 1, ask the opponent for their character too.
+ * @param {Interaction} interaction DiscordJS Interaction
+ * @param {int} gameNum Number of the game
+ * @param {string} characterName Name of the character picked
+ * @param {string} characterMessageId DiscordId of the character message
+ * @param {GuildMember} opponent GuildMember of the opponent
+ * @returns
+ */
+const pickingIsNotOver = async (
+  interaction,
+  gameNum,
+  characterName,
+  characterMessageId,
+  opponent
+) => {
+  const message = await interaction.channel.messages.fetch(characterMessageId);
   const disabledComponents = disableAllButtons(message);
 
-  const emoji = smashCharacters[charName].emoji;
+  const emoji = smashCharacters[characterName].emoji;
   const player = await interaction.guild.members.fetch(interaction.user.id);
 
-  let editedMessage = `**${player.displayName}** ha escogido **${charName}** ${emoji}`;
+  let editedMessage = `**${player.displayName}** ha escogido **${characterName}** ${emoji}`;
   if (gameNum === 1) editedMessage = `**${player.displayName}** ya ha escogido personaje.`;
 
   await message.edit({
@@ -293,7 +336,7 @@ const pickingIsNotOver = async (interaction, gameNum, charName, charMessage, opp
   });
 
   await interaction.reply({
-    content: `Has seleccionado **${charName}** ${emoji}. Espera a que tu rival acabe de pickear.`,
+    content: `Has seleccionado **${characterName}** ${emoji}. Espera a que tu rival acabe de pickear.`,
     ephemeral: true,
   });
 
@@ -301,22 +344,37 @@ const pickingIsNotOver = async (interaction, gameNum, charName, charMessage, opp
     return await setupCharacter(interaction.channel, opponent, interaction.guild.id, gameNum);
 };
 
-const pickCharacter = async (interaction, playerId, gameNum, charName) => {
-  const { allPicked, charMessage, opponent } = await setAPI.pickCharacter(playerId, charName);
+/**
+ * Pick a character, and answer accordingly
+ * @param {Interaction} interaction DiscordJS interaction
+ * @param {string} playerDiscordId DiscordID of the player picking
+ * @param {string} characterName Character name picked
+ */
+const pickCharacter = async (interaction, playerDiscordId, characterName) => {
+  const { allPicked, charMessage, opponent, gameNum } = await setAPI.pickCharacter(
+    playerDiscordId,
+    characterName
+  );
 
   if (allPicked) {
     if (interaction.isButton()) await interaction.deferUpdate();
     else {
-      const emoji = smashCharacters[charName].emoji;
+      const emoji = smashCharacters[characterName].emoji;
       await interaction.reply({
-        content: `Has seleccionado **${charName}** ${emoji}. Espera a que tu rival acabe de pickear.`,
+        content: `Has seleccionado **${characterName}** ${emoji}. Espera a que tu rival acabe de pickear.`,
         ephemeral: true,
       });
     }
-    await allHavePicked(interaction, playerId, gameNum);
+    await allHavePicked(interaction, playerDiscordId, gameNum);
   } else {
-    const opponentPlayer = await interaction.guild.members.fetch(opponent.discord_id);
-    await pickingIsNotOver(interaction, gameNum, charName, charMessage, opponentPlayer);
+    const opponentPlayer = await interaction.guild.members.fetch(opponent.discordId);
+    await pickingIsNotOver(
+      interaction,
+      gameNum,
+      characterName,
+      charMessage.discordId,
+      opponentPlayer
+    );
   }
 };
 

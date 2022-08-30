@@ -1,6 +1,7 @@
-const { MessageActionRow, MessageButton } = require("discord.js");
+const { MessageActionRow, MessageButton, Interaction } = require("discord.js");
 const setAPI = require("../api/gameSet");
 const lobbyAPI = require("../api/lobby");
+const { Player } = require("../models/player");
 const { setupCharacter } = require("../utils/discordGameset");
 
 const exceptionHandler = async (interaction, exception) => {
@@ -41,10 +42,15 @@ const newSetButtons = (message, decided, status) => {
   return newButtons;
 };
 
-const firstVote = async (interaction, status) => {
+/**
+ * Reply in case only one player has requested a new set
+ * @param {Interaction} interaction DiscordJS interaction
+ * @param {boolean} status True if requested a new set, False if cancelling the request
+ * @param {string} opponentDiscordId Discord ID of the opponent
+ */
+const firstVote = async (interaction, status, opponentDiscordId) => {
   const player = interaction.member;
-  const { discord_id: opponentId } = await lobbyAPI.getOpponent(player.id, interaction.channel.id);
-  const opponent = await interaction.guild.members.fetch(opponentId);
+  const opponent = await interaction.guild.members.fetch(opponentDiscordId);
 
   if (status)
     await interaction.reply(
@@ -67,22 +73,19 @@ module.exports = {
     const channel = interaction.channel;
 
     try {
-      const { decided, status } = await lobbyAPI.voteNewSet(interaction.user.id, channel.id);
+      const { decided, status, opponent } = await setAPI.voteNewSet(interaction.user.id);
 
       await interaction.message.edit({
         components: newSetButtons(interaction.message, decided, status),
       });
 
-      if (!decided) return await firstVote(interaction, status);
+      if (!decided) return await firstVote(interaction, status, opponent.discordId);
 
-      const { players } = await setAPI.newSet(channel.id);
+      const { players } = await setAPI.newSet(opponent.discordId);
 
-      const members = [];
-
-      for (player of players) {
-        const member = await interaction.guild.members.fetch(player.discord_id);
-        members.push(member);
-      }
+      const members = await Promise.all(
+        players.map(async (p) => await interaction.guild.members.fetch(p.discordId))
+      );
 
       const memberFormatter = new Intl.ListFormat("es");
       const memberNames = memberFormatter.format(

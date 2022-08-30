@@ -13,7 +13,7 @@ const execute = async (interaction) => {
     });
   }
 
-  await pickCharacter(interaction, playerId, gameNum, charName);
+  await pickCharacter(interaction, playerId, charName);
 };
 
 module.exports = {

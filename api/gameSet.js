@@ -8,39 +8,39 @@ const stageBanDB = require("../db/stageBan");
 const lobbyPlayerDB = require("../db/lobbyPlayer");
 const playerDB = require("../db/player");
 const characterDB = require("../db/character");
+const { getPlayer } = require("../models/player");
+const { NotFoundError } = require("../errors/notFound");
+const { InGamesetError } = require("../errors/inGameset");
+const { getCharacterByName } = require("../models/character");
+const { Message } = require("../models/message");
 
-const newSet = async (lobbyChannelId) => {
-  // Starts a set and the first game.
-  const lobby = await lobbyDB.getByTextChannel(lobbyChannelId);
+/**
+ * Starts a new set, and the first game
+ * @param {string} playerDiscordId Discord ID of one of the players
+ * @returns
+ */
+const newSet = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  if (!lobby) throw { name: "NO_LOBBY" };
+  const lobby = await player.getLobby("PLAYING");
+  if (!lobby) throw new NotFoundError("Lobby");
 
-  const client = await db.getClient();
-  try {
-    await client.query("BEGIN");
-    // CHECK IF CURRENT SET EXISTS
-    const oldGameSet = await gameSetDB.getByLobby(lobby.id, client);
-    if (oldGameSet) throw { name: "EXISTING_GAMESET" };
+  // CHECK IF CURRENT SET EXISTS
+  const oldGameset = await lobby.getGameset();
+  if (oldGameset) throw new InGamesetError();
 
-    // NEW SET
-    await gameSetDB.create(lobby.guild_id, lobby.id, 3, client);
-    const gameSet = await gameSetDB.getByLobby(lobby.id, client);
+  // NEW SET
+  await lobby.newGameset(3);
+  const gameset = await lobby.getGameset();
+  const game = await gameset.newGame();
 
-    // GAME
-    await gameDB.create(gameSet.id, 1, client);
-    const game = await gameDB.getByNum(gameSet.id, 1, client);
+  // GAME PLAYERS
+  const lobbyPlayers = await lobby.getLobbyPlayers();
+  for (lp of lobbyPlayers) await game.addPlayer(lp.playerId);
 
-    // GAME PLAYERS
-    const lobbyPlayers = await lobbyPlayerDB.getLobbyPlayers(lobby.id, client);
-    for (lp of lobbyPlayers) await gamePlayerDB.create(game.id, lp.player_id, client);
-    await client.query("COMMIT");
-    return { players: lobbyPlayers };
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
+  const players = await Promise.all(lobbyPlayers.map(async (lp) => await lp.getPlayer()));
+  return { players };
 };
 
 const newGame = async (lobbyChannelId) => {
@@ -81,37 +81,62 @@ const cancelSet = async (lobbyChannelId) => {
   await gameSetDB.remove(gameset.id);
 };
 
-const setCharMessage = async (playerDiscordId, messageId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const gameset = await gameSetDB.getByPlayer(player.id);
-  const game = await gameDB.getCurrent(gameset.id);
+/**
+ * Save the CharacterSelect message in the database
+ * @param {string} playerDiscordId Discord ID of the player
+ * @param {string} messageDiscordId Discord ID of the message to save
+ */
+const setCharacterSelectMessage = async (playerDiscordId, messageDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  await gamePlayerDB.setCharMessage(game.id, player.id, messageId);
+  const lobby = await player.getLobby("PLAYING");
+  if (!lobby) throw new NotFoundError("Lobby");
+
+  const gameset = await lobby.getGameset();
+  if (!gameset) throw new NotFoundError("Gameset");
+
+  const game = await gameset.getCurrentGame();
+  if (!game) throw new NotFoundError("Game");
+
+  const gp = await game.getGamePlayer(player.id);
+  if (!gp) throw new NotFoundError("GamePlayer");
+
+  const message = await gp.insertCharacterMessage(messageDiscordId);
 };
 
+/**
+ * Pick a character
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} charName Character Name
+ * @returns
+ */
 const pickCharacter = async (playerDiscordId, charName) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const gameset = await gameSetDB.getByPlayer(player.id);
-  const game = await gameDB.getCurrent(gameset.id);
-  const character = await characterDB.getByName(charName);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const client = await db.getClient();
+  const lobby = await player.getLobby("PLAYING");
+  if (!lobby) throw new NotFoundError("Lobby");
 
-  try {
-    await client.query("BEGIN");
-    await gamePlayerDB.setCharacter(game.id, player.id, character.id, client);
-    const allPicked = await gameDB.haveAllPicked(game.id, client);
-    const gamePlayer = await gamePlayerDB.get(game.id, player.id, client);
-    const opponent = await gamePlayerDB.getOpponent(game.id, player.id, client);
-    await client.query("COMMIT");
+  const gameset = await lobby.getGameset();
+  if (!gameset) throw new NotFoundError("Gameset");
 
-    return { allPicked, gameNum: game.num, charMessage: gamePlayer.char_message, opponent };
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
+  const game = await gameset.getCurrentGame();
+  if (!game) throw new NotFoundError("Game");
+
+  const gp = await game.getGamePlayer(player.id);
+  if (!gp) throw new NotFoundError("GamePlayer");
+
+  const character = await getCharacterByName(charName);
+
+  await gp.setCharacter(character.id);
+  const allPicked = await game.haveAllPicked();
+  const opponentGp = await gp.getOpponent();
+  const opponent = await getPlayer(opponentGp.playerId, false);
+
+  const charMessage = await gp.getCharacterMessage();
+
+  return { allPicked, gameNum: game.num, charMessage, opponent };
 };
 
 const pickStage = async (playerDiscordId, gameNum, stageName) => {
@@ -175,23 +200,49 @@ const banStage = async (playerDiscordId, gameNum, stageName) => {
   }
 };
 
+/**
+ * Gets and deletes all GAME_CHARACTER_PICK messages of the current game
+ * @param {string} playerDiscordId Discord ID of one of the players
+ * @returns {Promise<Array<Message>>} Array of messages
+ */
 const popCharacterMessages = async (playerDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const gameset = await gameSetDB.getByPlayer(player.id);
-  const game = await gameDB.getCurrent(gameset.id);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const charMessages = await gamePlayerDB.getCharMessages(game.id);
-  await gamePlayerDB.setNullCharMessages(game.id);
+  const lobby = await player.getLobby("PLAYING");
+  if (!lobby) throw new NotFoundError("Lobby");
+
+  const gameset = await lobby.getGameset();
+  if (!gameset) throw new NotFoundError("Gameset");
+
+  const game = await gameset.getCurrentGame();
+  if (!game) throw new NotFoundError("Game");
+
+  const charMessages = await game.getCharacterMessages();
+  await game.deleteCharacterMessages();
 
   return { charMessages };
 };
 
+/**
+ * Gets the character being played for every player
+ * @param {string} playerDiscordId DiscordID of one of the players
+ * @returns Array of objects with two properties: playerDiscordId and characterName
+ */
 const getPlayersAndCharacters = async (playerDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const gameset = await gameSetDB.getByPlayer(player.id);
-  const game = await gameDB.getCurrent(gameset.id);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const pc = await gamePlayerDB.getPlayersAndCharacters(game.id);
+  const lobby = await player.getLobby("PLAYING");
+  if (!lobby) throw new NotFoundError("Lobby");
+
+  const gameset = await lobby.getGameset();
+  if (!gameset) throw new NotFoundError("Gameset");
+
+  const game = await gameset.getCurrentGame();
+  if (!game) throw new NotFoundError("Game");
+
+  const pc = await game.getCharacters();
   return pc;
 };
 
@@ -369,13 +420,46 @@ const removeCurrentGame = async (channelDiscordId) => {
   await gameDB.remove(game.id);
 };
 
+/**
+ * Vote to play a new set BO5
+ * @param {string} playerDiscordId DiscordID of the player voting
+ * @returns
+ */
+const voteNewSet = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const lobby = await player.getLobby("PLAYING");
+  if (!lobby) throw new NotFoundError("Lobby");
+
+  const currentGameset = await lobby.getGameset();
+  if (currentGameset) throw new InGamesetError();
+
+  const lp = await lobby.getLobbyPlayer(player.id);
+  await lp.setNewSet(!lp.newSet);
+
+  const newStatus = lp.newSet;
+
+  const decided = await lobby.isNewSetDecided();
+
+  const opponentLp = await lp.getOpponent();
+
+  if (decided) {
+    await opponentLp.setNewSet(false);
+    await lp.setNewSet(false);
+  }
+
+  const opponent = await opponentLp.getPlayer();
+  return { decided, status: newStatus, opponent };
+};
+
 module.exports = {
   newSet,
   newGame,
   cancelSet,
   getPlayersAndCharacters,
   pickCharacter,
-  setCharMessage,
+  setCharacterSelectMessage,
   popCharacterMessages,
   getStages,
   getStriker,
@@ -390,4 +474,5 @@ module.exports = {
   canPickCharacter,
   surrender,
   removeCurrentGame,
+  voteNewSet,
 };
