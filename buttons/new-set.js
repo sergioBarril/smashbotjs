@@ -100,7 +100,7 @@ module.exports = {
       await interaction.channel.send("__**Game 1**__");
 
       await Promise.all([
-        members.map((member) => setupCharacter(channel, member, interaction.guild.id, 1)),
+        members.map((member) => setupCharacter(channel, member, 1, interaction.guild)),
       ]);
     } catch (e) {
       await exceptionHandler(interaction, e);

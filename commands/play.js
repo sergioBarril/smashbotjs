@@ -5,6 +5,7 @@ const setAPI = require("../api/gameSet");
 
 const smashCharacters = require("../params/smashCharacters.json");
 const { pickCharacter } = require("../utils/discordGameset");
+const { CustomError } = require("../errors/customError");
 
 const exceptionHandler = async (interaction, exception) => {
   EXCEPTION_MESSAGES = {
@@ -17,7 +18,9 @@ const exceptionHandler = async (interaction, exception) => {
 
   // Get message
   let response = EXCEPTION_MESSAGES[name];
-  if (!response) throw exception;
+  // if (!response) throw exception;
+
+  if (!response && exception instanceof CustomError) response = exception.message;
 
   // Send reply
   return await interaction.reply({
@@ -42,20 +45,26 @@ const execute = async (interaction) => {
     const charName = role.name;
 
     const charInfo = smashCharacters[charName];
-    if (!charInfo) throw { name: "NOT_CHARACTER" };
+    if (!charInfo) throw new CustomError("¡Este rol no corresponde a ningún personaje!");
 
     // Check is channel lobby
     const channelId = interaction.channel.id;
 
     const playerId = interaction.user.id;
     const validChannel = await lobbyAPI.isInCurrentLobby(playerId, channelId);
-    if (!validChannel) throw { name: "WRONG_CHANNEL" };
+    if (!validChannel)
+      throw new CustomError(
+        "¡No estás en el canal que toca! Vuelve a la arena y escribe el comando ahí."
+      );
 
     const gameNum = await setAPI.getGameNumber(channelId);
 
     const canPickNow = await setAPI.canPickCharacter(playerId, channelId, gameNum);
-    if (!canPickNow) throw { name: "CANT_PICK" };
-    await pickCharacter(interaction, playerId, gameNum, charName);
+    if (!canPickNow)
+      throw new CustomError(
+        "¡No te toca escoger personaje! O ya lo tienes, o tienes que esperar a que tu rival lo seleccione primero."
+      );
+    await pickCharacter(interaction, playerId, charName);
   } catch (e) {
     exceptionHandler(interaction, e);
   }

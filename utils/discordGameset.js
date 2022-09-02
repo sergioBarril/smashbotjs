@@ -10,6 +10,7 @@ const {
   Channel,
   GuildMember,
   Interaction,
+  Guild,
 } = require("discord.js");
 const { Stage } = require("../models/stage");
 
@@ -119,8 +120,9 @@ const stageFinalButtons = (stages, pickedStage) => {
  * @param {Channel} channel DiscordJs Channel object
  * @param {GuildMember} player DiscordJS GuildMember
  * @param {int} gameNum Game Number
+ * @param {Guild} discordGuild DiscordJS Guild object
  */
-const setupCharacter = async (channel, player, gameNum) => {
+const setupCharacter = async (channel, player, gameNum, discordGuild) => {
   const { mains, seconds, pockets } = await rolesAPI.getCharacters(player.id);
 
   const characters = mains.concat(seconds).concat(pockets);
@@ -129,7 +131,7 @@ const setupCharacter = async (channel, player, gameNum) => {
   let i = 0;
   let row;
 
-  for (character of characters) {
+  for (let character of characters) {
     const emoji = smashCharacters[character.name].emoji;
     if (i % 5 === 0) {
       if (row) rows.push(row);
@@ -146,12 +148,23 @@ const setupCharacter = async (channel, player, gameNum) => {
   }
   rows.push(row);
 
+  const playCommand = await getPlayCommand(discordGuild);
+
   const message = await channel.send({
-    content: `${player}, selecciona el personaje que quieras jugar (con botones o usando \`/play\`).`,
+    content: `${player}, selecciona el personaje que quieras jugar (con botones o usando </play:${playCommand.id}>)`, //\`/play\`).`,
     components: [...rows],
   });
 
   await setAPI.setCharacterSelectMessage(player.id, message.id);
+};
+
+/**
+ * Returns this guild play command
+ * @param {Guild} discordGuild
+ */
+const getPlayCommand = async (discordGuild) => {
+  await discordGuild.commands.fetch();
+  return discordGuild.commands.cache.find((command) => command.name === "play");
 };
 
 /**
@@ -290,7 +303,7 @@ const setupFirstGame = async (interaction, members) => {
   await channel.send("__**Game 1**__");
 
   await Promise.all([
-    members.map((member) => setupCharacter(channel, member, interaction.guild.id, 1)),
+    members.map((member) => setupCharacter(channel, member, 1, interaction.guild)),
   ]);
 };
 
@@ -387,7 +400,7 @@ const pickingIsNotOver = async (
   });
 
   if (gameNum > 1)
-    return await setupCharacter(interaction.channel, opponent, interaction.guild.id, gameNum);
+    return await setupCharacter(interaction.channel, opponent, gameNum, interaction.guild);
 };
 
 /**

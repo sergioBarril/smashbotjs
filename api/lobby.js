@@ -726,11 +726,19 @@ const getOpponent = async (playerDiscordId, textChannelId) => {
   return opponent;
 };
 
+/**
+ * Checks if the passed channel is being used for the player's lobby
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} textChannelId DiscordId of the textChannel
+ * @returns True if the textChannel is assigned to this lobby, else false.
+ */
 const isInCurrentLobby = async (playerDiscordId, textChannelId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const lobby = await lobbyDB.getByPlayerStatus(player.id, "PLAYING", false);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  return lobby && lobby.text_channel_id == textChannelId;
+  const lobby = await player.getLobby("PLAYING");
+
+  return lobby && lobby.textChannelId == textChannelId;
 };
 
 module.exports = {

@@ -15,7 +15,7 @@ const endStageStep = async (interaction, gameNum, stages, pickedStage) => {
   const { discordId: winnerId } = await setAPI.getGameWinner(interaction.channel.id, gameNum - 1);
   const winner = await interaction.guild.members.fetch(winnerId);
 
-  await setupCharacter(interaction.channel, winner, interaction.guild.id, gameNum);
+  await setupCharacter(interaction.channel, winner, gameNum, interaction.guild);
 };
 
 const execute = async (interaction) => {

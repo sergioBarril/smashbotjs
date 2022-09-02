@@ -413,33 +413,56 @@ const unlinkLobby = async (channelDiscordId) => {
   await gameset.setLobby(null);
 };
 
+/**
+ * Get the game number of the current set
+ * @param {string} channelDiscordId TextChannel where the set is taking place
+ * @returns Game number
+ */
 const getGameNumber = async (channelDiscordId) => {
-  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
-  const gameset = await gameSetDB.getByLobby(lobby.id);
-  const game = await gameDB.getCurrent(gameset.id);
+  const lobby = await getLobbyByTextChannel(channelDiscordId);
+  if (!lobby) throw new NotFoundError("Lobby");
 
+  const gameset = await lobby.getGameset();
+  if (!gameset) throw new NotFoundError("Gameset");
+
+  const game = await gameset.getCurrentGame();
   return game.num;
 };
 
+/**
+ * Checks if the player can pick a character now
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} channelDiscordId DiscordID of the channel
+ * @param {int} gameNum Number of the game
+ * @returns True if the player can pick
+ */
 const canPickCharacter = async (playerDiscordId, channelDiscordId, gameNum) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
-  const gameset = await gameSetDB.getByLobby(lobby.id);
-  const game = await gameDB.getCurrent(gameset.id);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const gamePlayer = await gamePlayerDB.get(game.id, player.id);
-  const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id);
-  const opponentGP = await gamePlayerDB.get(game.id, opponent.id);
+  const lobby = await getLobbyByTextChannel(channelDiscordId);
+  if (!lobby) return false;
+
+  const gameset = await lobby.getGameset();
+  if (!gameset) return false;
+
+  const game = await gameset.getCurrentGame();
+  if (!game) return false;
+
+  const gp = await game.getGamePlayer(player.id);
+  const opponentGp = await gp.getOpponent();
 
   // Conditions:
-  const charMessage = gamePlayer.char_message != null;
-  const notYetPicked = gamePlayer.character_id == null;
+  const charMessage = await gp.getCharacterMessage();
 
-  const opponentHasPicked = opponentGP.character_id != null;
-  const noOpponentMessage = opponentGP.char_message == null;
+  const notYetPicked = gp.characterId == null;
+
+  const opponentHasPicked = opponentGp.characterId != null;
+  const opponentMessage = await opponentGp.getCharacterMessage();
+
   const isFirstGame = gameNum == 1;
 
-  return charMessage && notYetPicked && (isFirstGame || opponentHasPicked || noOpponentMessage);
+  return charMessage && notYetPicked && (isFirstGame || opponentHasPicked || !opponentMessage);
 };
 
 const surrender = async (playerDiscordId, channelDiscordId) => {
