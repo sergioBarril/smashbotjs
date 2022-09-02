@@ -465,29 +465,31 @@ const canPickCharacter = async (playerDiscordId, channelDiscordId, gameNum) => {
   return charMessage && notYetPicked && (isFirstGame || opponentHasPicked || !opponentMessage);
 };
 
+/**
+ *
+ * @param {string} playerDiscordId DiscordID of the player surrendering
+ * @param {string} channelDiscordId DiscordID of the textChannel where the set is being played
+ */
 const surrender = async (playerDiscordId, channelDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
-  if (!lobby) throw { name: "NO_LOBBY" };
-  const gameset = await gameSetDB.getByLobby(lobby.id);
-  if (!gameset) throw { name: "NO_GAMESET" };
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const game = await gameDB.getCurrent(gameset.id);
-  const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id);
+  const lobby = await getLobbyByTextChannel(channelDiscordId);
+  if (!lobby) throw new NotFoundError("Lobby");
 
-  const client = await db.getClient();
-  try {
-    await client.query("BEGIN");
-    if (game) await gameDB.setWinner(game.id, opponent.id, client);
-    await gameSetDB.setSurrender(gameset.id, opponent.id, client);
+  const gameset = await lobby.getGameset();
+  if (!gameset) throw new NotFoundError("Gameset");
 
-    await client.query("COMMIT");
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
-  }
+  if (gameset.finishedAt) throw new CustomError("Already finished");
+  const game = await gameset.getCurrentGame();
+
+  const gp = await game?.getGamePlayer(player.id);
+  const opponentGp = await gp?.getOpponent();
+
+  await game.setWinner(opponentGp.playerId);
+  await gameset.setWinner(opponentGp.playerId);
+  await gameset.setFinish();
+  await gameset.setSurrender();
 };
 
 const removeCurrentGame = async (channelDiscordId) => {

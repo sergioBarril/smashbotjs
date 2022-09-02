@@ -270,6 +270,10 @@ const setupSetEnd = async (interaction, playerDiscordId, isSurrender) => {
   return await interaction.reply(responseObj);
 };
 
+/**
+ * Setup next game, or set end if set's over.
+ * @param {Interaction} interaction DiscordJS interaction
+ */
 const setupNextGame = async (interaction) => {
   const score = await setAPI.getScore(interaction.channel.id);
 
