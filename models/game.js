@@ -1,3 +1,4 @@
+const { Client } = require("pg");
 const { NotFoundError } = require("../errors/notFound");
 const db = require("./db");
 const { GamePlayer } = require("./gamePlayer");
@@ -112,12 +113,22 @@ class Game {
     return getResult.length === 0;
   };
 
+  /**
+   * Get the GamePlayer that is supposed to strike
+   * @param {Client} client Optional PG client
+   * @returns
+   */
   getStriker = async (client = null) => {
     const striker = await db.getBy("game_player", { game_id: this.id, ban_turn: true }, client);
     if (striker == null) return null;
     else return new GamePlayer(striker);
   };
 
+  /**
+   * Get the banned stages
+   * @param {Client} client Optional PG client
+   * @returns
+   */
   getBans = async (client = null) => {
     const bans = await db.filterBy("stage_ban", { game_id: this.id }, client);
     return bans.map((row) => new StageBan(row));

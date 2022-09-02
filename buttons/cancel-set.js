@@ -39,14 +39,13 @@ const cancelSetButtons = (message, decided, status) => {
   return newButtons;
 };
 
-const firstVote = async (interaction, status) => {
+const firstVote = async (interaction, status, opponent) => {
   const player = interaction.member;
-  const { discord_id: opponentId } = await lobbyAPI.getOpponent(player.id, interaction.channel.id);
-  const opponent = await interaction.guild.members.fetch(opponentId);
+  const opponentMember = await interaction.guild.members.fetch(opponent.discordId);
 
   if (status)
     await interaction.reply(
-      `${player.displayName} quiere cancelar el set, y hacer como si nada hubiera pasado. ${opponent}, dale tú también al botón si estás de acuerdo en cancelarlo.`
+      `${player.displayName} quiere cancelar el set, y hacer como si nada hubiera pasado. ${opponentMember}, dale tú también al botón si estás de acuerdo en cancelarlo.`
     );
   else
     await interaction.reply(`**${player.displayName}** ya no quiere cancelar el set. ¡A seguir!`);
@@ -58,13 +57,16 @@ module.exports = {
     const channel = interaction.channel;
 
     try {
-      const { decided, status } = await lobbyAPI.voteCancelSet(interaction.user.id, channel.id);
+      const { decided, status, opponent } = await lobbyAPI.voteCancelSet(
+        interaction.user.id,
+        channel.id
+      );
 
       await interaction.message.edit({
         components: cancelSetButtons(interaction.message, decided, status),
       });
 
-      if (!decided) return await firstVote(interaction, status);
+      if (!decided) return await firstVote(interaction, status, opponent);
 
       await setAPI.cancelSet(channel.id);
 

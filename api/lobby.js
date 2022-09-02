@@ -17,6 +17,7 @@ const { IncomaptibleYuzuError } = require("../errors/incompatibleYuzu");
 const { CustomError } = require("../errors/customError");
 const { InGamesetError } = require("../errors/inGameset");
 const { RejectedPlayerError } = require("../errors/rejectedPlayer");
+const { getLobbyByTextChannel } = require("../models/lobby");
 
 /**
  * Declines the match. If declined due to timeout, leaves the lobby in AFK
@@ -470,16 +471,16 @@ const getSearchingTiers = async (playerDiscordId) => {
 };
 
 /**
- *
- * @param {*} playerDiscordId
- * @returns LobbyPlayers of the lobby
+ * Return the players playing in this lobby
+ * @param {string} textChannelId
+ * @returns Players playing in this lobby
  */
-const getPlayingPlayers = async (playerDiscordId) => {
-  const lobby = await lobbyDB.getByPlayerStatus(playerDiscordId, "PLAYING", true);
-  if (!lobby) throw { name: "NOT_PLAYING" };
+const getPlayingPlayers = async (textChannelId) => {
+  const lobby = await getLobbyByTextChannel(textChannelId);
+  if (!lobby) throw new NotFoundError("Lobby");
 
-  const lobbyPlayers = await lobbyPlayerDB.getLobbyPlayers(lobby.id);
-  return lobbyPlayers;
+  const lps = await lobby.getLobbyPlayers();
+  return await Promise.all(lps.map(async (lp) => await lp.getPlayer()));
 };
 
 const saveRankedMessage = async (playerDiscordId, rankedRoleId, messageId) => {
@@ -688,31 +689,33 @@ const timeOutCheck = async (acceptedPlayerId, acceptedAt) => {
   return lps.some((lp) => lp.status === "CONFIRMATION");
 };
 
+/**
+ *
+ * @param {string} playerDiscordId DiscordID of the player voting for cancel set
+ * @param {string} textChannelId DiscordID of the textChannel of the lobby
+ * @returns
+ */
 const voteCancelSet = async (playerDiscordId, textChannelId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const lobby = await lobbyDB.getByTextChannel(textChannelId);
-  const lobbyPlayer = await lobbyPlayerDB.get(lobby.id, player.id);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const client = await db.getClient();
-  try {
-    await client.query("BEGIN");
-    await lobbyPlayerDB.setCancelSet(lobby.id, player.id, !lobbyPlayer.cancel_set, client);
-    const decided = await lobbyPlayerDB.isCancelSetDecided(lobby.id, client);
+  const lobby = await getLobbyByTextChannel(textChannelId);
+  if (!lobby) throw new NotFoundError("Lobby");
 
-    if (decided) {
-      const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id, client);
-      await lobbyPlayerDB.setCancelSet(lobby.id, player.id, false, client);
-      await lobbyPlayerDB.setCancelSet(lobby.id, opponent.id, false, client);
-    }
+  const lp = await lobby.getLobbyPlayer(player.id);
+  await lp.setCancelSet(!lp.cancelSet);
 
-    await client.query("COMMIT");
-    return { decided, status: !lobbyPlayer.cancel_set };
-  } catch (e) {
-    await client.query("ROLLBACK");
-    throw e;
-  } finally {
-    client.release();
+  const decided = await lobby.isCancelSetDecided();
+
+  const opponentLp = await lp.getOpponent();
+  const opponent = await opponentLp.getPlayer();
+
+  if (decided) {
+    await lp.setCancelSet(false);
+    await opponentLp.setCancelSet(false);
   }
+
+  return { decided, status: lp.cancelSet, opponent };
 };
 
 const getOpponent = async (playerDiscordId, textChannelId) => {

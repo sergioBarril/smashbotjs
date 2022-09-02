@@ -11,7 +11,16 @@ const {
   GuildMember,
   Interaction,
 } = require("discord.js");
+const { Stage } = require("../models/stage");
 
+/**
+ * Get the text that will be displayed after picking or banning
+ * @param {GuildMember} nextPlayer GuildMember of the player that bans next
+ * @param {int} gameNum Number of the game
+ * @param {int} bannedStagesLength Number of stages banned
+ * @param {boolean} isBan True if banning, false if picking
+ * @returns {string} Text that will be displayed after picking or banning
+ */
 const stageText = (nextPlayer, gameNum, bannedStagesLength, isBan) => {
   let text = `${nextPlayer}, te toca `;
   if (!isBan) {
@@ -28,13 +37,21 @@ const stageText = (nextPlayer, gameNum, bannedStagesLength, isBan) => {
   return text;
 };
 
+/**
+ * Get stage buttons
+ * @param {string} nextPlayerId DiscordID of the next player to ban
+ * @param {int} gameNum Number of the game
+ * @param {Array<Stage>} stages Stages to choose from
+ * @param {Array<Stage>} bannedStages Stages that are banned
+ * @param {boolean} isBan True if banning, false if picking
+ * @returns
+ */
 const stageButtons = (nextPlayerId, gameNum, stages, bannedStages, isBan) => {
   const rows = [];
   let i = 0;
   let row;
-  const bannedStagesNames = bannedStages.map((stage) => stage.name);
 
-  for (stage of stages) {
+  for (let stage of stages) {
     const emoji = stageEmojis[stage.name];
     if (i % 5 === 0) {
       if (row) rows.push(row);
@@ -47,7 +64,8 @@ const stageButtons = (nextPlayerId, gameNum, stages, bannedStages, isBan) => {
       .setLabel(stage.name)
       .setStyle("PRIMARY")
       .setEmoji(emoji);
-    if (bannedStagesNames.includes(stage.name)) {
+
+    if (bannedStages.some((st) => st.name === stage.name)) {
       button.setStyle("SECONDARY");
       button.setDisabled(true);
     }
@@ -60,12 +78,18 @@ const stageButtons = (nextPlayerId, gameNum, stages, bannedStages, isBan) => {
   return rows;
 };
 
+/**
+ * Final state for stage buttons
+ * @param {Stage[]} stages All stages
+ * @param {Stage} pickedStage Stage
+ * @returns
+ */
 const stageFinalButtons = (stages, pickedStage) => {
   const rows = [];
   let i = 0;
   let row;
 
-  for (stage of stages) {
+  for (let stage of stages) {
     const emoji = stageEmojis[stage.name];
     if (i % 5 === 0) {
       if (row) rows.push(row);
@@ -130,17 +154,28 @@ const setupCharacter = async (channel, player, gameNum) => {
   await setAPI.setCharacterSelectMessage(player.id, message.id);
 };
 
+/**
+ * Get the final text of the stage pick/ban process
+ * @param {int} gameNum Number of the game
+ * @param {Stage} stage Chosen stage
+ * @returns
+ */
 const stageFinalText = (gameNum, stage) => {
   const emoji = stageEmojis[stage.name];
   return `El **Game ${gameNum}** se jugará en **${stage.name}** ${emoji}`;
 };
 
+/**
+ * Sets up the message asking for stage bans
+ * @param {Interaction} interaction DiscordJS interaction
+ * @param {int} gameNum Number of the game
+ */
 const setupBans = async (interaction, gameNum) => {
   const stages = await setAPI.getStages(gameNum);
 
-  const { striker } = await setAPI.getStriker(interaction.channel.id);
+  const striker = await setAPI.getStriker(interaction.channel.id);
 
-  const player = await interaction.guild.members.fetch(striker.discord_id);
+  const player = await interaction.guild.members.fetch(striker.discordId);
   const banText = stageText(player, gameNum, 0, true);
 
   await interaction.channel.send({
@@ -149,21 +184,26 @@ const setupBans = async (interaction, gameNum) => {
   });
 };
 
+/**
+ * Sets up the message asking for the winner of the game
+ * @param {Interaction} interaction DiscordJS interaction
+ * @param {int} gameNum Number of the game
+ */
 const setupGameWinner = async (interaction, gameNum) => {
-  const pc = await setAPI.getPlayersAndCharacters(interaction.user.id);
+  const pcs = await setAPI.getPlayersAndCharacters(interaction.user.id);
 
   const buttons = [];
   let playersTextArr = [];
 
-  for ({ discord_id, character_name } of pc) {
-    const player = await interaction.guild.members.fetch(discord_id);
-    const emoji = smashCharacters[character_name].emoji;
+  for (pc of pcs) {
+    const player = await interaction.guild.members.fetch(pc.playerDiscordId);
+    const emoji = smashCharacters[pc.characterName].emoji;
 
     playersTextArr.push(`**${player.displayName}** ${emoji}`);
 
     buttons.push(
       new MessageButton()
-        .setCustomId(`game-winner-${discord_id}-${gameNum}`)
+        .setCustomId(`game-winner-${pc.playerDiscordId}-${gameNum}`)
         .setLabel(player.displayName)
         .setStyle("SECONDARY")
         .setEmoji(emoji)
@@ -185,15 +225,22 @@ const setEndButtons = () => {
   return [newSet];
 };
 
-const setupSetEnd = async (interaction, playerId, isSurrender) => {
-  const player = await interaction.guild.members.fetch(playerId);
+/**
+ *
+ * @param {Interaction} interaction DiscordJS interaction
+ * @param {string} playerDiscordId DiscordID of the winner
+ * @param {boolean} isSurrender True if won by surrender, false if won normally
+ * @returns
+ */
+const setupSetEnd = async (interaction, playerDiscordId, isSurrender) => {
+  const player = await interaction.guild.members.fetch(playerDiscordId);
   let emoji = "";
   let porAbandono = "";
   if (isSurrender) porAbandono = " por abandono";
 
   if (!isSurrender) {
-    const pc = await setAPI.getPlayersAndCharacters(player.id);
-    const characterName = await pc.find((p) => p.discord_id === player.id).character_name;
+    const pcs = await setAPI.getPlayersAndCharacters(player.id);
+    const characterName = await pcs.find((p) => p.playerDiscordId === player.id).characterName;
     emoji = ` ${smashCharacters[characterName].emoji}`;
 
     await setAPI.setWinner(player.id);
@@ -217,24 +264,23 @@ const setupNextGame = async (interaction) => {
   const isSurrender = score.some((player) => player.surrender);
 
   let winner = isSurrender && score.find((player) => !player.surrender);
-  if (!winner) winner = score.find((player) => player.wins >= 3);
+  if (!winner) winner = score.find((ps) => ps.wins >= 3);
 
-  if (winner) return await setupSetEnd(interaction, winner.discord_id, isSurrender);
+  if (winner) return await setupSetEnd(interaction, winner.player.discordId, isSurrender);
   else {
-    const { newGameNum } = await setAPI.newGame(interaction.channel.id);
+    const newGame = await setAPI.newGame(interaction.channel.id);
 
-    if (newGameNum > 1) {
-      await interaction.channel.send(`__**Game ${newGameNum}**__`);
-      return await setupBans(interaction, newGameNum);
+    if (newGame.num > 1) {
+      await interaction.channel.send(`__**Game ${newGame.num}**__`);
+      return await setupBans(interaction, newGame.num);
     }
 
-    const members = [];
-    const lp = await lobbyAPI.getPlayingPlayers(interaction.user.id);
+    const players = await lobbyAPI.getPlayingPlayers(interaction.channel.id);
 
-    for ({ discord_id } of lp) {
-      const member = await interaction.guild.members.fetch(discord_id);
-      members.push(member);
-    }
+    const members = await Promise.all(
+      players.map(async (p) => await interaction.guild.members.fetch(p.discordId))
+    );
+
     return await setupFirstGame(interaction, members);
   }
 };

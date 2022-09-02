@@ -1,4 +1,5 @@
 const setAPI = require("../api/gameSet");
+const { Stage } = require("../models/stage");
 
 const {
   setupGameWinner,
@@ -9,6 +10,14 @@ const {
   setupCharacter,
 } = require("../utils/discordGameset");
 
+/**
+ *
+ * @param {Interaction} interaction DiscordJS Interaction
+ * @param {int} gameNum Number of the game
+ * @param {Stage[]} stages Stages
+ * @param {Stage} pickedStage Picked stage
+ * @returns
+ */
 const endStageStep = async (interaction, gameNum, stages, pickedStage) => {
   const banMessageComponents = stageFinalButtons(stages, pickedStage);
   const banMessageText = stageFinalText(gameNum, pickedStage);
@@ -22,7 +31,7 @@ const endStageStep = async (interaction, gameNum, stages, pickedStage) => {
   if (gameNum == 1) return await setupGameWinner(interaction, gameNum);
   else {
     const lastWinner = await setAPI.getGameWinner(gameNum - 1);
-    const player = await interaction.guild.members.fetch(lastWinner.discord_id);
+    const player = await interaction.guild.members.fetch(lastWinner.discordId);
     return await setupCharacter(interaction.channel, player, interaction.guild.id);
   }
 };
@@ -62,7 +71,7 @@ const execute = async (interaction) => {
     return await endStageStep(interaction, gameNum, stages, starter);
 
   const nextPlayer = nextStriker ?? nextPicker;
-  return await nextStep(interaction, gameNum, nextPlayer.discord_id, stages, bannedStages, isBan);
+  return await nextStep(interaction, gameNum, nextPlayer.discordId, stages, bannedStages, isBan);
 };
 
 module.exports = {
