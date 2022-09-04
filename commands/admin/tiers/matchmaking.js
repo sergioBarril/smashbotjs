@@ -3,16 +3,18 @@ const guildAPI = require("../../../api/guild");
 const { MessageActionRow, MessageButton, Interaction } = require("discord.js");
 
 const searchButtons = new MessageActionRow().addComponents(
-  new MessageButton().setCustomId("friendlies").setLabel("Jugar").setStyle("SUCCESS"),
-  new MessageButton().setCustomId("cancel-friendlies").setLabel("Cancelar").setStyle("DANGER")
+  new MessageButton().setCustomId("search").setLabel("Jugar").setStyle("SUCCESS"),
+  new MessageButton().setCustomId("cancel-search").setLabel("Cancelar").setStyle("DANGER")
+);
+
+const rankedButtons = new MessageActionRow().addComponents(
+  new MessageButton().setCustomId("search").setLabel("Ranked").setStyle("PRIMARY").setEmoji("⚔️"),
+  new MessageButton().setCustomId("cancel-search").setLabel("Cancelar").setStyle("DANGER")
 );
 
 const searchAllButtons = new MessageActionRow().addComponents(
-  new MessageButton().setCustomId("friendlies-all-tiers").setLabel("Jugar").setStyle("SUCCESS"),
-  new MessageButton()
-    .setCustomId("cancel-friendlies-all-tiers")
-    .setLabel("Cancelar")
-    .setStyle("DANGER")
+  new MessageButton().setCustomId("search-all-tiers").setLabel("Jugar").setStyle("SUCCESS"),
+  new MessageButton().setCustomId("cancel-search-all-tiers").setLabel("Cancelar").setStyle("DANGER")
 );
 
 const sendMessage = async (channel, name) => {
@@ -59,6 +61,13 @@ const matchmaking = async (interaction) => {
 
   await guildAPI.setMatchmakingChannel(guild.id, matchmakingChannel.id);
   await guildAPI.removeAllGuildSearchMessages(guild.id);
+
+  const rankedMessage = await matchmakingChannel.send({
+    content: "__**RANKED**__",
+    components: [rankedButtons],
+  });
+
+  await guildAPI.insertMatchmakingMessage(guild.id, rankedMessage.id, null, false, false, true);
 
   if (weighted.length > 0) await matchmakingChannel.send("__**CABLE LAN**__");
   for (let tier of weighted) {

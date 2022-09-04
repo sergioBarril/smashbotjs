@@ -5,7 +5,7 @@ const { CustomError } = require("../errors/customError");
 const { Tier } = require("../models/tier");
 const { Player } = require("../models/player");
 const { Message } = require("../models/message");
-const { User } = require("discord.js");
+const { User, Interaction } = require("discord.js");
 
 const exceptionHandler = async (interaction, exception) => {
   let message = exception.message;
@@ -28,10 +28,11 @@ const exceptionHandler = async (interaction, exception) => {
  *  - editing existing #tier-X messages
  * @param {*} interaction
  * @param {Array<Player>} players
+ * @param {boolean} isRanked
  */
-const matched = async (interaction, players) => {
+const matched = async (interaction, players, isRanked) => {
   const guild = interaction.guild;
-  await discordMatchingUtils.matched(guild, players);
+  await discordMatchingUtils.matched(guild, players, isRanked);
 
   await interaction.editReply({
     content: "¡Te he encontrado rival! Mira tus MDs.",
@@ -42,10 +43,11 @@ const matched = async (interaction, players) => {
 /**
  * Actions to do after not finding a match
  * This includes sending a message to #tier
- * @param {*} interaction discord.js event interaction
+ * @param {Interaction} interaction discord.js event interaction
  * @param {Array<Tier>} tiers Tiers that have been added in this interaction
+ * @param {boolean} isRanked True iff tried to search in ranked
  */
-const notMatched = async (interaction, tiers) => {
+const notMatched = async (interaction, tiers, isRanked) => {
   const playerId = interaction.user.id;
   const guild = interaction.guild;
 
@@ -62,10 +64,15 @@ const notMatched = async (interaction, tiers) => {
     style: "long",
     type: "conjunction",
   });
-  const rolesNames = rolesFormatter.format(roles);
 
+  let rolesNames = rolesFormatter.format(roles);
+
+  if (isRanked) {
+    rolesNames = "**Ranked**";
+    await discordMatchingUtils.notMatched(playerId, guild, null, isRanked);
+  }
   await interaction.editReply({
-    content: `A partir de ahora estás buscando en ${rolesNames}`,
+    content: `A partir de ahora estás buscando en ${rolesNames}.`,
     ephemeral: true,
   });
 };
@@ -84,7 +91,7 @@ const deleteAfkMessage = async (interaction, message) => {
 const execute = async (interaction) => {
   const guildId = interaction.guild.id;
   const playerId = interaction.user.id;
-  const messageId = interaction.customId === "friendlies" ? interaction.message.id : null;
+  const messageId = interaction.customId === "search" ? interaction.message.id : null;
 
   await interaction.deferReply({ ephemeral: true });
 
@@ -92,9 +99,9 @@ const execute = async (interaction) => {
     const searchResult = await lobbyAPI.search(playerId, guildId, messageId);
     await deleteAfkMessage(interaction, searchResult.afkMessage);
     if (searchResult.matched) {
-      await matched(interaction, searchResult.players);
+      await matched(interaction, searchResult.players, searchResult.isRanked);
     } else {
-      await notMatched(interaction, searchResult.tiers);
+      await notMatched(interaction, searchResult.tiers, searchResult.isRanked);
     }
   } catch (e) {
     await exceptionHandler(interaction, e);
@@ -102,6 +109,6 @@ const execute = async (interaction) => {
 };
 
 module.exports = {
-  data: { name: "friendlies" },
+  data: { name: "search" },
   execute,
 };

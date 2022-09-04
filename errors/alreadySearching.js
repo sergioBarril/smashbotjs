@@ -7,6 +7,7 @@ class AlreadySearchingError extends CustomError {
 
     if (message == null) {
       if (isYuzu) this.message = `¡Ya estabas buscando partida en **Yuzu**!`;
+      else if (tierDiscordId == null) this.message = `¡Ya estabas buscando partida en **Ranked**!`;
       else this.message = `¡Ya estabas buscando partida en <@&${tierDiscordId}>!`;
     }
   }

@@ -1,9 +1,10 @@
-const { MessageActionRow, MessageButton, GuildMember } = require("discord.js");
+const { MessageActionRow, MessageButton, GuildMember, Guild } = require("discord.js");
 
 const lobbyAPI = require("../api/lobby");
-const guildAPI = require("../api/guild");
 const messageAPI = require("../api/message");
 const rolesAPI = require("../api/roles");
+const ratingAPI = require("../api/rating");
+const guildAPI = require("../api/guild");
 
 const smashCharacters = require("../params/smashCharacters.json");
 const { TooManyPlayersError } = require("../errors/tooManyPlayers");
@@ -19,9 +20,17 @@ const { MESSAGE_TYPES } = require("../models/message");
  * about their match with opponent
  * @param {GuildMember} player Receiver of this DM
  * @param {GuildMember} opponent Opponent who 'player' is supposed to play against
+ * @param {boolean} isRanked True if the DMs are for a ranked match
+ * @param {Guild} guild DiscordJS guild object
  */
-async function sendConfirmation(player, opponent) {
-  const messageText = `¡Match encontrado! ${player}, te toca contra **${opponent.displayName}**`;
+async function sendConfirmation(player, opponent, isRanked, guild) {
+  let messageText = `¡Match encontrado! ${player}, te toca contra **${opponent.displayName}**`;
+
+  if (isRanked) {
+    const opponentTier = await ratingAPI.getPlayerTier(opponent.id, guild.id);
+    const discordTier = await guild.roles.fetch(opponentTier.roleId);
+    messageText = `¡Match ranked encontrado! ${player}, te toca contra alguien de **${discordTier.name}**`;
+  }
   const row = new MessageActionRow().addComponents(
     new MessageButton().setCustomId("accept-confirmation").setLabel("Aceptar").setStyle("SUCCESS"),
     new MessageButton().setCustomId("decline-confirmation").setLabel("Rechazar").setStyle("DANGER")
@@ -31,7 +40,7 @@ async function sendConfirmation(player, opponent) {
     components: [row],
   });
 
-  await messageAPI.saveConfirmationDM(player.id, directMessage.id);
+  await messageAPI.saveConfirmationDM(player.id, directMessage.id, isRanked);
 }
 
 /**
@@ -42,20 +51,35 @@ async function sendConfirmation(player, opponent) {
  *
  * @param {Guild} guild The Discord object
  * @param {Array<Player>} players List of players matched
+ * @param {boolean} isRanked True iff this is a ranked match
  */
-const matched = async (guild, players) => {
+const matched = async (guild, players, isRanked) => {
+  if (players.length > 2) throw new TooManyPlayersError();
+
   players = await Promise.all(
     players.map(async (player) => await guild.members.fetch(player.discordId))
   );
 
-  if (players.length > 2) throw new TooManyPlayersError();
-
   // Send DMs
   const [player1, player2] = players;
-  await Promise.all([sendConfirmation(player1, player2), sendConfirmation(player2, player1)]);
+
+  await Promise.all([
+    sendConfirmation(player1, player2, isRanked, guild),
+    sendConfirmation(player2, player1, isRanked, guild),
+  ]);
 
   // Update all your #tier messages
   const messages = await messageAPI.getSearchTierMessages(player1.id);
+  const rankedMessage1 = await messageAPI.popRankedMessage(player1.id);
+  const rankedMessage2 = await messageAPI.popRankedMessage(player2.id);
+
+  // Delete ranked messages
+  const rankedMessages = [rankedMessage1, rankedMessage2].filter((m) => m !== null);
+  for (let message of rankedMessages) {
+    const channel = await guild.channels.fetch(message.channelId);
+    const discordMessage = await channel.messages.fetch(message.discordId);
+    discordMessage.delete();
+  }
 
   const button = new MessageActionRow().addComponents(
     new MessageButton()
@@ -84,8 +108,9 @@ const matched = async (guild, players) => {
  * @param {string} playerId DiscordId of the player
  * @param {Guild} guild Discord Guild object
  * @param {Tier} tier Tier where last tried to match. Null if it's not only one tier.
+ * @param {boolean} isRanked True if this comes from searching in ranked
  */
-const notMatched = async (playerId, guild, tier = null) => {
+const notMatched = async (playerId, guild, tier = null, isRanked = false) => {
   const button = new MessageActionRow().addComponents(
     new MessageButton().setCustomId("direct-match").setLabel("Jugar").setStyle("SUCCESS")
   );
@@ -101,9 +126,21 @@ const notMatched = async (playerId, guild, tier = null) => {
     charsText = ` (${charsEmojis.join("")})`;
   }
 
+  if (isRanked) {
+    const assignedTier = await ratingAPI.getPlayerTier(playerId, guild.id);
+    const rankedRole = await guild.roles.fetch(assignedTier.rankedRoleId);
+    const rankedChannelId = await guildAPI.getRankedChannel(guild.id);
+    const rankedChannel = await guild.channels.fetch(rankedChannelId);
+
+    const message = await rankedChannel.send({
+      content: `${rankedRole} - **Alguien** está buscando partida clasificatoria.`,
+    });
+    await messageAPI.saveSearchRankedMessage(playerId, message.id);
+  }
+
   let tiers = [];
   if (tier) tiers.push(tier);
-  else tiers = await lobbyAPI.getSearchingTiers(playerId);
+  else if (!isRanked) tiers = await lobbyAPI.getSearchingTiers(playerId);
 
   for (let tier of tiers) {
     const channel = await guild.channels.fetch(tier.channelId);

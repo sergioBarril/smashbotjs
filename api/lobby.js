@@ -18,6 +18,7 @@ const { CustomError } = require("../errors/customError");
 const { InGamesetError } = require("../errors/inGameset");
 const { RejectedPlayerError } = require("../errors/rejectedPlayer");
 const { getLobbyByTextChannel } = require("../models/lobby");
+const { getTier } = require("../models/tier");
 
 /**
  * Declines the match. If declined due to timeout, leaves the lobby in AFK
@@ -185,16 +186,19 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
 
   const message = await getMessage(messageDiscordId, true);
   if (!message && !isSearchAll) throw new NotFoundError("TierMessage");
-  else if (message && message.type !== MESSAGE_TYPES.GUILD_TIER_SEARCH)
+
+  const isRanked = message?.type === MESSAGE_TYPES.GUILD_RANKED_SEARCH;
+
+  if (message && message.type !== MESSAGE_TYPES.GUILD_TIER_SEARCH && !isRanked)
     throw new MessageTypeError();
 
   let targetTier = null;
-  if (message) {
+  if (message && !isRanked) {
     targetTier = await message.getTier();
     if (!targetTier) throw new NotFoundError("Tier");
   }
 
-  const isYuzu = !isSearchAll && targetTier.yuzu;
+  const isYuzu = !isSearchAll && !isRanked && targetTier.yuzu;
 
   let targetTiers = [];
   const allTiers = await guild.getTiers();
@@ -203,13 +207,17 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   if (!playerTier && targetTier && targetTier.weight !== null)
     throw new NotFoundError("Tier", "No tienes ninguna tier asignada: no puedes jugar aquí.");
 
-  // Yuzu
+  // Check if player is allowed to search here
   if (isYuzu) {
+    // Yuzu
     const canSearch = await player.canSearchYuzu(guild.id);
     if (!canSearch) throw new NoYuzuError(guild.yuzuRoleId, guild.parsecRoleId);
     else targetTiers.push(targetTier);
-
-    // Not yuzu
+  } else if (isRanked) {
+    // Ranked
+    const playerRating = await player.getRating(guild.id);
+    if (!playerRating) throw new NotFoundError("Rating");
+    if (playerRating.score === null) throw new NotFoundError("RankedTier");
   } else {
     let canSearch = false;
     // One tier
@@ -240,20 +248,23 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
 
   if (!lobby && !existsLobbyPlayer) {
     lobby = await player.insertLobby(guild.id);
-    await lobby.addTiers(targetTiers);
+    if (isRanked) await lobby.setRanked(true);
+    else await lobby.addTiers(targetTiers);
   } else if (!isSearching || (!lobby && existsLobbyPlayer)) {
     if (!lobby) throw new CannotSearchError("PLAYING", "SEARCH");
     else if (!isAfk) throw new CannotSearchError(lobby.status, "SEARCH");
-  } else if (newTiers.length === 0) {
+  } else if (!isRanked && newTiers.length === 0) {
     throw new AlreadySearchingError(targetTiers[0].roleId, isYuzu);
-  } else await lobby.addTiers(newTiers);
+  } else if (isRanked && lobby.ranked) throw new AlreadySearchingError(null, false);
+  else if (isRanked) await lobby.setRanked(true);
+  else await lobby.addTiers(newTiers);
 
   if (isAfk) {
     await lobby.setStatus("SEARCHING");
     await lobby.setLobbyPlayersStatus("SEARCHING");
   }
 
-  const rivalPlayer = await matchmaking(player.discordId);
+  const { rivalPlayer, foundRanked } = await matchmaking(player.discordId);
 
   // Remove afk messages (from the person that searched)
   const afkMessages = await lobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
@@ -262,10 +273,11 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   if (afkMessage) await afkMessage.remove();
 
   return {
-    matched: rivalPlayer !== null,
+    matched: rivalPlayer != null,
     tiers: newTiers,
     players: [player, rivalPlayer],
     afkMessage,
+    isRanked: isRanked || foundRanked,
   };
 };
 
@@ -281,12 +293,22 @@ const matchmaking = async (playerDiscordId) => {
   const lobby = await player.getOwnLobby();
   if (!lobby) throw new NotFoundError("Lobby");
   if (lobby?.status !== "SEARCHING") throw new CannotSearchError(lobby.status, "SEARCH");
-  const rivalPlayer = await lobby.matchmaking();
 
-  if (!rivalPlayer) return null;
+  const rating = await player.getRating(lobby.guildId);
+  let rivalPlayer;
+  let foundRanked = false;
 
-  await lobby.setupMatch(rivalPlayer);
-  return rivalPlayer;
+  if (rating?.score != null) {
+    const playerTier = await getTier(rating.tierId);
+    rivalPlayer = await lobby.rankedMatchmaking(playerTier.weight, rating.promotion);
+    foundRanked = rivalPlayer != null;
+  }
+
+  if (!rivalPlayer) rivalPlayer = await lobby.matchmaking();
+
+  if (rivalPlayer) await lobby.setupMatch(rivalPlayer);
+
+  return { rivalPlayer, foundRanked };
 };
 
 /**
@@ -397,14 +419,17 @@ const stopSearch = async (playerDiscordId, messageDiscordId) => {
 
   const message = await getMessage(messageDiscordId, true);
   if (!message && !isStopAll) throw new NotFoundError("TierMessage");
-  else if (message && message.type !== MESSAGE_TYPES.GUILD_TIER_SEARCH)
+
+  const isRanked = message?.type === MESSAGE_TYPES.GUILD_RANKED_SEARCH;
+
+  if (message && !isRanked && message.type !== MESSAGE_TYPES.GUILD_TIER_SEARCH)
     throw new MessageTypeError();
 
   // Tiers to Stop
   let tiersToStop = [];
 
   let targetTier = null;
-  if (message) {
+  if (message && !isRanked) {
     targetTier = await message.getTier();
     if (!targetTier) throw new NotFoundError("Tier");
   }
@@ -413,12 +438,17 @@ const stopSearch = async (playerDiscordId, messageDiscordId) => {
   if (targetTier) {
     if (searchingTiers.some((lt) => lt.tierId === targetTier.id)) tiersToStop.push(targetTier);
     else throw new NotSearchingError(targetTier.roleId, targetTier.yuzu);
-  } else {
+  } else if (!isRanked) {
     const tiers = await Promise.all(searchingTiers.map(async (lt) => await lt.getTier()));
     tiersToStop = tiers.filter((tier) => tier.weight !== null);
   }
 
-  if (tiersToStop.length === 0) throw new NotSearchingError(null, null);
+  if (!isRanked && tiersToStop.length === 0) throw new NotSearchingError(null, null);
+  if (isRanked) {
+    if (!lobby.ranked)
+      throw new NotSearchingError(null, null, "¡No estabas buscando partida ranked!");
+    await lobby.setRanked(false);
+  }
 
   // Remove Tier
   const client = await db.getClient();
@@ -434,9 +464,18 @@ const stopSearch = async (playerDiscordId, messageDiscordId) => {
       })
     );
 
+    if (isRanked) {
+      const rankedMessage = await lobby.getRankedMessage(client);
+      if (rankedMessage) {
+        await rankedMessage.remove();
+        messages.push(rankedMessage);
+      }
+    }
+
     // If it was the last tier, remove the lobby
-    const hasTier = await lobby.hasAnyTier(client);
-    if (!hasTier && !lobby.ranked) await lobby.remove(client);
+    let hasTier = await lobby.hasAnyTier(client);
+    hasTier = hasTier || lobby.ranked;
+    if (!hasTier) await lobby.remove(client);
     await client.query("COMMIT");
 
     return {
@@ -605,13 +644,15 @@ const searchAgainAfkLobby = async (playerDiscordId) => {
   await lobby.setLobbyPlayersStatus("SEARCHING");
 
   const players = [player];
-  const rivalPlayer = await matchmaking(player.discordId);
+  const matchmakingResult = await matchmaking(player.discordId);
+  const rivalPlayer = matchmakingResult?.rivalPlayer;
+
   const guild = await lobby.getGuild();
 
   if (rivalPlayer) players.push(rivalPlayer);
 
   return {
-    matched: rivalPlayer !== null,
+    matched: rivalPlayer != null,
     players,
     guild,
   };

@@ -1,9 +1,9 @@
 const { NotFoundError } = require("../errors/notFound");
-const { MESSAGE_TYPES } = require("../models/message");
+const { MESSAGE_TYPES, insertMessage } = require("../models/message");
 const { getPlayer } = require("../models/player");
 const { getTierByRole, getTier } = require("../models/tier");
 
-const saveConfirmationDM = async (playerDiscordId, messageId) => {
+const saveConfirmationDM = async (playerDiscordId, messageId, isRanked = false) => {
   const player = await getPlayer(playerDiscordId, true);
   if (!player) throw new NotFoundError("Player");
 
@@ -15,7 +15,7 @@ const saveConfirmationDM = async (playerDiscordId, messageId) => {
   const lobbyPlayer = await lobby.getLobbyPlayer(player.id);
   if (!lobbyPlayer) throw new NotFoundError("LobbyPlayer");
 
-  await lobbyPlayer.insertMessage(messageId);
+  await lobbyPlayer.insertMessage(messageId, isRanked);
 };
 
 /**
@@ -70,4 +70,51 @@ const saveSearchTierMessage = async (playerDiscordId, tierDiscordId, messageId, 
   return true;
 };
 
-module.exports = { getSearchTierMessages, saveSearchTierMessage, saveConfirmationDM };
+const saveSearchRankedMessage = async (playerDiscordId, messageId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const lobby = await player.getOwnLobby();
+  if (!lobby) throw new NotFoundError("Lobby");
+
+  const guild = await lobby.getGuild();
+  if (!guild) throw new NotFoundError("Guild");
+
+  await insertMessage(
+    messageId,
+    MESSAGE_TYPES.LOBBY_RANKED_SEARCH,
+    null,
+    guild.rankedChannelId,
+    player.id,
+    guild.id,
+    lobby.id,
+    true
+  );
+};
+
+/**
+ * Get the ranked message of the player, and remove it from the DB
+ * @param {string} playerDiscordId DiscordID of the player whose message is being popped
+ * @returns
+ */
+const popRankedMessage = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const lobby = await player.getOwnLobby();
+  if (!lobby) throw new NotFoundError("Lobby");
+
+  const message = await lobby.getRankedMessage();
+  if (message) {
+    await message.remove();
+  }
+  return message;
+};
+
+module.exports = {
+  getSearchTierMessages,
+  popRankedMessage,
+  saveSearchTierMessage,
+  saveConfirmationDM,
+  saveSearchRankedMessage,
+};

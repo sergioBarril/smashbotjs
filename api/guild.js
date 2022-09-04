@@ -44,8 +44,9 @@ const setMatchmakingChannel = async (guildDiscordId, matchmakingChannelId) => {
 };
 
 const getRankedChannel = async (guildDiscordId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
-  return guild.ranked_channel_id;
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw NotFoundError("Guild");
+  return guild.rankedChannelId;
 };
 
 const setRankedChannel = async (guildDiscordId, rankedChannelId) => {
@@ -130,7 +131,8 @@ const insertMatchmakingMessage = async (
   messageDiscordId,
   tierRoleId,
   yuzu = false,
-  wifi = false
+  wifi = false,
+  ranked = false
 ) => {
   const guild = await getGuild(guildDiscordId);
   if (!guild) throw new NotFoundError("Guild");
@@ -139,9 +141,10 @@ const insertMatchmakingMessage = async (
   if (tierRoleId) tier = await getTierByRole(tierRoleId);
   else if (yuzu) tier = await guild.getYuzuTier();
   else if (wifi) tier = await guild.getWifiTier();
-  if (!tier) throw new NotFoundError("Tier");
+  if (!ranked && !tier) throw new NotFoundError("Tier");
 
-  await guild.insertMatchmakingMessage(messageDiscordId, tier.id);
+  if (ranked) await guild.insertRankedMessage(messageDiscordId);
+  else await guild.insertMatchmakingMessage(messageDiscordId, tier.id);
 };
 
 /**

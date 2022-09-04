@@ -110,16 +110,40 @@ class Guild {
   };
 
   /**
+   * Inserts new message to the DB, of type GUILD_RANKED_SEARCH
+   * @param {string} messageDiscordId DiscordID of the new matchmaking message
+   * @param {Client} client Optional PG client
+   */
+  insertRankedMessage = async (messageDiscordId, client = null) => {
+    await insertMessage(
+      messageDiscordId,
+      MESSAGE_TYPES.GUILD_RANKED_SEARCH,
+      null,
+      this.matchmakingChannelId,
+      null,
+      this.id,
+      null,
+      null,
+      client
+    );
+  };
+
+  /**
    * Removes all messages of the channel #matchmaking,
-   * so message_types = GUILD_TIER_SEARCH and GUILD_CURRENT_LIST
+   * so message_types = GUILD_TIER_SEARCH and GUILD_CURRENT_LIST and GUILD_RANKED_SEARCH
    * @param {Client} client Optional PG Client
    */
   removeMatchmakingMessages = async (client = null) => {
     const deleteQuery = {
       text: `DELETE FROM message
       WHERE guild_id = $1
-      AND (type = $2 OR type = $3)`,
-      values: [this.id, MESSAGE_TYPES.GUILD_TIER_SEARCH, MESSAGE_TYPES.GUILD_CURRENT_LIST],
+      AND (type = $2 OR type = $3 OR type = $4)`,
+      values: [
+        this.id,
+        MESSAGE_TYPES.GUILD_TIER_SEARCH,
+        MESSAGE_TYPES.GUILD_CURRENT_LIST,
+        MESSAGE_TYPES.GUILD_RANKED_SEARCH,
+      ],
     };
 
     await db.deleteQuery(deleteQuery, client);

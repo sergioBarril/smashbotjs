@@ -79,7 +79,14 @@ class LobbyPlayer {
     this.acceptedAt = thisLp.acceptedAt;
   };
 
-  insertMessage = async (messageId, client = null) => {
+  /**
+   * Insert a DM to the database
+   * @param {string} messageId DiscordID of the message being added
+   * @param {boolean} ranked True if this is a DM about a ranked match
+   * @param {Client} client Optional PG client
+   * @returns
+   */
+  insertMessage = async (messageId, ranked = false, client = null) => {
     const lobby = await this.getLobby();
     if (!lobby) throw new NotFoundError("Lobby");
 
@@ -91,7 +98,7 @@ class LobbyPlayer {
       this.playerId,
       lobby.guildId,
       lobby.id,
-      false,
+      ranked,
       client
     );
   };

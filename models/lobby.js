@@ -5,6 +5,7 @@ const { Message, MESSAGE_TYPES } = require("./message");
 const { LobbyPlayer } = require("./lobbyPlayer");
 const { Gameset } = require("./gameset");
 const { YuzuPlayer } = require("./yuzuPlayer");
+const { Client } = require("pg");
 
 class Lobby {
   constructor({
@@ -114,9 +115,58 @@ class Lobby {
     await db.deleteQuery(queryString, client);
   };
 
-  matchmaking = async (tierId = null) => {
-    // Get someone to match to. If tierId is null, check all tiers
+  /**
+   * Matchmaking for rankeds
+   * @param {int} playerTierWeight Weight of the player
+   * @param {boolean} isPromotion True if player is in promotion, false otherwise
+   * @returns
+   */
+  rankedMatchmaking = async (playerTierWeight, isPromotion) => {
+    let weightCondition = `
+      AND t.weight <= $4 + 1
+      AND t.weight >= $4 - 1
+      `;
 
+    if (isPromotion) weightCondition = `AND t.weight = $4 - 1`;
+
+    const matchmakingQuery = {
+      text: `
+      SELECT p.*
+      FROM player p
+      INNER JOIN lobby l
+        ON l.created_by = p.id
+      INNER JOIN rating r
+        ON r.guild_id = l.guild_id AND r.player_id = l.created_by
+      INNER JOIN tier t
+        ON t.id = r.tier_id
+      WHERE l.guild_id = $1
+      AND l.status = 'SEARCHING'
+      AND l.id <> $2
+      AND l.ranked
+      AND NOT EXISTS ( 
+        SELECT 1 FROM player_reject pr 
+        WHERE (pr.rejected_player_id = $3 AND pr.rejecter_player_id = p.id)
+        OR (pr.rejected_player_id = p.id AND pr.rejecter_player_id = $3)
+      )
+      ${weightCondition}
+      `,
+      values: [this.guildId, this.id, this.createdBy, playerTierWeight],
+    };
+
+    const matchmakingResult = await db.getQuery(matchmakingQuery);
+
+    if (matchmakingResult == null) return null;
+
+    const { getPlayer } = require("./player");
+    return await getPlayer(matchmakingResult.id, false);
+  };
+
+  /**
+   * Get someone to match to. If tierId is null, check all tiers
+   * @param {int} tierId Tier id, if should check only one tier. Leave null if you want to check all tiers
+   * @returns Player matched
+   */
+  matchmaking = async (tierId = null) => {
     // Check YuzuPlayer
     const ypQuery = {
       text: `SELECT yp.* FROM yuzu_player yp
@@ -243,6 +293,26 @@ class Lobby {
     const lps = await db.filterBy("lobby_player", whereCondition, client);
 
     return lps.map((row) => new LobbyPlayer(row));
+  };
+
+  /**
+   * Get the ranked message (iff this lobby is ranked)
+   * @param {Client} client Optional PG client
+   */
+  getRankedMessage = async (client = null) => {
+    const message = await db.getBy(
+      "message",
+      {
+        lobby_id: this.id,
+        ranked: true,
+        type: MESSAGE_TYPES.LOBBY_RANKED_SEARCH,
+        player_id: this.createdBy,
+      },
+      client
+    );
+
+    if (!message) return null;
+    else return new Message(message);
   };
 
   setLobbyPlayersStatus = async (status, client = null) => {

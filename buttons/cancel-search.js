@@ -37,13 +37,14 @@ const successfulReply = async (interaction, isSearching, tiers) => {
   });
 };
 
-const editMessage = async (interaction, channelId, messageId) => {
+const editMessage = async (interaction, channelId, messageId, isRanked) => {
   if (!channelId || !messageId) throw new EditMessageError();
 
   const channel = await interaction.guild.channels.fetch(channelId);
   const message = await channel.messages.fetch(messageId);
 
   if (message) {
+    if (isRanked) return await message.delete();
     const timestamp = new Date();
 
     const hours = timestamp.getHours();
@@ -62,17 +63,17 @@ const editMessage = async (interaction, channelId, messageId) => {
 };
 
 module.exports = {
-  data: { name: "cancel-friendlies" },
+  data: { name: "cancel-search" },
   async execute(interaction) {
     const playerId = interaction.user.id;
-    const messageId = interaction.customId === "cancel-friendlies" ? interaction.message.id : null;
+    const messageId = interaction.customId === "cancel-search" ? interaction.message.id : null;
 
     try {
       const stopSearchResult = await lobbyAPI.stopSearch(playerId, messageId);
       const { isSearching, messages, tiers } = stopSearchResult;
 
       for (let message of messages) {
-        await editMessage(interaction, message.channelId, message.discordId);
+        await editMessage(interaction, message.channelId, message.discordId, message.ranked);
       }
       await successfulReply(interaction, isSearching, tiers);
     } catch (e) {
