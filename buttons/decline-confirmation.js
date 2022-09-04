@@ -20,7 +20,7 @@ const editTierMessages = async (
   declinedPlayer,
   otherPlayer
 ) => {
-  if (tierMessages.length < 0) return;
+  if (tierMessages.length == 0) return;
 
   const declinerMessages = tierMessages.filter((m) => m.playerId === declinedPlayer.id);
   const otherMessages = tierMessages.filter((m) => m.playerId === otherPlayer.id);
@@ -104,12 +104,14 @@ const execute = async (interaction) => {
   const isSearching = await lobbyAPI.isSearching(otherPlayer.discordId);
   if (!isSearching) return;
 
-  const { rivalPlayer } = await lobbyAPI.matchmaking(otherPlayer.discordId);
+  const { rivalPlayer, searchedRanked, foundRanked } = await lobbyAPI.matchmaking(
+    otherPlayer.discordId
+  );
   const players = [otherPlayer, rivalPlayer];
   if (rivalPlayer) {
-    await discordMatchingUtils.matched(guild, players);
+    await discordMatchingUtils.matched(guild, players, foundRanked);
   } else {
-    await discordMatchingUtils.notMatched(otherPlayer.discordId, guild);
+    await discordMatchingUtils.notMatched(otherPlayer.discordId, guild, null, searchedRanked);
   }
 };
 

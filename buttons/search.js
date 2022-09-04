@@ -99,9 +99,9 @@ const execute = async (interaction) => {
     const searchResult = await lobbyAPI.search(playerId, guildId, messageId);
     await deleteAfkMessage(interaction, searchResult.afkMessage);
     if (searchResult.matched) {
-      await matched(interaction, searchResult.players, searchResult.isRanked);
+      await matched(interaction, searchResult.players, searchResult.foundRanked);
     } else {
-      await notMatched(interaction, searchResult.tiers, searchResult.isRanked);
+      await notMatched(interaction, searchResult.tiers, searchResult.searchedRanked);
     }
   } catch (e) {
     await exceptionHandler(interaction, e);

@@ -178,7 +178,7 @@ const timeOutMessage = async (message, acceptedPlayerId, acceptedAt) => {
  * @param {Array<Player>} players Array of players in the lobby
  * @param {Guild} guild Guild model where the lobby is
  */
-const allAccepted = async (interaction, players, guild) => {
+const allAccepted = async (interaction, players, guild, ranked) => {
   const discordPlayers = await Promise.all(
     players.map(async (player) => await interaction.client.users.fetch(player.discordId))
   );
@@ -211,13 +211,14 @@ const allAccepted = async (interaction, players, guild) => {
  * @param {Array<Player>} notAcceptedPlayers
  * @param {Date} acceptedAt
  */
-const notAllAccepted = async (interaction, notAcceptedPlayers, acceptedAt) => {
+const notAllAccepted = async (interaction, notAcceptedPlayers, acceptedAt, isRanked) => {
   const notAcceptedPlayersNames = [];
   for (let playerInfo of notAcceptedPlayers) {
     const player = await interaction.client.users.fetch(playerInfo.discordId);
     notAcceptedPlayersNames.push(`**${player.username}**`);
   }
-  const missingNames = notAcceptedPlayersNames.join(", ");
+  let missingNames = notAcceptedPlayersNames.join(", ");
+  if (isRanked) missingNames = "tu **rival**";
 
   await interaction.editReply({
     content: `Has aceptado, pero todavía falta que acepte ${missingNames}.`,
@@ -230,14 +231,14 @@ const notAllAccepted = async (interaction, notAcceptedPlayers, acceptedAt) => {
 const execute = async (interaction) => {
   const playerDiscordId = interaction.user.id;
   await interaction.deferUpdate();
-  const { hasEveryoneAccepted, players, acceptedAt, guild } = await lobbyAPI.acceptMatch(
+  const { hasEveryoneAccepted, players, acceptedAt, guild, ranked } = await lobbyAPI.acceptMatch(
     playerDiscordId
   );
 
   if (hasEveryoneAccepted) {
-    await allAccepted(interaction, players, guild);
+    await allAccepted(interaction, players, guild, ranked);
   } else {
-    await notAllAccepted(interaction, players, acceptedAt);
+    await notAllAccepted(interaction, players, acceptedAt, ranked);
   }
 };
 

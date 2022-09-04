@@ -130,7 +130,8 @@ const isSearching = async (playerDiscordId) => {
   const lobby = await player.getOwnLobby();
   if (!lobby) return false;
 
-  return ["SEARCHING", "AFK"].includes(lobby.status) && lobby.hasAnyTier();
+  const hasAnyTier = await lobby.hasAnyTier();
+  return ["SEARCHING", "AFK"].includes(lobby.status) && (hasAnyTier || lobby.ranked);
 };
 
 const canSearchRanked = async (playerId, guildId) => {
@@ -264,7 +265,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
     await lobby.setLobbyPlayersStatus("SEARCHING");
   }
 
-  const { rivalPlayer, foundRanked } = await matchmaking(player.discordId);
+  const { rivalPlayer, searchedRanked, foundRanked } = await matchmaking(player.discordId);
 
   // Remove afk messages (from the person that searched)
   const afkMessages = await lobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
@@ -277,7 +278,8 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
     tiers: newTiers,
     players: [player, rivalPlayer],
     afkMessage,
-    isRanked: isRanked || foundRanked,
+    searchedRanked,
+    foundRanked,
   };
 };
 
@@ -295,12 +297,15 @@ const matchmaking = async (playerDiscordId) => {
   if (lobby?.status !== "SEARCHING") throw new CannotSearchError(lobby.status, "SEARCH");
 
   const rating = await player.getRating(lobby.guildId);
+
   let rivalPlayer;
   let foundRanked = false;
+  let searchedRanked = false;
 
-  if (rating?.score != null) {
+  if (lobby.ranked) {
     const playerTier = await getTier(rating.tierId);
     rivalPlayer = await lobby.rankedMatchmaking(playerTier.weight, rating.promotion);
+    searchedRanked = true;
     foundRanked = rivalPlayer != null;
   }
 
@@ -308,7 +313,7 @@ const matchmaking = async (playerDiscordId) => {
 
   if (rivalPlayer) await lobby.setupMatch(rivalPlayer);
 
-  return { rivalPlayer, foundRanked };
+  return { rivalPlayer, foundRanked, searchedRanked };
 };
 
 /**
@@ -564,7 +569,7 @@ const acceptMatch = async (playerDiscordId) => {
 
   const guild = await lobby.getGuild();
 
-  return { hasEveryoneAccepted, players, acceptedAt: lp.acceptedAt, guild };
+  return { hasEveryoneAccepted, players, acceptedAt: lp.acceptedAt, guild, ranked: lobby.ranked };
 };
 
 /**

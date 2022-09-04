@@ -19,7 +19,7 @@ const saveConfirmationDM = async (playerDiscordId, messageId, isRanked = false) 
 };
 
 /**
- * Gets the messages that are in #tier-X, made by the player
+ * Gets the messages that are in #tier-X, made by the players in the lobby
  *
  * @param {*} playerId DiscordId of the player
  * @param {*} status Status of the lobby where the player is right now
@@ -43,6 +43,14 @@ const getSearchTierMessages = async (playerId, status = "CONFIRMATION") => {
     message.authorId = author.discordId;
     message.roleId = role.roleId;
   }
+
+  return messages;
+};
+
+const popSearchTierMessages = async (playerId, status = "CONFIRMATION") => {
+  const messages = await getSearchTierMessages(playerId, status);
+
+  for (let message of messages) await message.remove();
 
   return messages;
 };
@@ -113,6 +121,7 @@ const popRankedMessage = async (playerDiscordId) => {
 
 module.exports = {
   getSearchTierMessages,
+  popSearchTierMessages,
   popRankedMessage,
   saveSearchTierMessage,
   saveConfirmationDM,

@@ -69,7 +69,10 @@ const matched = async (guild, players, isRanked) => {
   ]);
 
   // Update all your #tier messages
-  const messages = await messageAPI.getSearchTierMessages(player1.id);
+  let messages;
+  if (isRanked) messages = await messageAPI.popSearchTierMessages(player1.id);
+  else messages = await messageAPI.getSearchTierMessages(player1.id);
+
   const rankedMessage1 = await messageAPI.popRankedMessage(player1.id);
   const rankedMessage2 = await messageAPI.popRankedMessage(player2.id);
 
@@ -94,10 +97,12 @@ const matched = async (guild, players, isRanked) => {
     const discordMessage = await channel.messages.fetch(message.discordId);
     const player = await guild.members.fetch(message.authorId);
 
-    await discordMessage.edit({
-      content: `¡**${player.displayName}** ha encontrado partida! Esperando confirmación...`,
-      components: [button],
-    });
+    if (isRanked) await discordMessage.delete();
+    else
+      await discordMessage.edit({
+        content: `¡**${player.displayName}** ha encontrado partida! Esperando confirmación...`,
+        components: [button],
+      });
   }
 };
 
@@ -140,7 +145,7 @@ const notMatched = async (playerId, guild, tier = null, isRanked = false) => {
 
   let tiers = [];
   if (tier) tiers.push(tier);
-  else if (!isRanked) tiers = await lobbyAPI.getSearchingTiers(playerId);
+  else tiers = await lobbyAPI.getSearchingTiers(playerId);
 
   for (let tier of tiers) {
     const channel = await guild.channels.fetch(tier.channelId);
