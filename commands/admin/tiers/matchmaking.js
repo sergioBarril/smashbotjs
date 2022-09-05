@@ -8,7 +8,7 @@ const searchButtons = new MessageActionRow().addComponents(
 );
 
 const rankedButtons = new MessageActionRow().addComponents(
-  new MessageButton().setCustomId("search").setLabel("Ranked").setStyle("PRIMARY").setEmoji("⚔️"),
+  new MessageButton().setCustomId("search").setLabel("Ranked").setStyle("SUCCESS").setEmoji("⚔️"),
   new MessageButton().setCustomId("cancel-search").setLabel("Cancelar").setStyle("DANGER")
 );
 
@@ -59,8 +59,8 @@ const matchmaking = async (interaction) => {
   const oldMatchmakingChannel = await guild.channels.fetch(guildInfo.matchmakingChannelId);
   await oldMatchmakingChannel.delete();
 
-  await guildAPI.setMatchmakingChannel(guild.id, matchmakingChannel.id);
   await guildAPI.removeAllGuildSearchMessages(guild.id);
+  await guildAPI.setMatchmakingChannel(guild.id, matchmakingChannel.id);
 
   const rankedMessage = await matchmakingChannel.send({
     content: "__**RANKED**__",

@@ -1,4 +1,5 @@
 const { NotFoundError } = require("../errors/notFound");
+const db = require("../models/db");
 const { getGuild: getGuildByDiscord, Guild } = require("../models/guild");
 const { insertMessage, MESSAGE_TYPES } = require("../models/message");
 const { getPlayer } = require("../models/player");
@@ -49,9 +50,16 @@ const getRankedChannel = async (guildDiscordId) => {
   return guild.rankedChannelId;
 };
 
+/**
+ * Set the ranked channel of the guild
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @param {string} rankedChannelId DiscordID of the ranked channel
+ */
 const setRankedChannel = async (guildDiscordId, rankedChannelId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
-  await guildDB.setRankedChannel(guild.id, rankedChannelId);
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw NotFoundError("Guild");
+
+  await guild.setRankedChannel(rankedChannelId);
 };
 
 /**
@@ -107,7 +115,7 @@ const getCurrentList = async (guildDiscordId) => {
     let players = await Promise.all(
       lps.map(async (lp) => {
         const player = await lp.getPlayer();
-        return { player, accepted: lp.status === "ACCEPTED", ranked: lobbies.ranked };
+        return { player, accepted: lp.status === "ACCEPTED", ranked: lobby.ranked };
       })
     );
 
@@ -135,6 +143,7 @@ const getCurrentList = async (guildDiscordId) => {
  * @param {string} tierRoleId DiscordID of the role tier
  * @param {boolean} yuzu True if it's the button for the yuzu Tier
  * @param {boolean} wifi True if it's the button for the wifi Tier
+ * @param {boolean} isRankedChannel True if the message goes to #ranked
  */
 const insertMatchmakingMessage = async (
   guildDiscordId,
@@ -142,7 +151,8 @@ const insertMatchmakingMessage = async (
   tierRoleId,
   yuzu = false,
   wifi = false,
-  ranked = false
+  ranked = false,
+  isRankedChannel = false
 ) => {
   const guild = await getGuild(guildDiscordId);
   if (!guild) throw new NotFoundError("Guild");
@@ -153,7 +163,7 @@ const insertMatchmakingMessage = async (
   else if (wifi) tier = await guild.getWifiTier();
   if (!ranked && !tier) throw new NotFoundError("Tier");
 
-  if (ranked) await guild.insertRankedMessage(messageDiscordId);
+  if (ranked) await guild.insertRankedMessage(messageDiscordId, isRankedChannel);
   else await guild.insertMatchmakingMessage(messageDiscordId, tier.id);
 };
 
@@ -181,6 +191,16 @@ const removeAllGuildSearchMessages = async (guildDiscordId) => {
   await guild.removeMatchmakingMessages();
 };
 
+const removeRankedChannelMessages = async (guildDiscordId) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw new NotFoundError("Guild");
+
+  await db.deleteQuery({
+    text: "DELETE FROM message WHERE channel_id = $1",
+    values: [guild.rankedChannelId],
+  });
+};
+
 module.exports = {
   getGuild,
   setRolesChannel,
@@ -191,5 +211,6 @@ module.exports = {
   getWifiTier,
   insertMatchmakingMessage,
   removeAllGuildSearchMessages,
+  removeRankedChannelMessages,
   insertListMessage,
 };

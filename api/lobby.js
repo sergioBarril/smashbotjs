@@ -63,7 +63,7 @@ const matchNotAccepted = async (playerDiscordId, isTimeout) => {
       await otherOwnLobby.removeMessages(MESSAGE_TYPES.LOBBY_TIER, client);
 
       const hasTier = await otherOwnLobby.hasAnyTier(client);
-      if (!hasTier) await otherOwnLobby.remove(client);
+      if (!hasTier && !lobby.ranked) await otherOwnLobby.remove(client);
       else {
         await otherOwnLobby.setStatus("SEARCHING", client);
         await otherOwnLobby.setLobbyPlayersStatus("SEARCHING", client);
@@ -81,7 +81,7 @@ const matchNotAccepted = async (playerDiscordId, isTimeout) => {
       await afkMessage.setType(MESSAGE_TYPES.LOBBY_PLAYER_AFK, client);
 
       const hasAnyTier = await declinedLobby.hasAnyTier(client);
-      if (hasAnyTier) {
+      if (hasAnyTier || declinedLobby.ranked) {
         await declinedLobby.setStatus("AFK", client);
         await declinedLobby.setLobbyPlayersStatus("AFK", client);
       } else await declinedLobby.remove(client);
@@ -651,8 +651,7 @@ const searchAgainAfkLobby = async (playerDiscordId) => {
   await lobby.setLobbyPlayersStatus("SEARCHING");
 
   const players = [player];
-  const matchmakingResult = await matchmaking(player.discordId);
-  const rivalPlayer = matchmakingResult?.rivalPlayer;
+  const { rivalPlayer, searchedRanked, foundRanked } = await matchmaking(player.discordId);
 
   const guild = await lobby.getGuild();
 
@@ -662,6 +661,8 @@ const searchAgainAfkLobby = async (playerDiscordId) => {
     matched: rivalPlayer != null,
     players,
     guild,
+    searchedRanked,
+    foundRanked,
   };
 };
 

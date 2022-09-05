@@ -218,7 +218,8 @@ const editMessages = async (interaction, messages, newMessage, guildDiscordId) =
  */
 const editDirectMessage = async (interaction, message, player, newMessage) => {
   const discordPlayer = await interaction.client.users.fetch(player.discordId);
-  const discordMessage = await discordPlayer.dmChannel.messages.fetch(message.discordId);
+  const dmChannel = await discordPlayer.createDM();
+  const discordMessage = await dmChannel.messages.fetch(message.discordId);
   await discordMessage.edit(newMessage);
 };
 

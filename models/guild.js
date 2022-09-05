@@ -112,14 +112,15 @@ class Guild {
   /**
    * Inserts new message to the DB, of type GUILD_RANKED_SEARCH
    * @param {string} messageDiscordId DiscordID of the new matchmaking message
+   * @param {boolean} isRankedChannel True if this message is from the ranked channel
    * @param {Client} client Optional PG client
    */
-  insertRankedMessage = async (messageDiscordId, client = null) => {
+  insertRankedMessage = async (messageDiscordId, isRankedChannel = false, client = null) => {
     await insertMessage(
       messageDiscordId,
       MESSAGE_TYPES.GUILD_RANKED_SEARCH,
       null,
-      this.matchmakingChannelId,
+      isRankedChannel ? this.rankedChannelId : this.matchmakingChannelId,
       null,
       this.id,
       null,
@@ -137,12 +138,14 @@ class Guild {
     const deleteQuery = {
       text: `DELETE FROM message
       WHERE guild_id = $1
-      AND (type = $2 OR type = $3 OR type = $4)`,
+      AND (type = $2 OR type = $3 OR type = $4)
+      AND channel_id = $5`,
       values: [
         this.id,
         MESSAGE_TYPES.GUILD_TIER_SEARCH,
         MESSAGE_TYPES.GUILD_CURRENT_LIST,
         MESSAGE_TYPES.GUILD_RANKED_SEARCH,
+        this.matchmakingChannelId,
       ],
     };
 

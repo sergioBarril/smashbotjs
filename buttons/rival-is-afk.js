@@ -127,12 +127,14 @@ module.exports = {
     const isSearching = await lobbyAPI.isSearching(otherPlayer.discordId);
     if (!isSearching) return;
 
-    const { rivalPlayer } = await lobbyAPI.matchmaking(otherPlayer.discordId);
+    const { rivalPlayer, searchedRanked, foundRanked } = await lobbyAPI.matchmaking(
+      otherPlayer.discordId
+    );
     const players = [otherPlayer, rivalPlayer];
     if (rivalPlayer) {
-      await discordMatchingUtils.matched(guild, players);
+      await discordMatchingUtils.matched(guild, players, foundRanked);
     } else {
-      await discordMatchingUtils.notMatched(otherPlayer.discordId, guild);
+      await discordMatchingUtils.notMatched(otherPlayer.discordId, guild, null, searchedRanked);
     }
   },
 };

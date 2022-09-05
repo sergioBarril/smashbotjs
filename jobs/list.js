@@ -28,7 +28,8 @@ async function formatListMessage(discordGuild, ranked, searching, confirmation, 
 
   if (searchingTiers.length > 0 || ranked.length > 0) response += "**__BUSCANDO PARTIDA EN__:**\n";
   if (ranked.length > 0) {
-    response += `Ranked: ${ranked.length}\n`;
+    const personas = "persona" + (ranked.length > 1 ? "s" : "");
+    response += `Ranked: ${ranked.length} ${personas}\n`;
   }
   for (let tier of searchingTiers) {
     let tierName;
@@ -63,11 +64,17 @@ async function formatListMessage(discordGuild, ranked, searching, confirmation, 
   // *************
   if (confirmation.length > 0) response += "**__ESPERANDO CONFIRMACIÓN__:**\n";
   for (let [p1, p2] of confirmation) {
-    const discordP1 = await discordGuild.members.fetch(p1.player.discordId);
-    const discordP2 = await discordGuild.members.fetch(p2.player.discordId);
+    let p1DisplayName = "**Alguien**";
+    let p2DisplayName = "**Alguien**";
 
-    response += `${discordP1.displayName} (${p1.accepted ? GREEN_CHECK_EMOJI : HOURGLASS_EMOJI}) `;
-    response += `y ${discordP2.displayName} (${p2.accepted ? GREEN_CHECK_EMOJI : HOURGLASS_EMOJI})`;
+    if (!p1.ranked) {
+      const discordP1 = await discordGuild.members.fetch(p1.player.discordId);
+      const discordP2 = await discordGuild.members.fetch(p2.player.discordId);
+      p1DisplayName = discordP1.displayName;
+      p2DisplayName = discordP2.displayName;
+    }
+    response += `${p1DisplayName} (${p1.accepted ? GREEN_CHECK_EMOJI : HOURGLASS_EMOJI}) `;
+    response += `y ${p2DisplayName} (${p2.accepted ? GREEN_CHECK_EMOJI : HOURGLASS_EMOJI})`;
     response += "\n";
   }
 
