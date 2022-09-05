@@ -84,7 +84,8 @@ const notMatched = async (interaction, tiers, isRanked) => {
  */
 const deleteAfkMessage = async (interaction, message) => {
   if (!message) return;
-  const discordMessage = await interaction.user.dmChannel.messages.fetch(message.discordId);
+  const dmChannel = await interaction.user.createDM();
+  const discordMessage = await dmChannel.messages.fetch(message.discordId);
   await discordMessage.delete();
 };
 

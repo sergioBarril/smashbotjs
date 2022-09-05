@@ -9,14 +9,11 @@ const { CustomError } = require("../errors/customError");
 
 /**
  * Starts a new set, and the first game
- * @param {string} playerDiscordId Discord ID of one of the players
+ * @param {string} textChannelId DiscordID of the textChannel of the lobby
  * @returns
  */
-const newSet = async (playerDiscordId) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await player.getLobby("PLAYING");
+const newSet = async (textChannelId) => {
+  const lobby = await getLobbyByTextChannel(textChannelId);
   if (!lobby) throw new NotFoundError("Lobby");
 
   // CHECK IF CURRENT SET EXISTS

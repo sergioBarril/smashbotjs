@@ -115,7 +115,7 @@ const getCurrentList = async (guildDiscordId) => {
     let players = await Promise.all(
       lps.map(async (lp) => {
         const player = await lp.getPlayer();
-        return { player, accepted: lp.status === "ACCEPTED", ranked: lobby.ranked };
+        return { player, accepted: lp.status === "ACCEPTED", ranked: lobby.mode == "RANKED" };
       })
     );
 

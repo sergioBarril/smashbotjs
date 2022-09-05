@@ -241,14 +241,17 @@ class Lobby {
    * To be called after a match has been found.
    * Sets up the lobby statuses and lobby players
    * @param {Player} opponent
+   * @param {boolean} foundRanked True if the match being setup is ranked
    */
-  setupMatch = async (opponent) => {
+  setupMatch = async (opponent, foundRanked = false) => {
     const client = await db.getClient();
 
     // Update status
     try {
       await client.query("BEGIN");
       await this.setStatus("CONFIRMATION", client);
+      const mode = foundRanked ? "RANKED" : "FRIENDLIES";
+      await this.setMode(mode, client);
 
       const oppLobby = await opponent.getOwnLobby(client);
       if (!oppLobby) throw Error("matchmakingNoOppLobby");
@@ -477,6 +480,11 @@ class Lobby {
   setStatus = async (status, client = null) => {
     await db.updateBy("lobby", { status }, { id: this.id }, client);
     this.status = status;
+  };
+
+  setMode = async (mode, client = null) => {
+    await db.updateBy("lobby", { mode }, { id: this.id }, client);
+    this.mode = mode;
   };
 
   setRanked = async (ranked, client = null) => {

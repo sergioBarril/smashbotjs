@@ -311,7 +311,7 @@ const matchmaking = async (playerDiscordId) => {
 
   if (!rivalPlayer) rivalPlayer = await lobby.matchmaking();
 
-  if (rivalPlayer) await lobby.setupMatch(rivalPlayer);
+  if (rivalPlayer) await lobby.setupMatch(rivalPlayer, foundRanked);
 
   return { rivalPlayer, foundRanked, searchedRanked };
 };
@@ -571,7 +571,13 @@ const acceptMatch = async (playerDiscordId) => {
 
   const guild = await lobby.getGuild();
 
-  return { hasEveryoneAccepted, players, acceptedAt: lp.acceptedAt, guild, ranked: lobby.ranked };
+  return {
+    hasEveryoneAccepted,
+    players,
+    acceptedAt: lp.acceptedAt,
+    guild,
+    ranked: lobby.mode == "RANKED",
+  };
 };
 
 /**

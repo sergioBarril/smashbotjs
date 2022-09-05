@@ -81,7 +81,7 @@ module.exports = {
 
       if (!decided) return await firstVote(interaction, status, opponent.discordId);
 
-      const { players } = await setAPI.newSet(opponent.discordId);
+      const { players } = await setAPI.newSet(interaction.channel.id);
 
       const members = await Promise.all(
         players.map(async (p) => await interaction.guild.members.fetch(p.discordId))

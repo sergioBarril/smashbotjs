@@ -1,10 +1,12 @@
 const lobbyAPI = require("../api/lobby");
+const setAPI = require("../api/gameset");
 
 const { MessageActionRow, MessageButton, Permissions } = require("discord.js");
 const { Player } = require("../models/player");
 const { Guild } = require("../models/guild");
 const { NotFoundError } = require("../errors/notFound");
 const { Message } = require("../models/message");
+const { setupNextGame, setupCharacter } = require("../utils/discordGameset");
 
 // Disabled buttons
 const row = new MessageActionRow().addComponents(
@@ -27,16 +29,25 @@ const timeoutButtons = new MessageActionRow().addComponents(
     .setStyle("DANGER")
 );
 
+const cancelSetButtons = () => {
+  return [
+    new MessageActionRow().addComponents(
+      new MessageButton().setCustomId("cancel-set").setStyle("SECONDARY").setLabel("Anular set")
+    ),
+  ];
+};
+
 /**
  * Creates the private text and voice channels
  * @param {*} interaction Discord interaction object.
  * @param {Array<>} players Array of Discord User objects
  * @param {Guild} guild Guild where the lobby is (not the Discord object)
+ * @param {boolean} ranked True if the arena is ranked
  * @returns Object with two properties:
  *   - text (Channel) : Text channel discord object
  *   - voice (Channel) : Voice channel discord object
  */
-const createArena = async (interaction, players, guild) => {
+const createArena = async (interaction, players, guild, ranked) => {
   const discordGuild = await interaction.client.guilds.fetch(guild.discordId);
   if (!discordGuild) throw new NotFoundError("Guild");
   const arenaCategory = discordGuild.channels.cache.find(
@@ -58,7 +69,8 @@ const createArena = async (interaction, players, guild) => {
     };
   });
 
-  const channel = await discordGuild.channels.create("arena", {
+  const arenaName = ranked ? "ranked-arena" : "arena";
+  const channel = await discordGuild.channels.create(arenaName, {
     type: "GUILD_TEXT",
     parent: arenaCategory.id,
     permissionOverwrites: [
@@ -70,7 +82,7 @@ const createArena = async (interaction, players, guild) => {
     ],
   });
 
-  const voiceChannel = await discordGuild.channels.create("arena", {
+  const voiceChannel = await discordGuild.channels.create(arenaName, {
     type: "GUILD_VOICE",
     parent: arenaCategory.id,
     permissionOverwrites: [
@@ -82,17 +94,18 @@ const createArena = async (interaction, players, guild) => {
     ],
   });
 
-  const newSet = new MessageActionRow().addComponents(
-    new MessageButton().setCustomId("new-set").setLabel("Set BO5").setStyle("SECONDARY"),
-    new MessageButton().setCustomId("close-lobby").setLabel("Cerrar arena").setStyle("DANGER")
-  );
+  if (!ranked) {
+    const newSet = new MessageActionRow().addComponents(
+      new MessageButton().setCustomId("new-set").setLabel("Set BO5").setStyle("SECONDARY"),
+      new MessageButton().setCustomId("close-lobby").setLabel("Cerrar arena").setStyle("DANGER")
+    );
 
-  const firstMessageText = `¡Bienvenidos! Jugad todo lo que queráis y cerrad la arena cuando acabéis.`;
-  await channel.send({
-    content: firstMessageText,
-    components: [newSet],
-  });
-
+    const firstMessageText = `¡Bienvenidos! Jugad todo lo que queráis y cerrad la arena cuando acabéis.`;
+    await channel.send({
+      content: firstMessageText,
+      components: [newSet],
+    });
+  }
   return { text: channel, voice: voiceChannel };
 };
 
@@ -109,7 +122,7 @@ const editDMs = async (channels, messages) => {
     `¡Hay partido! Dirígete a ${textChannel} y a pelear.\n` +
     `También podéis ir a ${voiceChannel} para disfrutar de un voice chat privado.`;
 
-  for (message of messages) {
+  for (let message of messages) {
     await message.edit({
       content: updatedText,
       components: [],
@@ -183,12 +196,37 @@ const allAccepted = async (interaction, players, guild, ranked) => {
     players.map(async (player) => await interaction.client.users.fetch(player.discordId))
   );
 
-  const channels = await createArena(interaction, discordPlayers, guild);
+  const channels = await createArena(interaction, discordPlayers, guild, ranked);
   let { tierMessages, directMessages } = await lobbyAPI.setupArena(
     interaction.user.id,
     channels.text.id,
     channels.voice.id
   );
+
+  if (ranked) {
+    const { players: setPlayers } = await setAPI.newSet(channels.text.id);
+
+    const discordGuild = await interaction.client.guilds.fetch(guild.discordId);
+    const members = await Promise.all(
+      setPlayers.map(async (p) => await discordGuild.members.fetch(p.discordId))
+    );
+
+    const memberFormatter = new Intl.ListFormat("es");
+    const memberNames = memberFormatter.format(
+      members.map((member) => `**${member.displayName}**`)
+    );
+
+    await channels.text.send({
+      content: `¡Marchando un set ranked BO5 entre ${memberNames}! Si hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón.`,
+      components: cancelSetButtons(),
+    });
+
+    await channels.text.send("__**Game 1**__");
+
+    await Promise.all([
+      members.map((member) => setupCharacter(channels.text, member, 1, discordGuild)),
+    ]);
+  }
 
   // Fetch Discord DMs
   const dms = await Promise.all(
