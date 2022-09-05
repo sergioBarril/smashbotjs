@@ -7,11 +7,12 @@ const HOURGLASS_EMOJI = ":hourglass:";
 
 /**
  * @param {Guild} discordGuild DiscordJS Guild object
+ * @param {Array} ranked Array with the information on ranked searching lobbies
  * @param {Array} searching Array with the information on searching lobbies
  * @param {Array} confirmation Array with the information on lobbies on confirmation
  * @param {Array} playing Array with the information on lobbies actively playing
  */
-async function formatListMessage(discordGuild, searching, confirmation, playing) {
+async function formatListMessage(discordGuild, ranked, searching, confirmation, playing) {
   let response = "";
 
   // *************
@@ -25,8 +26,10 @@ async function formatListMessage(discordGuild, searching, confirmation, playing)
 
   const playerNamesDict = {};
 
-  if (searchingTiers.length > 0) response += "**__BUSCANDO PARTIDA EN__:**\n";
-
+  if (searchingTiers.length > 0 || ranked.length > 0) response += "**__BUSCANDO PARTIDA EN__:**\n";
+  if (ranked.length > 0) {
+    response += `Ranked: ${ranked.length}\n`;
+  }
   for (let tier of searchingTiers) {
     let tierName;
 
@@ -98,8 +101,14 @@ function searchListJob(client) {
       const channel = await discordGuild.channels.fetch(guild.matchmakingChannelId);
       const message = await channel.messages.fetch(listMessage.discordId);
 
-      let { searching, confirmation, playing } = await getCurrentList(guild.discordId);
-      const response = await formatListMessage(discordGuild, searching, confirmation, playing);
+      let { ranked, searching, confirmation, playing } = await getCurrentList(guild.discordId);
+      const response = await formatListMessage(
+        discordGuild,
+        ranked,
+        searching,
+        confirmation,
+        playing
+      );
 
       await message.fetch();
       if (message.content != response.trim()) {

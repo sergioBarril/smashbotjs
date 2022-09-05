@@ -265,7 +265,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
     await lobby.setLobbyPlayersStatus("SEARCHING");
   }
 
-  const { rivalPlayer, searchedRanked, foundRanked } = await matchmaking(player.discordId);
+  const { rivalPlayer, foundRanked } = await matchmaking(player.discordId);
 
   // Remove afk messages (from the person that searched)
   const afkMessages = await lobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
@@ -278,7 +278,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
     tiers: newTiers,
     players: [player, rivalPlayer],
     afkMessage,
-    searchedRanked,
+    searchedRanked: isRanked,
     foundRanked,
   };
 };
@@ -465,6 +465,7 @@ const stopSearch = async (playerDiscordId, messageDiscordId) => {
         const lt = await lobby.getLobbyTier(tier.id, client);
         const message = await lt.getMessage(client);
         await lt.remove(client);
+        await message.remove();
         return message;
       })
     );
@@ -485,8 +486,9 @@ const stopSearch = async (playerDiscordId, messageDiscordId) => {
 
     return {
       isSearching: hasTier,
-      messages: messages,
+      messages,
       tiers: tiersToStop,
+      isRanked,
     };
   } catch (e) {
     await client.query("ROLLBACK");

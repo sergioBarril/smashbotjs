@@ -69,7 +69,7 @@ const notMatched = async (interaction, tiers, isRanked) => {
 
   if (isRanked) {
     rolesNames = "**Ranked**";
-    await discordMatchingUtils.notMatched(playerId, guild, null, isRanked);
+    await discordMatchingUtils.notMatched(playerId, guild, null, isRanked, true);
   }
   await interaction.editReply({
     content: `A partir de ahora estás buscando en ${rolesNames}.`,

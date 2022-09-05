@@ -2,7 +2,7 @@ const { NotFoundError } = require("../errors/notFound");
 const { getGuild: getGuildByDiscord, Guild } = require("../models/guild");
 const { insertMessage, MESSAGE_TYPES } = require("../models/message");
 const { getPlayer } = require("../models/player");
-const { getTierByRole } = require("../models/tier");
+const { getTierByRole, getTier } = require("../models/tier");
 
 /**
  * Returns the Guild Model
@@ -66,6 +66,7 @@ const getCurrentList = async (guildDiscordId) => {
   // SEARCHING LOBBIES
   const searchingLobbies = lobbies.filter((lobby) => lobby.status === "SEARCHING");
   let searching = [];
+  let ranked = [];
 
   for (let lobby of searchingLobbies) {
     const owner = await getPlayer(lobby.createdBy, false);
@@ -79,6 +80,15 @@ const getCurrentList = async (guildDiscordId) => {
         tier,
       });
     });
+
+    if (lobby.ranked) {
+      const rating = await owner.getRating(guild.id);
+      const tier = await getTier(rating.tierId);
+      ranked.push({
+        player: owner,
+        tier,
+      });
+    }
   }
 
   searching = searching.sort((a, b) => {
@@ -97,7 +107,7 @@ const getCurrentList = async (guildDiscordId) => {
     let players = await Promise.all(
       lps.map(async (lp) => {
         const player = await lp.getPlayer();
-        return { player, accepted: lp.status === "ACCEPTED" };
+        return { player, accepted: lp.status === "ACCEPTED", ranked: lobbies.ranked };
       })
     );
 
@@ -115,7 +125,7 @@ const getCurrentList = async (guildDiscordId) => {
     playing.push(players);
   }
 
-  return { searching, confirmation, playing };
+  return { ranked, searching, confirmation, playing };
 };
 
 /**

@@ -18,16 +18,18 @@ const exceptionHandler = async (interaction, exception) => {
   });
 };
 
-const successfulReply = async (interaction, isSearching, tiers) => {
+const successfulReply = async (interaction, isSearching, tiers, isRanked) => {
   const roles = tiers.map((tier) => (tier.yuzu ? `**Yuzu**` : `<@&${tier.roleId}>`));
 
   const rolesFormatter = new Intl.ListFormat("es", {
     style: "long",
     type: "conjunction",
   });
-  const rolesNames = rolesFormatter.format(roles);
+  let rolesNames = rolesFormatter.format(roles);
 
-  let responseText = `A partir de ahora **no** estás buscando partida en ${rolesNames}`;
+  if (isRanked) rolesNames = `**Ranked**`;
+
+  let responseText = `A partir de ahora **no** estás buscando partida en ${rolesNames}.`;
 
   if (!isSearching) responseText = `Ya no estás buscando partida. ¡Hasta pronto!`;
 
@@ -70,12 +72,12 @@ module.exports = {
 
     try {
       const stopSearchResult = await lobbyAPI.stopSearch(playerId, messageId);
-      const { isSearching, messages, tiers } = stopSearchResult;
+      const { isSearching, messages, tiers, isRanked } = stopSearchResult;
 
       for (let message of messages) {
         await editMessage(interaction, message.channelId, message.discordId, message.ranked);
       }
-      await successfulReply(interaction, isSearching, tiers);
+      await successfulReply(interaction, isSearching, tiers, isRanked);
     } catch (e) {
       await exceptionHandler(interaction, e);
     }

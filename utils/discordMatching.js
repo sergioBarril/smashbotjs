@@ -114,8 +114,9 @@ const matched = async (guild, players, isRanked) => {
  * @param {Guild} guild Discord Guild object
  * @param {Tier} tier Tier where last tried to match. Null if it's not only one tier.
  * @param {boolean} isRanked True if this comes from searching in ranked
+ * @param {boolean} isOnlyRanked True if should ignore tiers alltogether
  */
-const notMatched = async (playerId, guild, tier = null, isRanked = false) => {
+const notMatched = async (playerId, guild, tier = null, isRanked = false, isOnlyRanked = false) => {
   const button = new MessageActionRow().addComponents(
     new MessageButton().setCustomId("direct-match").setLabel("Jugar").setStyle("SUCCESS")
   );
@@ -145,7 +146,7 @@ const notMatched = async (playerId, guild, tier = null, isRanked = false) => {
 
   let tiers = [];
   if (tier) tiers.push(tier);
-  else tiers = await lobbyAPI.getSearchingTiers(playerId);
+  else if (!isOnlyRanked) tiers = await lobbyAPI.getSearchingTiers(playerId);
 
   for (let tier of tiers) {
     const channel = await guild.channels.fetch(tier.channelId);
