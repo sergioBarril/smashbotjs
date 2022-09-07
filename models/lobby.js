@@ -123,11 +123,20 @@ class Lobby {
    */
   rankedMatchmaking = async (playerTierWeight, isPromotion) => {
     let weightCondition = `
-      AND t.weight <= $4 + 1
-      AND t.weight >= $4 - 1
+      AND (
+        ( t.weight <= $4 + 1
+          AND t.weight >= $4 - 1
+          AND NOT r.promotion
+        )
+        OR
+        (
+          t.weight = $4 + 1
+          AND r.promotion
+        )
+      )
       `;
 
-    if (isPromotion) weightCondition = `AND t.weight = $4 - 1`;
+    if (isPromotion) weightCondition = `AND t.weight = $4 - 1 AND NOT r.promotion`;
 
     const matchmakingQuery = {
       text: `

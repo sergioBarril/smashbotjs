@@ -19,7 +19,11 @@ const getPlayerTier = async (playerDiscordId, guildDiscordId) => {
   const rating = await player.getRating(guild.id);
   if (!rating) throw new NotFoundError("Rating");
 
-  return await getTier(rating.tierId);
+  let tier = await getTier(rating.tierId);
+
+  if (rating.promotion) tier = await tier.getNextTier();
+
+  return tier;
 };
 
 const rankUp = async (rating, nextTier) => {
@@ -71,7 +75,8 @@ const updateScore = async (
 
   const opponent = await getPlayer(opponentDiscordId, true);
   const opponentRating = await opponent.getRating(guild.id);
-  const isSameTier = opponentRating.tierId === rating.tierId;
+  const isSameTier =
+    opponentRating.tierId === rating.tierId || opponentRating.promotion || rating.promotion;
 
   const tier = await getTier(rating.tierId);
   const nextTier = await tier.getNextTier();
