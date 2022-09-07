@@ -449,15 +449,15 @@ class Lobby {
     await db.updateQuery(queryString, client);
   };
 
-  newGameset = async (firstTo = 3, client = null) => {
+  newGameset = async (firstTo = 3, ranked = false, client = null) => {
     if (this.status !== "PLAYING") throw new Error("notPlaying");
 
     const insertQuery = {
       text: `
-    INSERT INTO gameset(guild_id, lobby_id, first_to)
-    VALUES ($1, $2, $3)
+    INSERT INTO gameset(guild_id, lobby_id, first_to, ranked)
+    VALUES ($1, $2, $3, $4)
     `,
-      values: [this.guildId, this.id, firstTo],
+      values: [this.guildId, this.id, firstTo, ranked],
     };
 
     await db.insertQuery(insertQuery, client);

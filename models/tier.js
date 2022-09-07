@@ -31,6 +31,40 @@ class Tier {
     return await getGuild(this.guildId, false, client);
   };
 
+  /**
+   * Get the next tier (if this is tier 3, get tier 2)
+   * @param {Client} client Optional PG client
+   * @returns
+   */
+  getNextTier = async (client = null) => {
+    if (this.weight === null) return null;
+    const result = await db.getBy(
+      "tier",
+      { guild_id: this.guildId, weight: this.weight - 1 },
+      client
+    );
+
+    if (result) return new Tier(result);
+    else return null;
+  };
+
+  /**
+   * Get the next tier (if this is tier 3, get tier 4)
+   * @param {Client} client Optional PG client
+   * @returns
+   */
+  getPreviousTier = async (client = null) => {
+    if (this.weight === null) return null;
+    const result = await db.getBy(
+      "tier",
+      { guild_id: this.guildId, weight: this.weight + 1 },
+      client
+    );
+
+    if (result) return new Tier(result);
+    else return null;
+  };
+
   canSearchIn = (targetTier) => {
     // Can someone with this as their highest tier search in targetTier?
     if (!targetTier) return false;

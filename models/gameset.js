@@ -11,6 +11,7 @@ class Gameset {
     lobby_id,
     winner_id,
     is_surrender,
+    ranked,
   }) {
     this.id = id;
     this.createdAt = created_at;
@@ -20,6 +21,7 @@ class Gameset {
     this.lobbyId = lobby_id;
     this.winnerId = winner_id;
     this.isSurrender = is_surrender;
+    this.ranked = ranked;
   }
 
   getGameByNum = async (gameNum, client = null) => {

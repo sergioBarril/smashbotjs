@@ -1,6 +1,7 @@
 const setAPI = require("../api/gameSet");
 const rolesAPI = require("../api/roles");
 const lobbyAPI = require("../api/lobby");
+const ratingAPI = require("../api/rating");
 const stageEmojis = require("../params/stageEmojis.json");
 const smashCharacters = require("../params/smashCharacters.json");
 
@@ -13,6 +14,7 @@ const {
   Guild,
 } = require("discord.js");
 const { Stage } = require("../models/stage");
+const { Tier } = require("../models/tier");
 
 /**
  * Get the text that will be displayed after picking or banning
@@ -238,31 +240,141 @@ const setEndButtons = () => {
   return [newSet];
 };
 
+const rankedScoreText = async (member, oldRating, rating, discordGuild) => {
+  // PROMOTIONS
+  if (oldRating.promotion && rating.promotion)
+    return `La promoción de **${member.displayName}** va ${rating.promotionWins} - ${rating.promotionLosses}.`;
+  else if (oldRating.promotion) {
+    const promotionWins = oldRating.promotionWins;
+    const promotionLosses = oldRating.promotionLosses;
+    const newTierRole = await discordGuild.roles.fetch(rating.tier.roleId);
+
+    if (oldRating.tier.weight > rating.tier.weight) {
+      return `**${member.displayName}**, tu promoción ha acabado ${
+        promotionWins + 1
+      } - ${promotionLosses}. ¡Felicidades, pasas a ${newTierRole}!`;
+    } else
+      return (
+        `**${member.displayName}**, tu promoción ha acabado ${promotionWins} - ${
+          promotionLosses + 1
+        }. Sigues en **${newTierRole.name}** con ` + `una puntuación de ${rating.score}.`
+      );
+  } else if (rating.promotion) {
+    const nextTier = await rating.tier.getNextTier();
+    const newTierRole = await discordGuild.roles.fetch(nextTier.roleId);
+    return `**${member.displayName}** acaba de entrar en promoción para ${newTierRole}. ¡Buena suerte en tus próximos sets!`;
+  }
+
+  // SCORES
+  const scoreDiff = rating.score - oldRating.score;
+  const sign = scoreDiff >= 0 ? "+" : "";
+  let response = `La puntuación de **${member.displayName}** pasa a ${rating.score} (${sign}${scoreDiff}).`;
+  if (oldRating.tier.weight < rating.tier.weight) {
+    const newTierRole = await discordGuild.roles.fetch(rating.tier.roleId);
+    response += `Has caído a ${newTierRole}. ¡Dale duro y seguro que vuelves a subir!`;
+  }
+  return response;
+};
+
+const allRankedScoreText = async (
+  winnerMember,
+  winnerOldRating,
+  winnerRating,
+  loserMember,
+  loserOldRating,
+  loserRating,
+  discordGuild
+) => {
+  const winnerText = await rankedScoreText(
+    winnerMember,
+    winnerOldRating,
+    winnerRating,
+    discordGuild
+  );
+  const loserText = await rankedScoreText(loserMember, loserOldRating, loserRating, discordGuild);
+  return `\n${winnerText}\n${loserText}\n`;
+};
+
+/**
+ *
+ * @param {string} playerDiscordId DiscordId of the player that needs their role changed
+ * @param {Tier} oldTier Old tier
+ * @param {Tier} newTier New tier
+ * @param {Guild} discordGuild DiscordGuild object
+ */
+const changeTier = async (playerDiscordId, oldTier, newTier, discordGuild) => {
+  if (oldTier.id === newTier.id) return;
+
+  const member = await discordGuild.members.fetch(playerDiscordId);
+  const oldRole = await discordGuild.roles.fetch(oldTier.roleId);
+  await member.roles.remove(oldRole);
+
+  const newRole = await discordGuild.roles.fetch(newTier.roleId);
+  await member.roles.add(newRole);
+
+  const newRankedRole = await discordGuild.roles.fetch(newTier.rankedRoleId);
+  await member.roles.add(newRankedRole);
+};
+
 /**
  *
  * @param {Interaction} interaction DiscordJS interaction
- * @param {string} playerDiscordId DiscordID of the winner
+ * @param {string} winnerDiscordId DiscordID of the winner
+ * @param {string} loserDiscordId DiscordID of the loser
  * @param {boolean} isSurrender True if won by surrender, false if won normally
  * @returns
  */
-const setupSetEnd = async (interaction, playerDiscordId, isSurrender) => {
-  const player = await interaction.guild.members.fetch(playerDiscordId);
+const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurrender) => {
+  const winner = await interaction.guild.members.fetch(winnerDiscordId);
+  const loser = await interaction.guild.members.fetch(loserDiscordId);
   let emoji = "";
   let porAbandono = "";
   if (isSurrender) porAbandono = " por abandono";
 
   if (!isSurrender) {
-    const pcs = await setAPI.getPlayersAndCharacters(player.id);
-    const characterName = await pcs.find((p) => p.playerDiscordId === player.id).characterName;
+    const pcs = await setAPI.getPlayersAndCharacters(winner.id);
+    const characterName = await pcs.find((p) => p.playerDiscordId === winner.id).characterName;
     emoji = ` ${smashCharacters[characterName].emoji}`;
 
-    await setAPI.setWinner(player.id);
+    await setAPI.setWinner(winner.id);
+  }
+
+  const isRanked = await setAPI.isRankedSet(winnerDiscordId);
+  let rankedText = " ";
+
+  if (isRanked) {
+    const { oldRating: winnerOldRating, rating: winnerRating } = await ratingAPI.updateScore(
+      winnerDiscordId,
+      interaction.guild.id,
+      loserDiscordId,
+      null
+    );
+
+    const { oldRating: loserOldRating, rating: loserRating } = await ratingAPI.updateScore(
+      loserDiscordId,
+      interaction.guild.id,
+      winnerDiscordId,
+      winnerOldRating.score
+    );
+
+    rankedText = await allRankedScoreText(
+      winner,
+      winnerOldRating,
+      winnerRating,
+      loser,
+      loserOldRating,
+      loserRating,
+      interaction.guild
+    );
+
+    await changeTier(winnerDiscordId, winnerOldRating.tier, winnerRating.tier, interaction.guild);
+    await changeTier(loserDiscordId, loserOldRating.tier, loserRating.tier, interaction.guild);
   }
 
   await setAPI.unlinkLobby(interaction.channel.id);
 
   const responseObj = {
-    content: `¡**${player.displayName}**${emoji} ha ganado el set${porAbandono}! Puedes pedir la revancha, o cerrar la arena.`,
+    content: `¡**${winner.displayName}**${emoji} ha ganado el set${porAbandono}!${rankedText}Puedes pedir la revancha, o cerrar la arena.`,
     components: setEndButtons(),
   };
 
@@ -283,8 +395,15 @@ const setupNextGame = async (interaction) => {
   let winner = isSurrender && score.find((player) => !player.surrender);
   if (!winner) winner = score.find((ps) => ps.wins >= 3);
 
-  if (winner) return await setupSetEnd(interaction, winner.player.discordId, isSurrender);
-  else {
+  if (winner) {
+    const loser = score.find((sc) => sc.player.id !== winner.player.id);
+    return await setupSetEnd(
+      interaction,
+      winner.player.discordId,
+      loser.player.discordId,
+      isSurrender
+    );
+  } else {
     const newGame = await setAPI.newGame(interaction.channel.id);
 
     if (newGame.num > 1) {

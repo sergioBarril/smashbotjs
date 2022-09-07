@@ -21,7 +21,7 @@ const newSet = async (textChannelId) => {
   if (oldGameset) throw new InGamesetError();
 
   // NEW SET
-  await lobby.newGameset(3);
+  await lobby.newGameset(3, lobby.mode == "RANKED");
   const gameset = await lobby.getGameset();
   const game = await gameset.newGame();
 
@@ -67,6 +67,24 @@ const cancelSet = async (lobbyChannelId) => {
   if (gameset.winnerId) throw new CustomError("Set is already over");
 
   await gameset.remove();
+};
+
+/**
+ * Returns true if the gameset is ranked.
+ * @param {string} playerDiscordId Discord ID of a player of the gameset
+ * @returns
+ */
+const isRankedSet = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const lobby = await player.getLobby("PLAYING");
+  if (!lobby) throw new NotFoundError("Lobby");
+
+  const gameset = await lobby.getGameset();
+  if (!gameset) throw new NotFoundError("Gameset");
+
+  return gameset.ranked;
 };
 
 /**
@@ -539,6 +557,7 @@ module.exports = {
   newSet,
   newGame,
   cancelSet,
+  isRankedSet,
   getPlayersAndCharacters,
   pickCharacter,
   setCharacterSelectMessage,
