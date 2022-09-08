@@ -7,9 +7,11 @@ const { getGuild } = require("./guild");
  * Get the tier of the player in the given guild
  * @param {string} playerDiscordId DiscordID of the player
  * @param {string} guildDiscordId DiscordID of the guild
+ * @param {boolean} ignorePromotion If true, return the tier. If false and is in promotion,
+ * return next tier
  * @returns Tier of the player
  */
-const getPlayerTier = async (playerDiscordId, guildDiscordId) => {
+const getPlayerTier = async (playerDiscordId, guildDiscordId, ignorePromotion = false) => {
   const player = await getPlayer(playerDiscordId, true);
   if (!player) throw new NotFoundError("Player");
 
@@ -17,13 +19,25 @@ const getPlayerTier = async (playerDiscordId, guildDiscordId) => {
   if (!guild) throw new NotFoundError("Guild");
 
   const rating = await player.getRating(guild.id);
-  if (!rating) throw new NotFoundError("Rating");
+  if (!rating) return null;
 
   let tier = await getTier(rating.tierId);
 
-  if (rating.promotion) tier = await tier.getNextTier();
+  if (!ignorePromotion && rating.promotion) tier = await tier.getNextTier();
 
   return tier;
+};
+
+const getRating = async (playerDiscordId, guildDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw new NotFoundError("Guild");
+
+  const rating = await player.getRating(guild.id);
+
+  return rating;
 };
 
 const rankUp = async (rating, nextTier) => {
@@ -168,6 +182,7 @@ const getRatingsByTier = async (guildDiscordId) => {
 };
 
 module.exports = {
+  getRating,
   getPlayerTier,
   updateScore,
   getRatingsByTier,

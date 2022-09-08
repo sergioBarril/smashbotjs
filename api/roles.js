@@ -171,10 +171,23 @@ const getCharacters = async (playerDiscordId) => {
   return { mains, seconds, pockets };
 };
 
+/**
+ * Get the regions associated with a player
+ * @param {string} playerDiscordId DiscordID of the player
+ * @returns
+ */
+const getRegions = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  return await player.getAllRegions();
+};
+
 module.exports = {
   assignCharacter,
   assignRegion,
   assignYuzu,
   getYuzuRolesForMessage,
   getCharacters,
+  getRegions,
 };
