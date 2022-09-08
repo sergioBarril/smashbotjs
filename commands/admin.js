@@ -8,6 +8,7 @@ const { upsert } = require("./admin/roles/upsert");
 const { add } = require("./admin/tiers/add");
 const { matchmaking } = require("./admin/tiers/matchmaking");
 const { update } = require("./admin/leaderboard/update");
+const { message } = require("./admin/welcome/message");
 
 const data = new SlashCommandBuilder()
   .setName("admin")
@@ -87,6 +88,14 @@ const data = new SlashCommandBuilder()
       .addSubcommand((subcommand) =>
         subcommand.setName("update").setDescription("Actualiza el canal #leaderboards")
       )
+  )
+  .addSubcommandGroup((welcomeCommandGroup) =>
+    welcomeCommandGroup
+      .setName("welcome")
+      .setDescription("Comandos de admin relacionados con el canal de bienvenida")
+      .addSubcommand((subcommand) =>
+        subcommand.setName("message").setDescription("Crea el mensaje de bienvenida en este canal")
+      )
   );
 
 module.exports = {
@@ -111,6 +120,10 @@ module.exports = {
     }
     if (interaction.options.getSubcommandGroup() === "ranked") {
       if (interaction.options.getSubcommand() === "channel") await rankedChannel(interaction);
+    }
+
+    if (interaction.options.getSubcommandGroup() === "welcome") {
+      if (interaction.options.getSubcommand() === "message") await message(interaction);
     }
 
     if (interaction.options.getSubcommandGroup() === "leaderboard") {
