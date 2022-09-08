@@ -142,7 +142,33 @@ const updateScore = async (
   return { oldRating, rating };
 };
 
+/**
+ * Get all the ratings of all players, split by tier and ordered by score
+ * @param {string} guildDiscordId Guild discord ID
+ * @returns
+ */
+const getRatingsByTier = async (guildDiscordId) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw new NotFoundError("Guild");
+
+  const leaderboardInfo = await guild.getLeaderboardInfo();
+  const tierIds = [...new Set(leaderboardInfo.map((row) => row.rating.tierId))];
+
+  const obj = {};
+  tierIds.forEach((tierId) => {
+    obj[tierId] = [];
+
+    leaderboardInfo
+      .filter((row) => row.rating.tierId === tierId)
+      .sort((a, b) => b.rating.score - a.rating.score)
+      .forEach((row) => obj[tierId].push(row));
+  });
+
+  return obj;
+};
+
 module.exports = {
   getPlayerTier,
   updateScore,
+  getRatingsByTier,
 };

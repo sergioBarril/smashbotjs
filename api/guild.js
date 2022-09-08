@@ -63,6 +63,29 @@ const setRankedChannel = async (guildDiscordId, rankedChannelId) => {
 };
 
 /**
+ * Get the leaderboard channel of the guild
+ * @param {string} guildDiscordId Discord ID of the guild
+ * @returns
+ */
+const getLeaderboardChannel = async (guildDiscordId) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw NotFoundError("Guild");
+  return guild.leaderboardChannelId;
+};
+
+/**
+ * Set the leaderboard channel of the guild
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @param {string} leaderboardChannelId DiscordID of the leaderboard channel
+ */
+const setLeaderboardChannel = async (guildDiscordId, leaderboardChannelId) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw NotFoundError("Guild");
+
+  await guild.setLeaderboardChannel(leaderboardChannelId);
+};
+
+/**
  * Get the message that shows the current state of the queues
  * @param {string} guildDiscordId DiscordID of the guild
  * @returns Message to show
@@ -180,6 +203,18 @@ const insertListMessage = async (guildDiscordId, messageDiscordId) => {
 };
 
 /**
+ * Inserts a new Leaderboard message to the database
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @param {string} messageDiscordId DiscordID of the leaderboard message
+ */
+const insertLeaderboardMessage = async (guildDiscordId, messageDiscordId) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw new NotFoundError("Guild");
+
+  await guild.insertLeaderboardMessage(messageDiscordId);
+};
+
+/**
  * Removes all messages of the channel #matchmaking,
  * so message_types = GUILD_TIER_SEARCH and GUILD_CURRENT_LIST
  * @param {string} guildDiscordId DiscordID of the guild
@@ -201,16 +236,34 @@ const removeRankedChannelMessages = async (guildDiscordId) => {
   });
 };
 
+/**
+ * Remove the Leaderboard messages from the DB
+ * @param {string} guildDiscordId DiscordID of the guild
+ */
+const removeLeaderboardMessages = async (guildDiscordId) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw new NotFoundError("Guild");
+
+  await db.deleteQuery({
+    text: "DELETE FROM message WHERE channel_id = $1",
+    values: [guild.leaderboardChannelId],
+  });
+};
+
 module.exports = {
   getGuild,
   setRolesChannel,
   setMatchmakingChannel,
   getRankedChannel,
   setRankedChannel,
+  getLeaderboardChannel,
+  setLeaderboardChannel,
   getCurrentList,
   getWifiTier,
   insertMatchmakingMessage,
+  insertLeaderboardMessage,
   removeAllGuildSearchMessages,
   removeRankedChannelMessages,
+  removeLeaderboardMessages,
   insertListMessage,
 };

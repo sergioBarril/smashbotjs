@@ -2,10 +2,12 @@ const { SlashCommandBuilder } = require("@discordjs/builders");
 const discordRolesUtils = require("../utils/discordRoles");
 const { channel } = require("./admin/roles/channel");
 const { channel: rankedChannel } = require("./admin/ranked/channel");
+const { channel: leaderboardChannel } = require("./admin/leaderboard/channel");
 
 const { upsert } = require("./admin/roles/upsert");
 const { add } = require("./admin/tiers/add");
 const { matchmaking } = require("./admin/tiers/matchmaking");
+const { update } = require("./admin/leaderboard/update");
 
 const data = new SlashCommandBuilder()
   .setName("admin")
@@ -74,6 +76,17 @@ const data = new SlashCommandBuilder()
       .addSubcommand((subcommand) =>
         subcommand.setName("channel").setDescription("Crea el canal de rankeds")
       )
+  )
+  .addSubcommandGroup((rankedCommandGroup) =>
+    rankedCommandGroup
+      .setName("leaderboard")
+      .setDescription("Comandos de admin relacionados con las leaderboards")
+      .addSubcommand((subcommand) =>
+        subcommand.setName("channel").setDescription("Crea el canal #leaderboards")
+      )
+      .addSubcommand((subcommand) =>
+        subcommand.setName("update").setDescription("Actualiza el canal #leaderboards")
+      )
   );
 
 module.exports = {
@@ -98,6 +111,11 @@ module.exports = {
     }
     if (interaction.options.getSubcommandGroup() === "ranked") {
       if (interaction.options.getSubcommand() === "channel") await rankedChannel(interaction);
+    }
+
+    if (interaction.options.getSubcommandGroup() === "leaderboard") {
+      if (interaction.options.getSubcommand() === "channel") await leaderboardChannel(interaction);
+      else if (interaction.options.getSubcommand() === "update") await update(interaction);
     }
   },
 };

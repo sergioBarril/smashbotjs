@@ -15,6 +15,7 @@ const {
 } = require("discord.js");
 const { Stage } = require("../models/stage");
 const { Tier } = require("../models/tier");
+const { updateLeaderboard } = require("./discordLeaderboard");
 
 /**
  * Get the text that will be displayed after picking or banning
@@ -369,6 +370,7 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
 
     await changeTier(winnerDiscordId, winnerOldRating.tier, winnerRating.tier, interaction.guild);
     await changeTier(loserDiscordId, loserOldRating.tier, loserRating.tier, interaction.guild);
+    updateLeaderboard(interaction.guild);
   }
 
   await setAPI.unlinkLobby(interaction.channel.id);

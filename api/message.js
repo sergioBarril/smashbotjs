@@ -1,7 +1,9 @@
 const { NotFoundError } = require("../errors/notFound");
-const { MESSAGE_TYPES, insertMessage } = require("../models/message");
+const db = require("../models/db");
+const { MESSAGE_TYPES, insertMessage, Message } = require("../models/message");
 const { getPlayer } = require("../models/player");
 const { getTierByRole, getTier } = require("../models/tier");
+const { getGuild } = require("./guild");
 
 const saveConfirmationDM = async (playerDiscordId, messageId, isRanked = false) => {
   const player = await getPlayer(playerDiscordId, true);
@@ -100,6 +102,19 @@ const saveSearchRankedMessage = async (playerDiscordId, messageId) => {
   );
 };
 
+const getLeaderboardMessage = async (guildDiscordId) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw new NotFoundError("Guild");
+
+  const row = await db.getBy("message", {
+    type: MESSAGE_TYPES.GUILD_LEADERBOARD,
+    guild_id: guild.id,
+  });
+
+  if (row) return new Message(row);
+  else return null;
+};
+
 /**
  * Get the ranked message of the player, and remove it from the DB
  * @param {string} playerDiscordId DiscordID of the player whose message is being popped
@@ -121,6 +136,7 @@ const popRankedMessage = async (playerDiscordId) => {
 
 module.exports = {
   getSearchTierMessages,
+  getLeaderboardMessage,
   popSearchTierMessages,
   popRankedMessage,
   saveSearchTierMessage,

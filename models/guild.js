@@ -3,6 +3,7 @@ const { getCharacterByName } = require("./character");
 const { CharacterRole } = require("./characterRole");
 const db = require("./db");
 const { insertMessage, MESSAGE_TYPES, Message } = require("./message");
+const { Rating } = require("./rating");
 const { getRegionByName } = require("./region");
 const { RegionRole } = require("./regionRole");
 const { Tier } = require("./tier");
@@ -12,6 +13,7 @@ class Guild {
     id,
     discord_id,
     matchmaking_channel_id,
+    leaderboard_channel_id,
     admin_channel_id,
     yuzu_role_id,
     parsec_role_id,
@@ -25,6 +27,7 @@ class Guild {
     this.adminChannelId = admin_channel_id;
     this.rolesChannelId = roles_channel_id;
     this.rankedChannelId = ranked_channel_id;
+    this.leaderboardChannelId = leaderboard_channel_id;
 
     this.yuzuRoleId = yuzu_role_id;
     this.parsecRoleId = parsec_role_id;
@@ -54,6 +57,26 @@ class Guild {
     return getResult.map((row) => new Tier(row));
   };
 
+  getLeaderboardInfo = async (client = null) => {
+    const getQuery = {
+      text: `SELECT p.discord_id AS player_discord_id, r.*
+      FROM rating r
+      INNER JOIN player p
+        ON p.id = r.player_id
+      WHERE r.guild_id = $1
+      AND r.tier_id IS NOT NULL
+      `,
+      values: [this.id],
+    };
+
+    const result = await db.getQuery(getQuery, client, true);
+
+    return result.map((row) => ({
+      playerDiscordId: row.player_discord_id,
+      rating: new Rating(row),
+    }));
+  };
+
   /**
    * Inserts new message to the DB, of the type GUILD_CURRENT_LIST
    * @param {string} listMessageId DiscordID of the new List message
@@ -66,6 +89,26 @@ class Guild {
       MESSAGE_TYPES.GUILD_CURRENT_LIST,
       null,
       this.matchmakingChannelId,
+      null,
+      this.id,
+      null,
+      null,
+      client
+    );
+  };
+
+  /**
+   * Inserts new message to the DB, of the type GUILD_LEADERBOARD
+   * @param {string} listMessageId DiscordID of the new Leaderboard message
+   * @param {Client} client Optional PG client
+   * @returns
+   */
+  insertLeaderboardMessage = async (messageId, client = null) => {
+    return insertMessage(
+      messageId,
+      MESSAGE_TYPES.GUILD_LEADERBOARD,
+      null,
+      this.leaderboardChannelId,
       null,
       this.id,
       null,
@@ -210,6 +253,11 @@ class Guild {
   setRankedChannel = async (channelId, client = null) => {
     await db.updateBy("guild", { ranked_channel_id: channelId }, { id: this.id }, client);
     this.rankedChannelId = channelId;
+  };
+
+  setLeaderboardChannel = async (channelId, client = null) => {
+    await db.updateBy("guild", { leaderboard_channel_id: channelId }, { id: this.id }, client);
+    this.leaderboardChannelId = channelId;
   };
 
   setRolesChannel = async (channelId, client = null) => {
