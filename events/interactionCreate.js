@@ -13,6 +13,8 @@ module.exports = {
         command = interaction.client.buttons.get("game-winner");
       if (!command && interaction.customId.startsWith("pick-stage"))
         command = interaction.client.buttons.get("pick-stage");
+      if (!command && interaction.customId.startsWith("register-tier"))
+        command = interaction.client.buttons.get("register-tier");
     }
 
     if (!command) {

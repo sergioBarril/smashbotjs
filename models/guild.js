@@ -15,22 +15,32 @@ class Guild {
     matchmaking_channel_id,
     leaderboard_channel_id,
     admin_channel_id,
+    panelist_channel_id,
+    panelist_role_id,
     yuzu_role_id,
     parsec_role_id,
     roles_channel_id,
     ranked_channel_id,
+    cable_role_id,
+    no_cable_role_id,
   }) {
     this.id = id;
     this.discordId = discord_id;
 
     this.matchmakingChannelId = matchmaking_channel_id;
     this.adminChannelId = admin_channel_id;
+    this.panelistChannelId = panelist_channel_id;
     this.rolesChannelId = roles_channel_id;
     this.rankedChannelId = ranked_channel_id;
     this.leaderboardChannelId = leaderboard_channel_id;
 
     this.yuzuRoleId = yuzu_role_id;
     this.parsecRoleId = parsec_role_id;
+
+    this.panelistRoleId = panelist_role_id;
+
+    this.cableRoleId = cable_role_id;
+    this.noCableRoleId = no_cable_role_id;
   }
 
   // **********
@@ -273,6 +283,16 @@ class Guild {
   setParsecRole = async (parsecRoleId, client = null) => {
     await db.updateBy("guild", { parsec_role_id: parsecRoleId }, { id: this.id }, client);
     this.parsecRoleId = parsecRoleId;
+  };
+
+  setCableRole = async (cableRoleId, client = null) => {
+    await db.updateBy("guild", { cable_role_id: cableRoleId }, { id: this.id }, client);
+    this.cableRoleId = cableRoleId;
+  };
+
+  setNoCableRole = async (noCableRoleId, client = null) => {
+    await db.updateBy("guild", { no_cable_role_id: noCableRoleId }, { id: this.id }, client);
+    this.noCableRoleId = noCableRoleId;
   };
 
   remove = async (client = null) => await db.basicRemove("guild", this.id, false, client);

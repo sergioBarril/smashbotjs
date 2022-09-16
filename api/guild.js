@@ -51,6 +51,28 @@ const getRankedChannel = async (guildDiscordId) => {
 };
 
 /**
+ * Get the cable role ID of the guild
+ * @param {string} guildDiscordId Discord ID of the Guild
+ * @returns
+ */
+const getCableRole = async (guildDiscordId) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw NotFoundError("Guild");
+  return guild.cableRoleId;
+};
+
+/**
+ * Get the NO cable role ID of the guild
+ * @param {string} guildDiscordId Discord ID of the Guild
+ * @returns
+ */
+const getNoCableRole = async (guildDiscordId) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw NotFoundError("Guild");
+  return guild.noCableRoleId;
+};
+
+/**
  * Set the ranked channel of the guild
  * @param {string} guildDiscordId DiscordID of the guild
  * @param {string} rankedChannelId DiscordID of the ranked channel
@@ -60,6 +82,18 @@ const setRankedChannel = async (guildDiscordId, rankedChannelId) => {
   if (!guild) throw NotFoundError("Guild");
 
   await guild.setRankedChannel(rankedChannelId);
+};
+
+/**
+ * Get the admin channel of the guild
+ * @param {string} guildDiscordId Discord ID of the guild
+ * @returns
+ */
+
+const getAdminChannel = async (guildDiscordId) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw NotFoundError("Guild");
+  return guild.adminChannelId;
 };
 
 /**
@@ -260,6 +294,8 @@ module.exports = {
   setLeaderboardChannel,
   getCurrentList,
   getWifiTier,
+  getCableRole,
+  getNoCableRole,
   insertMatchmakingMessage,
   insertLeaderboardMessage,
   removeAllGuildSearchMessages,

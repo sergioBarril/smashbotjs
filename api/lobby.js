@@ -222,7 +222,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   } else {
     let canSearch = false;
     // One tier
-    if (targetTier && playerTier.canSearchIn(targetTier)) {
+    if (targetTier && (targetTier.weight === null || playerTier.canSearchIn(targetTier))) {
       targetTiers.push(targetTier);
       canSearch = true;
     }

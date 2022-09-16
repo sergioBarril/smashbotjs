@@ -1,6 +1,6 @@
 const { NotFoundError } = require("../errors/notFound");
 const { getPlayer } = require("../models/player");
-const { getTier } = require("../models/tier");
+const { getTier, getTierByRole } = require("../models/tier");
 const { getGuild } = require("./guild");
 
 /**
@@ -26,6 +26,39 @@ const getPlayerTier = async (playerDiscordId, guildDiscordId, ignorePromotion = 
   if (!ignorePromotion && rating.promotion) tier = await tier.getNextTier();
 
   return tier;
+};
+
+/**
+ *
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @param {string} roleId DiscordID of the tier role
+ */
+const setPlayerTier = async (playerDiscordId, guildDiscordId, roleId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw new NotFoundError("Guild");
+
+  const rating = await player.getRating(guild.id);
+  if (!rating) throw new NotFoundError("Rating");
+
+  if (roleId) {
+    const tier = await getTierByRole(roleId);
+    if (!tier) throw new NotFoundError("Tier");
+    await rating.setTier(tier.id);
+    await rating.setScore(tier.threshold);
+  } else {
+    await rating.setTier(null);
+    await rating.setScore(null);
+  }
+
+  await rating.setPromotion(false);
+  await rating.setPromotionWins(null);
+  await rating.setPromotionLosses(null);
+
+  return rating;
 };
 
 const getRating = async (playerDiscordId, guildDiscordId) => {
@@ -184,6 +217,7 @@ const getRatingsByTier = async (guildDiscordId) => {
 module.exports = {
   getRating,
   getPlayerTier,
+  setPlayerTier,
   updateScore,
   getRatingsByTier,
 };

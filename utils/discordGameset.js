@@ -149,13 +149,14 @@ const setupCharacter = async (channel, player, gameNum, discordGuild) => {
     );
     i++;
   }
-  rows.push(row);
+  if (row) rows.push(row);
+  const components = [...rows];
 
   const playCommand = await getPlayCommand(discordGuild);
 
   const message = await channel.send({
-    content: `${player}, selecciona el personaje que quieras jugar (con botones o usando </play:${playCommand.id}>)`, //\`/play\`).`,
-    components: [...rows],
+    content: `${player}, selecciona el personaje que quieras jugar (con botones o usando </play:${playCommand.id}>)`,
+    components,
   });
 
   await setAPI.setCharacterSelectMessage(player.id, message.id);

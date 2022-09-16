@@ -8,11 +8,6 @@ const characterRoleDB = require("../db/characterRole");
 const regionDB = require("../db/region");
 const regionRoleDB = require("../db/regionRole");
 
-const getAdminChannel = async (guildDiscordId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
-  return guild.admin_channel_id;
-};
-
 const upsertRoles = async (roleList, type) => {
   if (roleList.length === 0) return false;
 
@@ -82,6 +77,5 @@ const upsertRoles = async (roleList, type) => {
 };
 
 module.exports = {
-  getAdminChannel,
   upsertRoles,
 };

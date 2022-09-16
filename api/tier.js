@@ -2,6 +2,7 @@ const guildDB = require("../db/guild");
 const tierDB = require("../db/tier");
 const { NotFoundError } = require("../errors/notFound");
 const { getGuild } = require("../models/guild");
+const { getTierByRole } = require("../models/tier");
 
 const addTier = async (roleDiscordId, guildDiscordId, channelDiscordId, weight, threshold) => {
   // Add tier to DB
@@ -43,6 +44,13 @@ const getTiers = async (guildDiscordId) => {
   return { weighted, open };
 };
 
+const getTier = async (guildDiscordId, tierRoleId) => {
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
+
+  return await getTierByRole(tierRoleId);
+};
+
 const setSearchMessage = async (tierDiscordId, searchMessageId) => {
   const tier = await tierDB.get(tierDiscordId, true);
 
@@ -60,6 +68,7 @@ module.exports = {
   addTier,
   addRankedTier,
   addYuzuTier,
+  getTier,
   getTiers,
   setSearchMessage,
   setYuzuSearchMessage,
