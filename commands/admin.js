@@ -1,5 +1,4 @@
 const { SlashCommandBuilder } = require("@discordjs/builders");
-const discordRolesUtils = require("../utils/discordRoles");
 const { channel } = require("./admin/roles/channel");
 const { channel: rankedChannel } = require("./admin/ranked/channel");
 const { channel: leaderboardChannel } = require("./admin/leaderboard/channel");
@@ -9,6 +8,10 @@ const { add } = require("./admin/tiers/add");
 const { matchmaking } = require("./admin/tiers/matchmaking");
 const { update } = require("./admin/leaderboard/update");
 const { message } = require("./admin/welcome/message");
+const { setTier } = require("./admin/rating/setTier");
+const { setScore } = require("./admin/rating/setScore");
+const { addScore } = require("./admin/rating/addScore");
+const { setPromotion } = require("./admin/rating/setPromotion");
 
 const data = new SlashCommandBuilder()
   .setName("admin")
@@ -78,8 +81,8 @@ const data = new SlashCommandBuilder()
         subcommand.setName("channel").setDescription("Crea el canal de rankeds")
       )
   )
-  .addSubcommandGroup((rankedCommandGroup) =>
-    rankedCommandGroup
+  .addSubcommandGroup((leaderboardCommandGroup) =>
+    leaderboardCommandGroup
       .setName("leaderboard")
       .setDescription("Comandos de admin relacionados con las leaderboards")
       .addSubcommand((subcommand) =>
@@ -95,6 +98,73 @@ const data = new SlashCommandBuilder()
       .setDescription("Comandos de admin relacionados con el canal de bienvenida")
       .addSubcommand((subcommand) =>
         subcommand.setName("message").setDescription("Crea el mensaje de bienvenida en este canal")
+      )
+  )
+  .addSubcommandGroup((ratingCommandGroup) =>
+    ratingCommandGroup
+      .setName("rating")
+      .setDescription("Comandos de admin relacionados con tiers, ranked y puntuaciones")
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("tier")
+          .setDescription("Asigna tier a un jugador")
+          .addUserOption((option) =>
+            option
+              .setName("player")
+              .setDescription("Persona a quien asignar la tier")
+              .setRequired(true)
+          )
+          .addRoleOption((option) =>
+            option.setName("tier").setDescription("Rol de la tier a asignar").setRequired(false)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("score")
+          .setDescription("Asigna una score a un jugador")
+          .addUserOption((option) =>
+            option
+              .setName("player")
+              .setDescription("Persona a quien asignar la puntuación")
+              .setRequired(true)
+          )
+          .addIntegerOption((option) =>
+            option.setName("score").setDescription("Nueva puntuación").setRequired(true)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("addscore")
+          .setDescription("Añade score a un jugador")
+          .addUserOption((option) =>
+            option
+              .setName("player")
+              .setDescription("Persona a quien asignar la puntuación")
+              .setRequired(true)
+          )
+          .addIntegerOption((option) =>
+            option.setName("score").setDescription("Puntuación a añadir").setRequired(true)
+          )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("promotion")
+          .setDescription("Configura la promoción de un jugador")
+          .addUserOption((option) =>
+            option
+              .setName("player")
+              .setDescription("Persona a quien asignar la puntuación")
+              .setRequired(true)
+          )
+          .addBooleanOption((option) =>
+            option.setName("promotion").setDescription("¿Está en promoción?").setRequired(true)
+          )
+          .addIntegerOption((option) =>
+            option.setName("wins").setDescription("Promotion wins").setRequired(false)
+          )
+          .addIntegerOption((option) =>
+            option.setName("losses").setDescription("Promotion losses").setRequired(false)
+          )
       )
   );
 
@@ -129,6 +199,13 @@ module.exports = {
     if (interaction.options.getSubcommandGroup() === "leaderboard") {
       if (interaction.options.getSubcommand() === "channel") await leaderboardChannel(interaction);
       else if (interaction.options.getSubcommand() === "update") await update(interaction);
+    }
+
+    if (interaction.options.getSubcommandGroup() === "rating") {
+      if (interaction.options.getSubcommand() === "tier") await setTier(interaction);
+      else if (interaction.options.getSubcommand() === "score") await setScore(interaction);
+      else if (interaction.options.getSubcommand() === "addscore") await addScore(interaction);
+      else if (interaction.options.getSubcommand() === "promotion") await setPromotion(interaction);
     }
   },
 };

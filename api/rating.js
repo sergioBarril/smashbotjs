@@ -214,10 +214,74 @@ const getRatingsByTier = async (guildDiscordId) => {
   return obj;
 };
 
+/**
+ * Set the score of the player
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @param {int} newScore New score
+ * @returns
+ */
+async function setScore(playerDiscordId, guildDiscordId, newScore) {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw new NotFoundError("Guild");
+
+  const rating = await player.getRating(guild.id);
+  if (!rating) throw new NotFoundError("Rating");
+
+  const oldScore = rating.score;
+  await rating.setScore(newScore);
+  return { oldScore, newScore };
+}
+
+/**
+ * Set the promotion status, wins and losses
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @param {boolean} isPromotion True if is in promotion
+ * @param {int} promotionWins Number of wins in promo
+ * @param {int} promotionLosses Number of losses in promo
+ * @returns
+ */
+async function setPromotion(
+  playerDiscordId,
+  guildDiscordId,
+  isPromotion,
+  promotionWins = null,
+  promotionLosses = null
+) {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw new NotFoundError("Guild");
+
+  const rating = await player.getRating(guild.id);
+  if (!rating) throw new NotFoundError("Rating");
+
+  if (isPromotion) {
+    promotionWins = promotionWins ?? 0;
+    promotionLosses = promotionLosses ?? 0;
+  }
+  if (!isPromotion) {
+    promotionWins = null;
+    promotionLosses = null;
+  }
+
+  await rating.setPromotion(isPromotion);
+  await rating.setPromotionWins(promotionWins);
+  await rating.setPromotionLosses(promotionLosses);
+  return rating;
+}
+
 module.exports = {
   getRating,
   getPlayerTier,
   setPlayerTier,
   updateScore,
   getRatingsByTier,
+  setScore,
+  setPromotion,
 };
