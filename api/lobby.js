@@ -17,7 +17,7 @@ const { IncomaptibleYuzuError } = require("../errors/incompatibleYuzu");
 const { CustomError } = require("../errors/customError");
 const { InGamesetError } = require("../errors/inGameset");
 const { RejectedPlayerError } = require("../errors/rejectedPlayer");
-const { getLobbyByTextChannel } = require("../models/lobby");
+const { getLobbyByTextChannel, getLobby } = require("../models/lobby");
 const { getTier } = require("../models/tier");
 
 /**
@@ -796,6 +796,36 @@ const isInCurrentLobby = async (playerDiscordId, textChannelId) => {
   return lobby && lobby.textChannelId == textChannelId;
 };
 
+/**
+ * Delete lobbies
+ */
+const deleteLobbies = async (guildDiscordId, type, playerDiscordId) => {
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
+
+  if (playerDiscordId) {
+    const player = await getPlayer(playerDiscordId, true);
+    if (!player) throw new NotFoundError("Player");
+
+    const lobby = await player.getLobby(type);
+    if (!lobby) return 0;
+
+    await lobby.remove();
+    return 1;
+  }
+
+  let lobbies = await guild.getLobbies();
+  if (type) lobbies = lobbies.filter((lobby) => (lobby.status = type));
+
+  let count = 0;
+  for (let lobby of lobbies) {
+    await lobby.remove();
+    count++;
+  }
+
+  return count;
+};
+
 module.exports = {
   search,
   stopSearch,
@@ -817,4 +847,5 @@ module.exports = {
   getOpponent,
   isInCurrentLobby,
   removeAfkLobby,
+  deleteLobbies,
 };

@@ -12,6 +12,7 @@ const { setTier } = require("./admin/rating/setTier");
 const { setScore } = require("./admin/rating/setScore");
 const { addScore } = require("./admin/rating/addScore");
 const { setPromotion } = require("./admin/rating/setPromotion");
+const { deleteLobbies } = require("./admin/bug/deleteLobbies");
 
 const data = new SlashCommandBuilder()
   .setName("admin")
@@ -166,6 +167,37 @@ const data = new SlashCommandBuilder()
             option.setName("losses").setDescription("Promotion losses").setRequired(false)
           )
       )
+  )
+  .addSubcommandGroup((bugCommandGroup) =>
+    bugCommandGroup
+      .setName("bug")
+      .setDescription("Comandos de admin relacionados con arreglar bugs y desbloquear el bot")
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("deletelobbies")
+          .setDescription("Borra lobbies en un estado, de un jugador o de todos")
+          .addStringOption((option) =>
+            option
+              .setName("type")
+              .setDescription("Tipo de lobby a eliminar")
+              .setRequired(true)
+              .setChoices([
+                ["Searching", "SEARCHING"],
+                ["Waiting", "WAITING"],
+                ["Confirmation", "CONFIRMATION"],
+                ["Playing", "PLAYING"],
+                ["AFK", "AFK"],
+              ])
+          )
+          .addUserOption((option) =>
+            option
+              .setName("player")
+              .setDescription(
+                "Jugador del que eliminar el lobby. Si se deja vacío, se elimina de todos los jugadores"
+              )
+              .setRequired(false)
+          )
+      )
   );
 
 module.exports = {
@@ -206,6 +238,10 @@ module.exports = {
       else if (interaction.options.getSubcommand() === "score") await setScore(interaction);
       else if (interaction.options.getSubcommand() === "addscore") await addScore(interaction);
       else if (interaction.options.getSubcommand() === "promotion") await setPromotion(interaction);
+    }
+
+    if (interaction.options.getSubcommandGroup() === "bug") {
+      if (interaction.options.getSubcommand() === "deletelobbies") await deleteLobbies(interaction);
     }
   },
 };
