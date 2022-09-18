@@ -11,8 +11,6 @@ const upsertRoles = async (roleList, type) => {
   const guild = await getGuild(guildDiscordId, true);
   if (!guild) throw new NotFoundError("Guild");
 
-  let baseIdName;
-
   let allElements;
   let allRoles;
   let createElement;
@@ -51,7 +49,7 @@ const upsertRoles = async (roleList, type) => {
       }
 
       const element = await getElementByName(role.name, client);
-      const dbRole = allRoles.find((role) => role[baseIdName] == element.id);
+      const dbRole = allRoles.find((role) => role[elementIdName] == element.id);
 
       // Insert Character Role
       if (!dbRole) {
