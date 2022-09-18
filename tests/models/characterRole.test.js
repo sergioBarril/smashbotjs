@@ -34,7 +34,7 @@ describe("test characterRole methods", () => {
   });
 
   it("inserts a new characterRole", async () => {
-    const charRole = await character.insertCharacterRole(mockRoleDiscordId, guild.id);
+    const charRole = await character.insertRole(mockRoleDiscordId, guild.id);
 
     expect(charRole).not.toBeNull();
     expect(charRole instanceof CharacterRole).toBe(true);
@@ -44,12 +44,10 @@ describe("test characterRole methods", () => {
   });
 
   it("doesnt allow two characterRoles in the same guild", async () => {
-    await expect(
-      character.insertCharacterRole(mockRoleDiscordId, guild.id)
-    ).resolves.not.toBeNull();
+    await expect(character.insertRole(mockRoleDiscordId, guild.id)).resolves.not.toBeNull();
 
     await expect(
-      async () => await character.insertCharacterRole(mockRoleDiscordId, guild.id)
+      async () => await character.insertRole(mockRoleDiscordId, guild.id)
     ).rejects.toThrow();
   });
 
@@ -57,12 +55,10 @@ describe("test characterRole methods", () => {
     const secondChar = await insertCharacter(characterName2);
     expect(secondChar).not.toBeNull();
 
-    await expect(
-      secondChar.insertCharacterRole(mockRoleDiscordId, guild.id)
-    ).resolves.not.toBeNull();
+    await expect(secondChar.insertRole(mockRoleDiscordId, guild.id)).resolves.not.toBeNull();
 
     await expect(
-      async () => await character.insertCharacterRole(mockRoleDiscordId, guild.id)
+      async () => await character.insertRole(mockRoleDiscordId, guild.id)
     ).rejects.toThrow();
 
     // Cleanup
@@ -71,7 +67,7 @@ describe("test characterRole methods", () => {
 
   it("can get a character role by character and guild", async () => {
     expect(await character.getRole(guild.id)).toBeNull();
-    expect(character.insertCharacterRole(mockRoleDiscordId, guild.id)).resolves.not.toBeNull();
+    expect(character.insertRole(mockRoleDiscordId, guild.id)).resolves.not.toBeNull();
 
     const charRole = await character.getRole(guild.id);
     expect(charRole).not.toBeNull();
@@ -79,7 +75,7 @@ describe("test characterRole methods", () => {
   });
 
   it("can get a character role by role discordId", async () => {
-    const createdRole = await character.insertCharacterRole(mockRoleDiscordId, guild.id);
+    const createdRole = await character.insertRole(mockRoleDiscordId, guild.id);
 
     const charRole = await getCharacterRole(mockRoleDiscordId);
     expect(charRole).not.toBeNull();
@@ -87,7 +83,7 @@ describe("test characterRole methods", () => {
   });
 
   it("removes character roles when character is deleted", async () => {
-    await character.insertCharacterRole(mockRoleDiscordId, guild.id);
+    await character.insertRole(mockRoleDiscordId, guild.id);
     expect(await getCharacterRole(mockRoleDiscordId)).not.toBeNull();
     await character.remove();
     expect(await getCharacterRole(mockRoleDiscordId)).toBeNull();
@@ -97,7 +93,7 @@ describe("test characterRole methods", () => {
     let crs = await guild.getCharacterRoles();
     expect(crs.length).toBe(0);
 
-    const charRole = await character.insertCharacterRole(mockRoleDiscordId, guild.id);
+    const charRole = await character.insertRole(mockRoleDiscordId, guild.id);
 
     crs = await guild.getCharacterRoles();
     expect(crs.length).toBe(1);
@@ -113,7 +109,7 @@ describe("test characterRole methods", () => {
     crFromGet = await guild.getCharacterRoleByName(characterName2);
     expect(crFromGet).toBeNull();
 
-    const charRole = await character.insertCharacterRole(mockRoleDiscordId, guild.id);
+    const charRole = await character.insertRole(mockRoleDiscordId, guild.id);
 
     crFromGet = await guild.getCharacterRoleByName(characterName);
     expect(crFromGet instanceof CharacterRole).toBe(true);
@@ -121,7 +117,7 @@ describe("test characterRole methods", () => {
   });
 
   it("can set the role discord Id", async () => {
-    let charRole = await character.insertCharacterRole(mockRoleDiscordId, guild.id);
+    let charRole = await character.insertRole(mockRoleDiscordId, guild.id);
 
     expect(charRole.roleId).toEqual(mockRoleDiscordId);
 

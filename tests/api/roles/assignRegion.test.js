@@ -46,10 +46,10 @@ describe("test rolesAPI.assignRegion() method", () => {
     region3 = await getOrCreateRegion(region3Name);
     region4 = await getOrCreateRegion(region4Name);
 
-    charRole1 = await region1.insertRegionRole(charRole1Id, guild.id);
-    charRole2 = await region2.insertRegionRole(charRole2Id, guild.id);
-    charRole3 = await region3.insertRegionRole(charRole3Id, guild.id);
-    charRole4 = await region4.insertRegionRole(charRole4Id, guild.id);
+    charRole1 = await region1.insertRole(charRole1Id, guild.id);
+    charRole2 = await region2.insertRole(charRole2Id, guild.id);
+    charRole3 = await region3.insertRole(charRole3Id, guild.id);
+    charRole4 = await region4.insertRole(charRole4Id, guild.id);
   });
 
   afterEach(async () => {

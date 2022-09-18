@@ -23,7 +23,7 @@ class Character {
 
   remove = async (client = null) => await db.basicRemove("character", this.id, false, client);
 
-  insertCharacterRole = async (roleDiscordId, guildId, client = null) => {
+  insertRole = async (roleDiscordId, guildId, client = null) => {
     const insertQuery = {
       text: `
     INSERT INTO character_role (character_id, guild_id, role_id)

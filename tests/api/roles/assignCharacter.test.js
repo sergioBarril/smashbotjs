@@ -46,10 +46,10 @@ describe("test rolesAPI.assignCharacter() method", () => {
     character3 = await getOrCreateCharacter(character3Name);
     character4 = await getOrCreateCharacter(character4Name);
 
-    charRole1 = await character1.insertCharacterRole(charRole1Id, guild.id);
-    charRole2 = await character2.insertCharacterRole(charRole2Id, guild.id);
-    charRole3 = await character3.insertCharacterRole(charRole3Id, guild.id);
-    charRole4 = await character4.insertCharacterRole(charRole4Id, guild.id);
+    charRole1 = await character1.insertRole(charRole1Id, guild.id);
+    charRole2 = await character2.insertRole(charRole2Id, guild.id);
+    charRole3 = await character3.insertRole(charRole3Id, guild.id);
+    charRole4 = await character4.insertRole(charRole4Id, guild.id);
   });
 
   afterEach(async () => {

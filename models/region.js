@@ -17,7 +17,7 @@ class Region {
     else return new RegionRole(role);
   };
 
-  insertRegionRole = async (roleDiscordId, guildId, client = null) => {
+  insertRole = async (roleDiscordId, guildId, client = null) => {
     const insertQuery = {
       text: `
     INSERT INTO region_role (region_id, guild_id, role_id)

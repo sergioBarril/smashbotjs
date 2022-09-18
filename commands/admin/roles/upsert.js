@@ -1,4 +1,5 @@
 const adminAPI = require("../../../api/admin");
+const guildAPI = require("../../../api/guild");
 
 const smashCharacters = require("../../../params/smashCharacters.json");
 const spanishRegions = require("../../../params/spanishRegions.json");
@@ -11,8 +12,8 @@ const upsert = async (interaction) => {
   const type = interaction.options.getString("type");
 
   // Get admin channel
-  const adminChannelId = await adminAPI.getAdminChannel(guild.id);
-  const adminChannel = await interaction.guild.channels.fetch(adminChannelId);
+  const guildInfo = await guildAPI.getGuild(guild.id);
+  const adminChannel = await interaction.guild.channels.fetch(guildInfo.adminChannelId);
 
   await adminChannel.send(
     `**Role Update:** ${type}\n` + `**Triggered by**: ${interaction.member.displayName}`

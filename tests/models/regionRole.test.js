@@ -27,7 +27,7 @@ describe("test regionRole methods", () => {
     guild = await getGuild(mockGuildDiscordId, true);
     if (!guild) guild = await insertGuild(mockGuildDiscordId);
 
-    regionRole = await region.insertRegionRole(mockRoleDiscordId, guild.id);
+    regionRole = await region.insertRole(mockRoleDiscordId, guild.id);
   });
 
   afterEach(async () => {
@@ -47,14 +47,14 @@ describe("test regionRole methods", () => {
   });
 
   it("doesnt allow two regionRoles in the same guild", async () => {
-    await expect(region.insertRegionRole(secondRoleDiscordId, guild.id)).rejects.toThrow();
+    await expect(region.insertRole(secondRoleDiscordId, guild.id)).rejects.toThrow();
   });
 
   it("doesnt allow two regionRoles with the same discordId", async () => {
     const secondReg = await insertRegion(regionName2);
     expect(secondReg).not.toBeNull();
 
-    await expect(secondReg.insertRegionRole(mockRoleDiscordId, guild.id)).rejects.toThrow();
+    await expect(secondReg.insertRole(mockRoleDiscordId, guild.id)).rejects.toThrow();
 
     // Cleanup
     await secondReg.remove();
