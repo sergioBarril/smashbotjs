@@ -134,37 +134,6 @@ const isSearching = async (playerDiscordId) => {
   return ["SEARCHING", "AFK"].includes(lobby.status) && (hasAnyTier || lobby.ranked);
 };
 
-const canSearchRanked = async (playerId, guildId) => {
-  const rating = await ratingDB.getByPlayerGuild(playerId, guildId);
-  return rating?.tier_id != null;
-};
-
-const rankedSearch = async (playerDiscordId, guildDiscordId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
-  if (!guild) throw { name: "GUILD_NOT_FOUND" };
-
-  const player = await playerDB.get(playerDiscordId, true);
-  if (!player) throw { name: "PLAYER_NOT_FOUND" };
-
-  const canSearch = await canSearchRanked(player.id, guild.id);
-  if (!canSearch) throw { name: "NO_LAN_TIER" };
-
-  let lobby = await lobbyDB.getByPlayer(player.id);
-  const existsLobbyPlayer = await lobbyPlayerDB.existsLobbyPlayer(player.id);
-  const isSearching = lobby?.status === "SEARCHING";
-
-  if (!lobby && !existsLobbyPlayer) {
-    await lobbyDB.createRanked(guild.id, player.id);
-    lobby = await lobbyDB.getByPlayer(player.id);
-  } else if (!isSearching || (!lobby && existsLobbyPlayer)) {
-    throw { name: "NOT_SEARCHING" };
-  } else if (lobby.ranked) {
-    throw { name: "ALREADY_SEARCHING" };
-  } else await lobbyDB.setRanked(lobby.id, true);
-
-  return true;
-};
-
 /**
  *  Search a friendlies match
  *
@@ -498,14 +467,6 @@ const stopSearch = async (playerDiscordId, messageDiscordId) => {
   }
 };
 
-const getMessages = async (playerDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const lobby = await lobbyDB.getByPlayerStatus(player.id, "PLAYING", false);
-
-  const messages = await lobbyMessageDB.getMessages(lobby.id);
-  return messages;
-};
-
 const getSearchingTiers = async (playerDiscordId) => {
   // Given a player, returns all the Tiers where he's looking for games
   const player = await getPlayer(playerDiscordId, true);
@@ -527,15 +488,6 @@ const getPlayingPlayers = async (textChannelId) => {
 
   const lps = await lobby.getLobbyPlayers();
   return await Promise.all(lps.map(async (lp) => await lp.getPlayer()));
-};
-
-const saveRankedMessage = async (playerDiscordId, rankedRoleId, messageId) => {
-  const lobby = await lobbyDB.getByPlayer(playerDiscordId, true);
-  const tier = await tierDB.getByRankedRole(rankedRoleId);
-  const guild = await guildDB.get(tier.guild_id, false);
-
-  await lobbyMessageDB.insert(lobby.id, messageId, guild.ranked_channel_id, true);
-  return true;
 };
 
 /**
@@ -773,14 +725,6 @@ const voteCancelSet = async (playerDiscordId, textChannelId) => {
   return { decided, status: lp.cancelSet, opponent };
 };
 
-const getOpponent = async (playerDiscordId, textChannelId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const lobby = await lobbyDB.getByTextChannel(textChannelId);
-
-  const opponent = await lobbyPlayerDB.getOpponent(lobby.id, player.id);
-  return opponent;
-};
-
 /**
  * Checks if the passed channel is being used for the player's lobby
  * @param {string} playerDiscordId DiscordID of the player
@@ -832,9 +776,7 @@ module.exports = {
   getSearchingTiers,
   isSearching,
   matchmaking,
-  rankedSearch,
   getPlayingPlayers,
-  getMessages,
   acceptMatch,
   matchNotAccepted,
   timeoutMatch,
@@ -844,7 +786,6 @@ module.exports = {
   closeArena,
   timeOutCheck,
   voteCancelSet,
-  getOpponent,
   isInCurrentLobby,
   removeAfkLobby,
   deleteLobbies,
