@@ -46,7 +46,9 @@ describe("test LobbyAPI.acceptMatch()", () => {
   it("throws NotFoundError if player's null / not found", async () => {
     await expect(acceptMatch(null)).rejects.toThrow(new NotFoundError("Player"));
     await player.remove();
-    await expect(acceptMatch(player.discordId)).rejects.toThrow(new NotFoundError("Player"));
+    await expect(acceptMatch(player.discordId)).rejects.toThrow(
+      new NotFoundError("Player", null, player.discordId)
+    );
   });
 
   it("throws NotFoundError if there's no lobby in 'CONFIRMATION' status", async () => {

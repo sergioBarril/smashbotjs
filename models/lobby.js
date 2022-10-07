@@ -6,6 +6,7 @@ const { LobbyPlayer } = require("./lobbyPlayer");
 const { Gameset } = require("./gameset");
 const { YuzuPlayer } = require("./yuzuPlayer");
 const { Client } = require("pg");
+const { NotFoundError } = require("../errors/notFound");
 
 class Lobby {
   constructor({
@@ -292,6 +293,12 @@ class Lobby {
     else return new Gameset(gameset);
   };
 
+  getGamesetOrThrow = async (client = null) => {
+    const gameset = await this.getGameset(client);
+    if (!gameset) throw new NotFoundError("Gameset");
+    else return gameset;
+  };
+
   getLobbyPlayer = async (playerId, client = null) => {
     const whereCondition = { lobby_id: this.id, player_id: playerId };
     const lp = await db.getBy("lobby_player", whereCondition, client);
@@ -516,8 +523,16 @@ const getLobbyByTextChannel = async (textChannelId, client = null) => {
   else return new Lobby(lobby);
 };
 
+const getLobbyByTextChannelOrThrow = async (textChannelId, client = null) => {
+  const lobby = await getLobbyByTextChannel(textChannelId, client);
+
+  if (lobby == null) throw new NotFoundError("Lobby", null, textChannelId);
+  else return lobby;
+};
+
 module.exports = {
   Lobby,
   getLobby,
   getLobbyByTextChannel,
+  getLobbyByTextChannelOrThrow,
 };

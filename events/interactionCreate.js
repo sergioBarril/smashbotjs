@@ -1,3 +1,5 @@
+const { CustomError } = require("../errors/customError");
+
 module.exports = {
   name: "interactionCreate",
   async execute(interaction) {
@@ -27,10 +29,16 @@ module.exports = {
       await command.execute(interaction);
     } catch (error) {
       console.error(error.stack);
-      await interaction.reply({
-        content: "There was an error while executing this command!",
-        ephemeral: true,
-      });
+
+      let content;
+      const ephemeral = true;
+
+      if (error instanceof CustomError) content = error.message;
+      else content = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+
+      if (interaction.replied) {
+        await interaction.followUp({ content, ephemeral });
+      } else await interaction.reply({ content, ephemeral });
     }
   },
 };

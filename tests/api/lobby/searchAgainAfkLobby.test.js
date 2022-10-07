@@ -52,7 +52,9 @@ describe("test lobbyAPI.searchAgainAFK() method", () => {
   it("throws NotFoundError if player's null / not found", async () => {
     await expect(searchAgainAfkLobby(null)).rejects.toThrow(new NotFoundError("Player"));
     await player.remove();
-    await expect(searchAgainAfkLobby(playerDiscordId)).rejects.toThrow(new NotFoundError("Player"));
+    await expect(searchAgainAfkLobby(playerDiscordId)).rejects.toThrow(
+      new NotFoundError("Player", null, playerDiscordId)
+    );
   });
 
   it("throws NotFoundError if no lobby or it's not AFK", async () => {

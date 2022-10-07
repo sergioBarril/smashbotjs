@@ -44,7 +44,9 @@ describe("test LobbyAPI.removeAfkLobby()", () => {
   it("throws NotFoundError if player's null / not found", async () => {
     await expect(removeAfkLobby(null)).rejects.toThrow(new NotFoundError("Player"));
     await player.remove();
-    await expect(removeAfkLobby(player.discordId)).rejects.toThrow(new NotFoundError("Player"));
+    await expect(removeAfkLobby(player.discordId)).rejects.toThrow(
+      new NotFoundError("Player", null, player.discordId)
+    );
   });
 
   it("throws NotFoundError if there's no lobby in 'AFK' status", async () => {

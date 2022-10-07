@@ -93,7 +93,7 @@ describe("test LobbyAPI.matchNotAccepted()", () => {
     await expect(matchNotAccepted(null, false)).rejects.toThrow(new NotFoundError("Player"));
     await player.remove();
     await expect(matchNotAccepted(playerDiscordId, false)).rejects.toThrow(
-      new NotFoundError("Player")
+      new NotFoundError("Player", null, playerDiscordId)
     );
   });
 

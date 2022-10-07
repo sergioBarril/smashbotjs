@@ -148,7 +148,7 @@ describe("test search method", () => {
     );
     await player.remove();
     await expect(search(player.discordId, guild.discordId, message4.discordId)).rejects.toThrow(
-      new NotFoundError("Player")
+      new NotFoundError("Player", null, player.discordId)
     );
   });
 
@@ -158,7 +158,7 @@ describe("test search method", () => {
     );
     await guild.remove();
     await expect(search(player.discordId, guild.discordId, message4.discordId)).rejects.toThrow(
-      new NotFoundError("Guild")
+      new NotFoundError("Guild", null, guild.discordId)
     );
   });
 

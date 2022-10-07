@@ -4,7 +4,7 @@ const { InGamesetError } = require("../errors/inGameset");
 const { getCharacterByName, getCharacter } = require("../models/character");
 const { Message } = require("../models/message");
 const { getStarters, getAllStages, getStageByName, getStage } = require("../models/stage");
-const { getLobbyByTextChannel } = require("../models/lobby");
+const { getLobbyByTextChannel, getLobbyByTextChannelOrThrow } = require("../models/lobby");
 const { CustomError } = require("../errors/customError");
 
 /**
@@ -14,7 +14,7 @@ const { CustomError } = require("../errors/customError");
  */
 const newSet = async (textChannelId) => {
   const lobby = await getLobbyByTextChannel(textChannelId);
-  if (!lobby) throw new NotFoundError("Lobby");
+  if (!lobby) throw new NotFoundError("Lobby", "GAMESET");
 
   // CHECK IF CURRENT SET EXISTS
   const oldGameset = await lobby.getGameset();
@@ -39,11 +39,8 @@ const newSet = async (textChannelId) => {
  * @returns
  */
 const newGame = async (lobbyChannelId) => {
-  const lobby = await getLobbyByTextChannel(lobbyChannelId);
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
+  const lobby = await getLobbyByTextChannelOrThrow(lobbyChannelId);
+  const gameset = await lobby.getGamesetOrThrow();
 
   const newGame = await gameset.newGame();
 
@@ -59,7 +56,7 @@ const newGame = async (lobbyChannelId) => {
  */
 const cancelSet = async (lobbyChannelId) => {
   const lobby = await getLobbyByTextChannel(lobbyChannelId);
-  if (!lobby) throw new NotFoundError("Lobby");
+  if (!lobby) throw new NotFoundError("Lobby", "GAMESET");
 
   const gameset = await lobby.getGameset();
   if (!gameset) throw new NotFoundError("Gameset");

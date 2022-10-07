@@ -87,7 +87,9 @@ describe("test LobbyAPI.closeArena()", () => {
   test("if player not found, throw NotFoundError", async () => {
     await expect(closeArena(null)).rejects.toThrow(new NotFoundError("Player"));
     await player.remove();
-    await expect(closeArena(player.discordId)).rejects.toThrow(new NotFoundError("Player"));
+    await expect(closeArena(player.discordId)).rejects.toThrow(
+      new NotFoundError("Player", null, player.discordId)
+    );
   });
 
   test("if not playing, throw NotFoundError", async () => {

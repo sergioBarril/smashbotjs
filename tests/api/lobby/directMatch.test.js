@@ -117,7 +117,7 @@ describe("test lobbyAPI.directMatch() method", () => {
     );
     await player.remove();
     await expect(directMatch(player.discordId, messageLt3.discordId)).rejects.toThrow(
-      new NotFoundError("Player")
+      new NotFoundError("Player", null, player.discordId)
     );
   });
 

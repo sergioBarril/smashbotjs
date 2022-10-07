@@ -7,20 +7,6 @@ const { Player } = require("../models/player");
 const { Message } = require("../models/message");
 const { User, Interaction } = require("discord.js");
 
-const exceptionHandler = async (interaction, exception) => {
-  let message = exception.message;
-
-  if (!(exception instanceof CustomError)) {
-    message = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
-    console.error(exception, exception.stack);
-  }
-
-  await interaction.followUp({
-    content: message,
-    ephemeral: true,
-  });
-};
-
 /**
  * Actions to do after finding a match
  * This includes:
@@ -96,16 +82,12 @@ const execute = async (interaction) => {
 
   await interaction.deferReply({ ephemeral: true });
 
-  try {
-    const searchResult = await lobbyAPI.search(playerId, guildId, messageId);
-    await deleteAfkMessage(interaction, searchResult.afkMessage);
-    if (searchResult.matched) {
-      await matched(interaction, searchResult.players, searchResult.foundRanked);
-    } else {
-      await notMatched(interaction, searchResult.tiers, searchResult.searchedRanked);
-    }
-  } catch (e) {
-    await exceptionHandler(interaction, e);
+  const searchResult = await lobbyAPI.search(playerId, guildId, messageId);
+  await deleteAfkMessage(interaction, searchResult.afkMessage);
+  if (searchResult.matched) {
+    await matched(interaction, searchResult.players, searchResult.foundRanked);
+  } else {
+    await notMatched(interaction, searchResult.tiers, searchResult.searchedRanked);
   }
 };
 

@@ -1,13 +1,44 @@
 const { CustomError } = require("./customError");
 
+const messages = {
+  LOBBY: {
+    STOP_SEARCH: "¡No estabas buscando partida!",
+    MATCH_NOT_ACCEPTED:
+      "Este match ya había sido cancelado. ¿Quizá le has dado varias veces al botón? Si no es así, contacta con un admin.",
+    DELETED_LOBBY:
+      "Este lobby ya había sido eliminado. Contacta con un admin si crees que esto es un bug.",
+    ALREADY_ACCEPTED_OR_REJECTED:
+      "Este lobby ya había sido aceptado o rechazado. Contacta con un admin si no ha sido así.",
+    CLOSE_ARENA: "Esta arena ya estaba cerrada. ¡Hasta pronto!",
+    GAMESET: "La arena donde estuvieras ya cerró. ¡Busca partida de nuevo!",
+  },
+};
+
 class NotFoundError extends CustomError {
-  constructor(type, message = null) {
-    super(message);
+  constructor(type, context = null, id = null) {
+    super(null);
 
     const capitalized = type.charAt(0).toUpperCase() + type.slice(1);
+    let message;
+
     this.name = `${capitalized}NotFoundError`;
 
-    if (message == null) this.message = `${capitalized} not found.`;
+    if (type == "LOBBY") {
+      if (type.toUpperCase() in messages) message = messages[type.toUpperCase()];
+    }
+
+    if (type == "Tier") {
+      if (context == "SEARCH_NO_TIER_ASSIGNED")
+        message = "No tienes ninguna tier asignada: no puedes jugar aquí.";
+    }
+
+    if (!message) {
+      const idMessage = id ? ` con ID _${id}_` : "";
+      message = `No se ha encontrado: **${capitalized}**${idMessage}. Contacta con un administrador.`;
+      this.log = true;
+    }
+
+    this.message = message;
   }
 }
 

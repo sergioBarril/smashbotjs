@@ -50,7 +50,9 @@ describe("test lobbyAPI.isSearching() function", () => {
   it("throws NotFoundError if player's null / not found", async () => {
     await expect(isSearching(null)).rejects.toThrow(new NotFoundError("Player"));
     await player.remove();
-    await expect(isSearching(playerDiscordId)).rejects.toThrow(new NotFoundError("Player"));
+    await expect(isSearching(playerDiscordId)).rejects.toThrow(
+      new NotFoundError("Player", null, playerDiscordId)
+    );
   });
 
   it("returns true if the player is searching", async () => {

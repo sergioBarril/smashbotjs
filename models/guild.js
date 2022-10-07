@@ -1,4 +1,5 @@
 const { Client } = require("pg");
+const { NotFoundError } = require("../errors/notFound");
 const { getCharacterByName } = require("./character");
 const { CharacterRole } = require("./characterRole");
 const db = require("./db");
@@ -304,6 +305,12 @@ const getGuild = async (guildId, discord = false, client = null) => {
   else return new Guild(guild);
 };
 
+const getGuildOrThrow = async (guildId, discord = false, client = null) => {
+  const guild = await getGuild(guildId, discord, client);
+  if (!guild) throw new NotFoundError("Guild", null, guildId);
+  return guild;
+};
+
 const getAllGuilds = async (client = null) => {
   const guilds = await db.getQuery({ text: "SELECT * FROM guild" }, client, true);
   return guilds.map((guild) => new Guild(guild));
@@ -325,6 +332,7 @@ const insertGuild = async (guildDiscordId, client) => {
 module.exports = {
   Guild,
   getGuild,
+  getGuildOrThrow,
   getAllGuilds,
   insertGuild,
 };

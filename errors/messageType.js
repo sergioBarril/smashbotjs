@@ -7,6 +7,7 @@ class MessageTypeError extends CustomError {
 
     if (message == null) {
       this.message = `El mensaje encontrado no es del tipo que se esperaba.`;
+      this.log = true;
     }
   }
 }

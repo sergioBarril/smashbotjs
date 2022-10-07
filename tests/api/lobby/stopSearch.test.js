@@ -129,7 +129,7 @@ describe("test search method", () => {
     await expect(stopSearch(null, message.discordId)).rejects.toThrow(new NotFoundError("Player"));
     await player.remove();
     await expect(stopSearch(player.discordId, message.discordId)).rejects.toThrow(
-      new NotFoundError("Player")
+      new NotFoundError("Player", null, player.discordId)
     );
   });
 

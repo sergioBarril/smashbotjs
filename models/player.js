@@ -10,6 +10,7 @@ const { Tier } = require("./tier");
 const { RegionPlayer } = require("./regionPlayer");
 const { Client } = require("pg");
 const { PlayerReject } = require("./playerReject");
+const { NotFoundError } = require("../errors/notFound");
 
 class Player {
   constructor({ id, discord_id }) {
@@ -38,6 +39,13 @@ class Player {
     else return new Lobby(lobby);
   };
 
+  getOwnLobbyOrThrow = async (client = null) => {
+    const lobby = await this.getOwnLobby(client);
+    if (!lobby) throw new NotFoundError("Lobby");
+
+    return lobby;
+  };
+
   removeOwnLobby = async (client = null) => {
     const lobby = await this.getOwnLobby(client);
     if (!lobby) return false;
@@ -57,8 +65,13 @@ class Player {
     };
 
     const lobby = await db.getQuery(getLobbyQuery, client);
-    if (lobby == null) return null;
+    if (!lobby) return null;
     else return new Lobby(lobby);
+  };
+
+  getLobbyOrThrow = async (status, client = null) => {
+    const lobby = await this.getLobby(status, client);
+    if (!lobby) throw new NotFoundError("Lobby");
   };
 
   getCurrentGameset = async (client = null) => {
@@ -311,15 +324,29 @@ const insertPlayer = async (playerDiscordId, client = null) => {
   return await getPlayer(playerDiscordId, true, client);
 };
 
+/**
+ * Get a player.
+ * @param {*} playerId
+ * @param {boolean} discord
+ * @param {Client} client
+ * @returns Player object if found, null if not
+ */
 const getPlayer = async (playerId, discord = false, client = null) => {
   const player = await db.basicGet("player", playerId, discord, client);
-
-  if (player === null) return null;
+  if (!player) return null;
   return new Player(player);
+};
+
+const getPlayerOrThrow = async (playerId, discord = false, client = null) => {
+  const player = await getPlayer(playerId, discord, client);
+  if (!player) throw new NotFoundError("Player", null, playerId);
+
+  return player;
 };
 
 module.exports = {
   Player,
   getPlayer,
+  getPlayerOrThrow,
   insertPlayer,
 };

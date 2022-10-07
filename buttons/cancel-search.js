@@ -70,16 +70,12 @@ module.exports = {
     const playerId = interaction.user.id;
     const messageId = interaction.customId === "cancel-search" ? interaction.message.id : null;
 
-    try {
-      const stopSearchResult = await lobbyAPI.stopSearch(playerId, messageId);
-      const { isSearching, messages, tiers, isRanked } = stopSearchResult;
+    const stopSearchResult = await lobbyAPI.stopSearch(playerId, messageId);
+    const { isSearching, messages, tiers, isRanked } = stopSearchResult;
 
-      for (let message of messages) {
-        await editMessage(interaction, message.channelId, message.discordId, message.ranked);
-      }
-      await successfulReply(interaction, isSearching, tiers, isRanked);
-    } catch (e) {
-      await exceptionHandler(interaction, e);
+    for (let message of messages) {
+      await editMessage(interaction, message.channelId, message.discordId, message.ranked);
     }
+    await successfulReply(interaction, isSearching, tiers, isRanked);
   },
 };
