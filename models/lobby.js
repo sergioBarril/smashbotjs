@@ -523,10 +523,10 @@ const getLobbyByTextChannel = async (textChannelId, client = null) => {
   else return new Lobby(lobby);
 };
 
-const getLobbyByTextChannelOrThrow = async (textChannelId, client = null) => {
+const getLobbyByTextChannelOrThrow = async (textChannelId, context = null, client = null) => {
   const lobby = await getLobbyByTextChannel(textChannelId, client);
 
-  if (lobby == null) throw new NotFoundError("Lobby", null, textChannelId);
+  if (lobby == null) throw new NotFoundError("Lobby", context, textChannelId);
   else return lobby;
 };
 

@@ -1,4 +1,4 @@
-const { getPlayer } = require("../models/player");
+const { getPlayer, getPlayerOrThrow } = require("../models/player");
 const { NotFoundError } = require("../errors/notFound");
 const { InGamesetError } = require("../errors/inGameset");
 const { getCharacterByName, getCharacter } = require("../models/character");
@@ -6,6 +6,57 @@ const { Message } = require("../models/message");
 const { getStarters, getAllStages, getStageByName, getStage } = require("../models/stage");
 const { getLobbyByTextChannel, getLobbyByTextChannelOrThrow } = require("../models/lobby");
 const { CustomError } = require("../errors/customError");
+const { AlreadyFinishedError } = require("../errors/alreadyFinished");
+
+/**
+ * -------------
+ * AUX FUNCTIONS
+ * -------------
+ */
+
+/**
+ * Gets the basic objects of this module
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {boolean} getCurrentGame True if should try to find the current game
+ * @param {boolean} getGp True if should try to find the gp corresponding to the player
+ * @returns
+ */
+async function getObjects(playerDiscordId, getCurrentGame = false, getGp = false) {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const lobby = await player.getLobbyOrThrow("PLAYING");
+  const gameset = await lobby.getGamesetOrThrow();
+
+  let game = null;
+  let gp = null;
+
+  if (getCurrentGame) {
+    game = await gameset.getCurrentGame();
+    if (!game) throw new NotFoundError("Game");
+  }
+
+  if (getGp) {
+    gp = await game.getGamePlayer(player.id);
+    if (!gp) throw new NotFoundError("GamePlayer");
+  }
+
+  return { player, lobby, gameset, game, gp };
+}
+
+/**
+ * Get the lobby and gameset
+ * @param {string} textChannelId DiscordID of the textChannel associated with an arena
+ * @returns
+ */
+async function getObjectsByTextChannel(textChannelId) {
+  const lobby = await getLobbyByTextChannelOrThrow(textChannelId, "GAMESET");
+  const gameset = await lobby.getGamesetOrThrow();
+
+  return { lobby, gameset };
+}
+
+/**
+ * ------------------
+ */
 
 /**
  * Starts a new set, and the first game
@@ -22,7 +73,7 @@ const newSet = async (textChannelId) => {
 
   // NEW SET
   await lobby.newGameset(3, lobby.mode == "RANKED");
-  const gameset = await lobby.getGameset();
+  const gameset = await lobby.getGamesetOrThrow();
   const game = await gameset.newGame();
 
   // GAME PLAYERS
@@ -39,11 +90,9 @@ const newSet = async (textChannelId) => {
  * @returns
  */
 const newGame = async (lobbyChannelId) => {
-  const lobby = await getLobbyByTextChannelOrThrow(lobbyChannelId);
-  const gameset = await lobby.getGamesetOrThrow();
+  const { lobby, gameset } = await getObjectsByTextChannel(lobbyChannelId);
 
   const newGame = await gameset.newGame();
-
   const lobbyPlayers = await lobby.getLobbyPlayers();
   for (let lp of lobbyPlayers) await newGame.addPlayer(lp.playerId);
 
@@ -55,14 +104,9 @@ const newGame = async (lobbyChannelId) => {
  * @param {string} lobbyChannelId DiscordID of the lobby
  */
 const cancelSet = async (lobbyChannelId) => {
-  const lobby = await getLobbyByTextChannel(lobbyChannelId);
-  if (!lobby) throw new NotFoundError("Lobby", "GAMESET");
+  const { gameset } = await getObjectsByTextChannel(lobbyChannelId);
 
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
-
-  if (gameset.winnerId) throw new CustomError("Set is already over");
-
+  if (gameset.winnerId) throw new AlreadyFinishedError();
   await gameset.remove();
 };
 
@@ -72,15 +116,7 @@ const cancelSet = async (lobbyChannelId) => {
  * @returns
  */
 const isRankedSet = async (playerDiscordId) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await player.getLobby("PLAYING");
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
-
+  const { gameset } = await getObjects(playerDiscordId);
   return gameset.ranked;
 };
 
@@ -90,22 +126,9 @@ const isRankedSet = async (playerDiscordId) => {
  * @param {string} messageDiscordId Discord ID of the message to save
  */
 const setCharacterSelectMessage = async (playerDiscordId, messageDiscordId) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
+  const { gp } = await getObjects(playerDiscordId, true, true);
 
-  const lobby = await player.getLobby("PLAYING");
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
-
-  const game = await gameset.getCurrentGame();
-  if (!game) throw new NotFoundError("Game");
-
-  const gp = await game.getGamePlayer(player.id);
-  if (!gp) throw new NotFoundError("GamePlayer");
-
-  const message = await gp.insertCharacterMessage(messageDiscordId);
+  await gp.insertCharacterMessage(messageDiscordId);
 };
 
 /**
@@ -115,20 +138,7 @@ const setCharacterSelectMessage = async (playerDiscordId, messageDiscordId) => {
  * @returns
  */
 const pickCharacter = async (playerDiscordId, charName) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await player.getLobby("PLAYING");
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
-
-  const game = await gameset.getCurrentGame();
-  if (!game) throw new NotFoundError("Game");
-
-  const gp = await game.getGamePlayer(player.id);
-  if (!gp) throw new NotFoundError("GamePlayer");
+  const { game, gp } = await getObjects(playerDiscordId, true, true);
 
   const character = await getCharacterByName(charName);
 
@@ -150,20 +160,12 @@ const pickCharacter = async (playerDiscordId, charName) => {
  * @returns The stage picked
  */
 const pickStage = async (playerDiscordId, gameNum, stageName) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await player.getLobby("PLAYING");
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
+  const { gameset } = await getObjects(playerDiscordId);
 
   const game = await gameset.getGameByNum(gameNum);
   const stage = await getStageByName(stageName);
 
   await game.setStage(stage.id);
-
   return stage;
 };
 
@@ -176,14 +178,7 @@ const pickStage = async (playerDiscordId, gameNum, stageName) => {
  */
 const banStage = async (playerDiscordId, gameNum, stageName) => {
   // Get variables
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await player.getLobby("PLAYING");
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
+  const { player, lobby, gameset } = await getObjects(playerDiscordId);
 
   const game = await gameset.getCurrentGame();
   if (gameNum != game.num) throw new NotFoundError("GameNum");
@@ -227,18 +222,7 @@ const banStage = async (playerDiscordId, gameNum, stageName) => {
  * @returns {Promise<Array<Message>>} Array of messages
  */
 const popCharacterMessages = async (playerDiscordId) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await player.getLobby("PLAYING");
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
-
-  const game = await gameset.getCurrentGame();
-  if (!game) throw new NotFoundError("Game");
-
+  const { game } = await getObjects(playerDiscordId, true);
   const charMessages = await game.getCharacterMessages();
   await game.deleteCharacterMessages();
 
@@ -251,17 +235,7 @@ const popCharacterMessages = async (playerDiscordId) => {
  * @returns Array of objects with two properties: playerDiscordId and characterName
  */
 const getPlayersAndCharacters = async (playerDiscordId) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await player.getLobby("PLAYING");
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
-
-  const game = await gameset.getCurrentGame();
-  if (!game) throw new NotFoundError("Game");
+  const { game } = await getObjects(playerDiscordId, true);
 
   const pc = await game.getCharacters();
   return pc;
@@ -283,11 +257,7 @@ const getStages = async (gameNum) => {
  * @returns {Promise<Player>} Player that will strike
  */
 const getStriker = async (channelDiscordId) => {
-  const lobby = await getLobbyByTextChannel(channelDiscordId);
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
+  const { lobby, gameset } = await getObjectsByTextChannel(channelDiscordId);
 
   const game = await gameset.getCurrentGame();
   if (!game) throw new NotFoundError("Game");
@@ -322,14 +292,7 @@ const getStriker = async (channelDiscordId) => {
  * @returns
  */
 const pickWinner = async (playerDiscordId, isWinner, gameNum) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await player.getLobby("PLAYING");
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
+  const { gameset } = await getObjects(playerDiscordId);
 
   const game = await gameset.getGameByNum(gameNum);
 
@@ -357,11 +320,7 @@ const pickWinner = async (playerDiscordId, isWinner, gameNum) => {
  * @returns
  */
 const getScore = async (channelDiscordId) => {
-  const lobby = await getLobbyByTextChannel(channelDiscordId);
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
+  const { gameset } = await getObjectsByTextChannel(channelDiscordId);
 
   const score = await gameset.getScore();
   const winnerId = gameset.winnerId;
@@ -383,11 +342,7 @@ const getScore = async (channelDiscordId) => {
  * @returns {Promise<Player>}
  */
 const getGameWinner = async (channelDiscordId, gameNum) => {
-  const lobby = await getLobbyByTextChannel(channelDiscordId);
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
+  const { gameset } = await getObjectsByTextChannel(channelDiscordId);
 
   const game = await gameset.getGameByNum(gameNum);
   if (!game || !game.winnerId) return null;
@@ -400,14 +355,7 @@ const getGameWinner = async (channelDiscordId, gameNum) => {
  * @param {string} winnerDiscordId Player DiscordId of the winner
  */
 const setWinner = async (winnerDiscordId) => {
-  const player = await getPlayer(winnerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await player.getLobby("PLAYING");
-  if (!lobby) throw new NotFoundError("Lobby");
-
-  const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
+  const { player, gameset } = await getObjects(winnerDiscordId);
 
   await gameset.setWinner(player.id);
   await gameset.setFinish();
@@ -418,8 +366,7 @@ const setWinner = async (winnerDiscordId) => {
  * @param {string} channelDiscordId
  */
 const unlinkLobby = async (channelDiscordId) => {
-  const lobby = await getLobbyByTextChannel(channelDiscordId);
-  if (!lobby) throw new NotFoundError("Lobby");
+  const lobby = await getLobbyByTextChannelOrThrow(channelDiscordId, "GAMESET");
 
   const gameset = await lobby.getGameset();
   await gameset.setLobby(null);
@@ -449,8 +396,7 @@ const getGameNumber = async (channelDiscordId) => {
  * @returns True if the player can pick
  */
 const canPickCharacter = async (playerDiscordId, channelDiscordId, gameNum) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
+  const player = await getPlayerOrThrow(playerDiscordId, true);
 
   const lobby = await getLobbyByTextChannel(channelDiscordId);
   if (!lobby) return false;
@@ -483,18 +429,14 @@ const canPickCharacter = async (playerDiscordId, channelDiscordId, gameNum) => {
  * @param {string} channelDiscordId DiscordID of the textChannel where the set is being played
  */
 const surrender = async (playerDiscordId, channelDiscordId) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await getLobbyByTextChannel(channelDiscordId);
-  if (!lobby) throw new NotFoundError("Lobby");
-
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const lobby = await getLobbyByTextChannelOrThrow(channelDiscordId, "GAMESET");
   const gameset = await lobby.getGameset();
   if (!gameset) throw new NotFoundError("Gameset");
 
-  if (gameset.finishedAt) throw new CustomError("Already finished");
-  const game = await gameset.getCurrentGame();
+  if (gameset.finishedAt) throw new AlreadyFinishedError();
 
+  const game = await gameset.getCurrentGame();
   const gp = await game?.getGamePlayer(player.id);
   const opponentGp = await gp?.getOpponent();
 
@@ -523,11 +465,8 @@ const removeCurrentGame = async (channelDiscordId) => {
  * @returns
  */
 const voteNewSet = async (playerDiscordId) => {
-  const player = await getPlayer(playerDiscordId, true);
-  if (!player) throw new NotFoundError("Player");
-
-  const lobby = await player.getLobby("PLAYING");
-  if (!lobby) throw new NotFoundError("Lobby");
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const lobby = await player.getLobbyOrThrow("PLAYING", "GAMESET");
 
   const currentGameset = await lobby.getGameset();
   if (currentGameset) throw new InGamesetError();

@@ -69,9 +69,11 @@ class Player {
     else return new Lobby(lobby);
   };
 
-  getLobbyOrThrow = async (status, client = null) => {
+  getLobbyOrThrow = async (status, context = null, client = null) => {
     const lobby = await this.getLobby(status, client);
-    if (!lobby) throw new NotFoundError("Lobby");
+    if (!lobby) throw new NotFoundError("Lobby", context);
+
+    return lobby;
   };
 
   getCurrentGameset = async (client = null) => {
