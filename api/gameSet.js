@@ -292,7 +292,7 @@ const getStriker = async (channelDiscordId) => {
  * @returns
  */
 const pickWinner = async (playerDiscordId, isWinner, gameNum) => {
-  const { gameset } = await getObjects(playerDiscordId);
+  const { player, gameset } = await getObjects(playerDiscordId);
 
   const game = await gameset.getGameByNum(gameNum);
 

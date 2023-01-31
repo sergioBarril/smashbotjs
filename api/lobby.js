@@ -167,7 +167,7 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
   const allTiers = await guild.getTiers();
   const playerTier = await player.getTier(guild.id);
 
-  if (!playerTier && targetTier && targetTier.weight !== null)
+  if (!playerTier && ((targetTier && targetTier.weight !== null) || isSearchAll))
     throw new NotFoundError("Tier", "SEARCH_NO_TIER_ASSIGNED");
 
   // Check if player is allowed to search here

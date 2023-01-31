@@ -23,8 +23,10 @@ class NotFoundError extends CustomError {
 
     this.name = `${capitalized}NotFoundError`;
 
-    if (type == "LOBBY") {
-      if (type.toUpperCase() in messages) message = messages[type.toUpperCase()];
+    const typeUpper = type.toUpperCase();
+
+    if (typeUpper == "LOBBY") {
+      if (typeUpper in messages) message = messages[typeUpper][context];
     }
 
     if (type == "Tier") {

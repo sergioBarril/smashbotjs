@@ -36,7 +36,7 @@ module.exports = {
       if (error instanceof CustomError) content = error.message;
       else content = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
 
-      if (interaction.replied) {
+      if (interaction.replied || interaction.deferred) {
         await interaction.followUp({ content, ephemeral });
       } else await interaction.reply({ content, ephemeral });
     }
