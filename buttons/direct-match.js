@@ -1,21 +1,6 @@
 const discordMatchingUtils = require("../utils/discordMatching");
-
 const lobbyAPI = require("../api/lobby");
-const { CustomError } = require("../errors/customError");
-
-const exceptionHandler = async (interaction, exception) => {
-  let message = exception.message;
-
-  if (!(exception instanceof CustomError)) {
-    message = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
-    console.error(exception, exception.stack);
-  }
-
-  await interaction.followUp({
-    content: message,
-    ephemeral: true,
-  });
-};
+const winston = require("winston");
 
 /**
  * Actions to do after finding a match
@@ -28,6 +13,8 @@ const exceptionHandler = async (interaction, exception) => {
 const matched = async (interaction, players) => {
   const guild = interaction.guild;
   await discordMatchingUtils.matched(guild, players);
+
+  winston.info(`${interaction.user.username} ha matcheado con ${players} de forma directa`);
 
   await interaction.editReply({
     content: "¡Te he encontrado rival! Mira tus MDs.",
@@ -51,13 +38,9 @@ const execute = async (interaction) => {
   const messageId = interaction.message.id;
 
   await interaction.deferReply({ ephemeral: true });
-  try {
-    const searchResult = await lobbyAPI.directMatch(playerId, messageId);
-    await deleteAfkMessage(interaction, searchResult.afkMessage);
-    await matched(interaction, searchResult.players);
-  } catch (e) {
-    await exceptionHandler(interaction, e);
-  }
+  const searchResult = await lobbyAPI.directMatch(playerId, messageId);
+  await deleteAfkMessage(interaction, searchResult.afkMessage);
+  await matched(interaction, searchResult.players);
 };
 
 module.exports = {

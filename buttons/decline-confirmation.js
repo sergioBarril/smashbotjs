@@ -4,6 +4,7 @@ const discordMatchingUtils = require("../utils/discordMatching");
 const { MESSAGE_TYPES, Message } = require("../models/message");
 const { Player } = require("../models/player");
 const { TooManyPlayersError } = require("../errors/tooManyPlayers");
+const winston = require("winston");
 
 /**
  * Edits the messages sent in #tier-X
@@ -72,6 +73,8 @@ const editDeclinerDM = async (interaction) => {
       `¡Espero volver a verte pronto!`,
     components: [],
   });
+
+  winston.debug(`DM de ${interaction.user.username} ha sido modificado.`);
 };
 
 const execute = async (interaction) => {

@@ -53,7 +53,9 @@ describe("test LobbyAPI.acceptMatch()", () => {
 
   it("throws NotFoundError if there's no lobby in 'CONFIRMATION' status", async () => {
     await lobby.setStatus("SEARCHING");
-    await expect(acceptMatch(player.discordId)).rejects.toThrow(new NotFoundError("Lobby"));
+    await expect(acceptMatch(player.discordId)).rejects.toThrow(
+      new NotFoundError("Lobby", "ALREADY_ACCEPTED_OR_REJECTED")
+    );
   });
 
   test("not all accepted", async () => {

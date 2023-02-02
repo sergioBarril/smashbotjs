@@ -158,9 +158,6 @@ class Player {
       const lobby = await this.getOwnLobby(client);
       await lobby.addPlayer(this.id, status, client);
 
-      // if (targetTiers == null) targetTiers = [];
-      // await lobby.addTiers(targetTiers, client);
-
       await client.query("COMMIT");
       return lobby;
     } catch (e) {

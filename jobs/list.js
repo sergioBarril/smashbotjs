@@ -1,4 +1,5 @@
 const cron = require("node-cron");
+const winston = require("winston");
 const { getGuild, getCurrentList } = require("../api/guild");
 const { NotFoundError } = require("../errors/notFound");
 
@@ -119,7 +120,9 @@ function searchListJob(client) {
 
       await message.fetch();
       if (message.content != response.trim()) {
-        console.log(`Updated list message`);
+        winston.debug(`Updated list message`);
+        winston.debug(`Old message: ${message.content}`);
+        winston.debug(`New message: ${response.trim()}`);
         await message.edit(response);
       }
     } catch (e) {

@@ -94,9 +94,13 @@ describe("test LobbyAPI.closeArena()", () => {
 
   test("if not playing, throw NotFoundError", async () => {
     await lobby.setStatus("SEARCHING");
-    await expect(closeArena(player.discordId)).rejects.toThrow(new NotFoundError("Lobby"));
+    await expect(closeArena(player.discordId)).rejects.toThrow(
+      new NotFoundError("Lobby", "CLOSE_ARENA")
+    );
     await lobby.remove();
-    await expect(closeArena(player.discordId)).rejects.toThrow(new NotFoundError("Lobby"));
+    await expect(closeArena(player.discordId)).rejects.toThrow(
+      new NotFoundError("Lobby", "CLOSE_ARENA")
+    );
   });
 
   test("if in the middle of a set, throw InGameSet Error", async () => {

@@ -6,28 +6,14 @@ const { normalizeCharacter, normalizeRegion } = require("./normalize");
 const rolesAPI = require("../api/roles");
 const { CharacterNameError } = require("../errors/characterName");
 const { Interaction } = require("discord.js");
-const { CustomError } = require("../errors/customError");
 const { RegionNameError } = require("../errors/regionName");
 const { getWifiTier } = require("../api/guild");
 const { NotFoundError } = require("../errors/notFound");
+const winston = require("winston");
 
 const YUZU_EMOJI = "<:yuzu:945850935035441202>";
 const PARSEC_EMOJI = "<:parsec:945853565405114510>";
 const WIFI_EMOJI = "<:wifi:945988666994602065>";
-
-const exceptionHandler = async (interaction, exception) => {
-  let message = exception.message;
-
-  if (!(exception instanceof CustomError)) {
-    message = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
-    console.error(exception, exception.stack);
-  }
-
-  await interaction.followUp({
-    content: message,
-    ephemeral: true,
-  });
-};
 
 /**
  * Assigns (or removes) a character for a player
@@ -55,11 +41,18 @@ const assignCharacter = async (interaction, characterName, type) => {
   // Response
   const emoji = smashCharacters[key].emoji;
 
-  if (action === "CREATE")
+  if (action === "CREATE") {
+    winston.info(`Añadido el rol ${role.name} a ${player.displayName} como ${type.toLowerCase()}`);
     return `Te he asignado a **${key}** ${emoji} como ${type.toLowerCase()}.`;
-  else if (action === "UPDATE")
+  } else if (action === "UPDATE") {
+    winston.info(
+      `El rol ${role.name} a ${player.displayName} ha pasado a ser su ${type.toLowerCase()}`
+    );
     return `**${key}** ${emoji} ha pasado a ser tu ${type.toLowerCase()}.`;
-  else if (action === "REMOVE") return `**${key}** ${emoji} ya no será tu ${type.toLowerCase()}.`;
+  } else if (action === "REMOVE") {
+    winston.info(`Quitado el rol ${role.name} a ${player.displayName}`);
+    return `**${key}** ${emoji} ya no será tu ${type.toLowerCase()}.`;
+  }
 };
 
 /**
@@ -80,14 +73,18 @@ const assignRegion = async (interaction, name) => {
   const role = await guild.roles.fetch(regionRoleId);
   const member = interaction.member;
 
-  if (action === "REMOVE") await member.roles.remove(role);
-  else await member.roles.add(role);
-
   // Response
   let emoji = spanishRegions[key].emoji;
 
-  if (action === "CREATE") return `Te he asignado la región **${key}** ${emoji}.`;
-  else return `Ya no estás en la región de **${key}** ${emoji}.`;
+  if (action === "REMOVE") {
+    await member.roles.remove(role);
+    winston.info(`Quitado el rol ${role.name} a ${player.displayName}`);
+    return `Ya no estás en la región de **${key}** ${emoji}.`;
+  } else {
+    await member.roles.add(role);
+    winston.info(`Añadido el rol ${role.name} a ${player.displayName}`);
+    return `Te he asignado la región **${key}** ${emoji}.`;
+  }
 };
 
 /**
@@ -109,9 +106,11 @@ const assignYuzu = async (interaction, name) => {
   const role = await guild.roles.fetch(roleId);
   if (newStatus) {
     await player.roles.add(role);
+    winston.info(`Añadido el rol ${role.name} a ${player.displayName}`);
     return `Te he añadido el rol **${role}** ${emoji}.`;
   } else {
     await player.roles.remove(role);
+    winston.info(`Quitado el rol ${role.name} a ${player.displayName}`);
     return `Te he quitado el rol **${role}** ${emoji}.`;
   }
 };
@@ -135,9 +134,11 @@ const assignWifi = async (interaction) => {
 
   if (player.roles.cache.has(role.id)) {
     await player.roles.remove(role);
+    winston.info(`Quitado el rol ${role.name} a ${player.displayName}`);
     return `Te he quitado el rol **${role}** ${WIFI_EMOJI}.`;
   } else {
     await player.roles.add(role);
+    winston.info(`Añadido el rol ${role.name} a ${player.displayName}`);
     return `Te he añadido el rol **${role}** ${WIFI_EMOJI}.`;
   }
 };
@@ -146,20 +147,16 @@ const assignRole = async (interaction, name, type) => {
   let responseText;
   await interaction.deferReply({ ephemeral: true });
 
-  try {
-    if (["MAIN", "SECOND", "POCKET"].includes(type))
-      responseText = await assignCharacter(interaction, name, type);
-    else if (type === "REGION") responseText = await assignRegion(interaction, name);
-    else if (type === "YUZU") responseText = await assignYuzu(interaction, name);
-    else if (type === "WIFI") responseText = await assignWifi(interaction, name);
+  if (["MAIN", "SECOND", "POCKET"].includes(type))
+    responseText = await assignCharacter(interaction, name, type);
+  else if (type === "REGION") responseText = await assignRegion(interaction, name);
+  else if (type === "YUZU") responseText = await assignYuzu(interaction, name);
+  else if (type === "WIFI") responseText = await assignWifi(interaction, name);
 
-    return await interaction.editReply({
-      content: responseText,
-      ephemeral: true,
-    });
-  } catch (e) {
-    await exceptionHandler(interaction, e);
-  }
+  return await interaction.editReply({
+    content: responseText,
+    ephemeral: true,
+  });
 };
 
 module.exports = {

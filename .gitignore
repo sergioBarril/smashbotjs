@@ -3,3 +3,4 @@ node_modules
 *.code-workspace
 config.json
 coverage
+*.log

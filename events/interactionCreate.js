@@ -1,4 +1,5 @@
 const { CustomError } = require("../errors/customError");
+const winston = require("winston");
 
 module.exports = {
   name: "interactionCreate",
@@ -20,8 +21,7 @@ module.exports = {
     }
 
     if (!command) {
-      console.log("Rip");
-      console.log(interaction.customId);
+      winston.error("Comando inválido: " + interaction.customId);
       return;
     }
 
@@ -33,8 +33,12 @@ module.exports = {
       let content;
       const ephemeral = true;
 
-      if (error instanceof CustomError) content = error.message;
-      else content = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+      if (error instanceof CustomError) {
+        content = error.message;
+      } else content = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+
+      winston.error(content);
+      winston.debug(error.stack);
 
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp({ content, ephemeral });

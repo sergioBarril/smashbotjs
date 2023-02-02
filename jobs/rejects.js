@@ -1,6 +1,10 @@
 const cron = require("node-cron");
+const winston = require("winston");
 const { removeOldRejects, countOldRejects } = require("../models/playerReject");
 
+/**
+ * Job that checks every 20th minute and cleans old rejects
+ */
 function clearRejectsJob() {
   cron.schedule("*/20 * * * *", async () => {
     try {
@@ -9,10 +13,10 @@ function clearRejectsJob() {
       const count = await countOldRejects(timeMargin);
       if (count > 0) {
         await removeOldRejects(timeMargin);
-        console.log(`Removed ${count} PlayerRejects.`);
+        winston.info(`Removed ${count} PlayerRejects.`);
       }
     } catch (e) {
-      console.error(e);
+      winston.error(e);
     }
   });
 }

@@ -1,4 +1,5 @@
 const { MessageActionRow, MessageButton, Permissions } = require("discord.js");
+const winston = require("winston");
 const playerAPI = require("../api/player");
 const { CustomError } = require("../errors/customError");
 const { NotFoundError } = require("../errors/notFound");
@@ -54,6 +55,8 @@ const execute = async (interaction) => {
   let messageText =
     `¡Hola, **${player.displayName}**! Voy a hacerte unas pocas preguntas para darte los roles adecuados.\n\n` +
     `**Primera pregunta**: ¿tienes adaptador de cable LAN para conectarte a Internet por cable en la Switch?\n`;
+
+  winston.info(`Canal de registro creado para ${player.displayName}`);
 
   await registerChannel.send({
     content: messageText,

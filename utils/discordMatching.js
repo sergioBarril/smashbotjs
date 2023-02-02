@@ -11,6 +11,7 @@ const { TooManyPlayersError } = require("../errors/tooManyPlayers");
 const { Player } = require("../models/player");
 const { Tier } = require("../models/tier");
 const { MESSAGE_TYPES } = require("../models/message");
+const winston = require("winston");
 
 // This module is composed of Discord functionality that's
 // recurring in different buttons or commands
@@ -62,6 +63,8 @@ const matched = async (guild, players, isRanked) => {
 
   // Send DMs
   const [player1, player2] = players;
+
+  winston.info(`${player1.displayName} y ${player2.displayName} han hecho match.`);
 
   await Promise.all([
     sendConfirmation(player1, player2, isRanked, guild),

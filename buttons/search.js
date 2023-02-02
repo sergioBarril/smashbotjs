@@ -1,11 +1,12 @@
 const discordMatchingUtils = require("../utils/discordMatching");
 
 const lobbyAPI = require("../api/lobby");
-const { CustomError } = require("../errors/customError");
+
 const { Tier } = require("../models/tier");
 const { Player } = require("../models/player");
 const { Message } = require("../models/message");
-const { User, Interaction } = require("discord.js");
+const { Interaction } = require("discord.js");
+const winston = require("winston");
 
 /**
  * Actions to do after finding a match
@@ -57,6 +58,9 @@ const notMatched = async (interaction, tiers, isRanked) => {
     rolesNames = "**Ranked**";
     await discordMatchingUtils.notMatched(playerId, guild, null, isRanked, true);
   }
+
+  winston.info(`A partir de ahora, ${interaction.user.username} está buscando en ${rolesNames}`);
+
   await interaction.editReply({
     content: `A partir de ahora estás buscando en ${rolesNames}.`,
     ephemeral: true,
@@ -73,6 +77,7 @@ const deleteAfkMessage = async (interaction, message) => {
   const dmChannel = await interaction.user.createDM();
   const discordMessage = await dmChannel.messages.fetch(message.discordId);
   await discordMessage.delete();
+  winston.debug(`Discord Message con id ${message.discordId} eliminado.`);
 };
 
 const execute = async (interaction) => {
@@ -81,6 +86,8 @@ const execute = async (interaction) => {
   const messageId = interaction.customId === "search" ? interaction.message.id : null;
 
   await interaction.deferReply({ ephemeral: true });
+
+  winston.info(`${interaction.user.username} triggered a Search.`);
 
   const searchResult = await lobbyAPI.search(playerId, guildId, messageId);
   await deleteAfkMessage(interaction, searchResult.afkMessage);

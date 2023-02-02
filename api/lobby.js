@@ -20,6 +20,8 @@ const { RejectedPlayerError } = require("../errors/rejectedPlayer");
 const { getLobbyByTextChannel, getLobby } = require("../models/lobby");
 const { getTier } = require("../models/tier");
 
+const winston = require("winston");
+
 /**
  * Declines the match. If declined due to timeout, leaves the lobby in AFK
  * status for easily resuming the search.
@@ -211,8 +213,11 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
 
   if (!lobby && !existsLobbyPlayer) {
     lobby = await player.insertLobby(guild.id);
-    if (isRanked) await lobby.setRanked(true);
-    else await lobby.addTiers(targetTiers);
+    winston.info(`Lobby creado por ${player.discordId}: Lobby (${lobby.id})`);
+    if (isRanked) {
+      await lobby.setRanked(true);
+      winston.info(`Lobby (${lobby.id}) es a partir de ahora Ranked.`);
+    } else await lobby.addTiers(targetTiers);
   } else if (!isSearching || (!lobby && existsLobbyPlayer)) {
     if (!lobby) throw new CannotSearchError("PLAYING", "SEARCH");
     else if (!isAfk) throw new CannotSearchError(lobby.status, "SEARCH");
@@ -271,7 +276,10 @@ const matchmaking = async (playerDiscordId) => {
 
   if (!rivalPlayer) rivalPlayer = await lobby.matchmaking();
 
-  if (rivalPlayer) await lobby.setupMatch(rivalPlayer, foundRanked);
+  if (rivalPlayer) {
+    winston.info(`Match ${foundRanked ? "ranked " : ""}encontrado con ${rivalPlayer.discordId}`);
+    await lobby.setupMatch(rivalPlayer, foundRanked);
+  }
 
   return { rivalPlayer, foundRanked, searchedRanked };
 };

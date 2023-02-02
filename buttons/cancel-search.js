@@ -1,22 +1,6 @@
+const winston = require("winston");
 const lobbyAPI = require("../api/lobby");
-const { CustomError } = require("../errors/customError");
 const { EditMessageError } = require("../errors/editMessage");
-
-const exceptionHandler = async (interaction, exception) => {
-  let message = exception.message;
-
-  if (exception.name === "LobbyNotFoundError") {
-    message = "¡No estabas buscando partida!";
-  } else if (!(exception instanceof CustomError)) {
-    message = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
-    console.error(exception, exception.stack);
-  }
-
-  await interaction.reply({
-    content: message,
-    ephemeral: true,
-  });
-};
 
 const successfulReply = async (interaction, isSearching, tiers, isRanked) => {
   const roles = tiers.map((tier) => (tier.yuzu ? `**Yuzu**` : `<@&${tier.roleId}>`));
@@ -31,7 +15,12 @@ const successfulReply = async (interaction, isSearching, tiers, isRanked) => {
 
   let responseText = `A partir de ahora **no** estás buscando partida en ${rolesNames}.`;
 
-  if (!isSearching) responseText = `Ya no estás buscando partida. ¡Hasta pronto!`;
+  winston.info(`${interaction.user.username} ha dejado de buscar en ${rolesNames}`);
+
+  if (!isSearching) {
+    responseText = `Ya no estás buscando partida. ¡Hasta pronto!`;
+    winston.info(`${interaction.user.username} ya no está buscando partida.`);
+  }
 
   return await interaction.reply({
     content: responseText,
@@ -61,6 +50,8 @@ const editMessage = async (interaction, channelId, messageId, isRanked) => {
         ` en este canal a las ${hoursText}:${minutesText}.`,
       components: [],
     });
+
+    winston.debug(`Mensaje ${messageId} ha sido modificado`);
   }
 };
 

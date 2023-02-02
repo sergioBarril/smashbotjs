@@ -100,7 +100,7 @@ describe("test LobbyAPI.matchNotAccepted()", () => {
   test("throws NotFoundError if there's no lobby in CONFIRMATION", async () => {
     await lobby.setStatus("PLAYING");
     await expect(matchNotAccepted(playerDiscordId, false)).rejects.toThrow(
-      new NotFoundError("Lobby")
+      new NotFoundError("Lobby", "MATCH_NOT_ACCEPTED")
     );
   });
 

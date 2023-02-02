@@ -7,6 +7,7 @@ const { Guild } = require("../models/guild");
 const { NotFoundError } = require("../errors/notFound");
 const { Message } = require("../models/message");
 const { setupNextGame, setupCharacter } = require("../utils/discordGameset");
+const winston = require("winston");
 
 // Disabled buttons
 const row = new MessageActionRow().addComponents(
@@ -106,6 +107,9 @@ const createArena = async (interaction, players, guild, ranked) => {
       components: [newSet],
     });
   }
+
+  winston.info(`Text channel y voice channel creados para ${players}`);
+  winston.debug(`Text: ${channel.id}. Voice: ${voiceChannel.id}`);
   return { text: channel, voice: voiceChannel };
 };
 
@@ -272,6 +276,8 @@ const execute = async (interaction) => {
   const { hasEveryoneAccepted, players, acceptedAt, guild, ranked } = await lobbyAPI.acceptMatch(
     playerDiscordId
   );
+
+  winston.info(`${interaction.user.username} acaba de aceptar el match`);
 
   if (hasEveryoneAccepted) {
     await allAccepted(interaction, players, guild, ranked);
