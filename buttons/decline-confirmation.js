@@ -100,6 +100,8 @@ const execute = async (interaction) => {
   const otherPlayer = otherPlayers[0];
   const otherDm = dms.find((dm) => dm.playerId == otherPlayer.id);
 
+  winston.info(`${interaction.user.username} ha rechazado el match.`);
+
   await editDeclinerDM(interaction);
   await editRejectedDM(interaction, otherPlayer, otherDm);
   await editTierMessages(interaction, tierMessages, guild.id, declinedPlayer, otherPlayer);

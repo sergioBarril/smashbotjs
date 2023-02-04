@@ -1,5 +1,6 @@
 const guildAPI = require("../../../api/guild");
 const { MessageActionRow, MessageButton } = require("discord.js");
+const winston = require("winston");
 
 const YUZU_EMOJI = "<:yuzu:945850935035441202>";
 const PARSEC_EMOJI = "<:parsec:945853565405114510>";
@@ -70,6 +71,7 @@ const channelCommand = async (interaction) => {
     components: [wifiButton],
   });
 
+  winston.info(`[${interaction.user.username}] Canal de roles creado`);
   await interaction.editReply({
     content: `Listo: canal de roles creado en ${rolesChannel}`,
     ephehemral: true,

@@ -1,4 +1,5 @@
 const { Interaction } = require("discord.js");
+const winston = require("winston");
 const { getTiers } = require("../../../api/tier");
 const { NotFoundError } = require("../../../errors/notFound");
 const { assignTier } = require("../../../utils/discordTiers");
@@ -21,6 +22,9 @@ const setTier = async (interaction) => {
   let roleId = role ? role.id : "wifi";
 
   const assignedRole = await assignTier(roleId, member.id, interaction.member.id, guild);
+  winston.info(
+    `[${interaction.user.username}] Se le ha asignado ${assignedRole.name} a ${member.displayName}`
+  );
   await interaction.reply(
     `Se le ha asignado **${assignedRole.name}** a **${member.displayName}**.`
   );

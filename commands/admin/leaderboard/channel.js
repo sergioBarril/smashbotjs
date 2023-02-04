@@ -1,3 +1,4 @@
+const winston = require("winston");
 const guildAPI = require("../../../api/guild");
 const { getLeaderboardEmbeds } = require("../../../utils/discordLeaderboard");
 
@@ -32,6 +33,8 @@ const channel = async (interaction) => {
   const embeds = await getLeaderboardEmbeds(guild);
   const leaderboardMessage = await leaderboardChannel.send({ embeds });
   await guildAPI.insertLeaderboardMessage(guild.id, leaderboardMessage.id);
+
+  winston.info(`[${interaction.user.username}] Canal leaderboards creado`);
 
   await interaction.editReply({
     content: "¡Canal #leaderboards creado!",

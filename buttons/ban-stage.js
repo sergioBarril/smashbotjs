@@ -1,3 +1,4 @@
+const winston = require("winston");
 const setAPI = require("../api/gameSet");
 const { Stage } = require("../models/stage");
 
@@ -64,6 +65,8 @@ const execute = async (interaction) => {
 
   const stages = await setAPI.getStages(gameNum);
   const banResponse = await setAPI.banStage(playerId, gameNum, stageName);
+  winston.info(`${interaction.user.username} ha baneado ${stageName}`);
+
   const { nextStriker, nextPicker, starter, bannedStages } = banResponse;
   const isBan = nextPicker == null;
 

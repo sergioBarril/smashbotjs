@@ -16,6 +16,7 @@ const {
 const { Stage } = require("../models/stage");
 const { Tier } = require("../models/tier");
 const { updateLeaderboard } = require("./discordLeaderboard");
+const winston = require("winston");
 
 /**
  * Get the text that will be displayed after picking or banning
@@ -310,12 +311,15 @@ const changeTier = async (playerDiscordId, oldTier, newTier, discordGuild) => {
   const member = await discordGuild.members.fetch(playerDiscordId);
   const oldRole = await discordGuild.roles.fetch(oldTier.roleId);
   await member.roles.remove(oldRole);
+  winston.info(`Se le ha eliminado el rol ${oldRole.name} a ${member.displayName}`);
 
   const newRole = await discordGuild.roles.fetch(newTier.roleId);
   await member.roles.add(newRole);
+  winston.info(`Se le ha añadido el rol ${newRole.name} a ${member.displayName}`);
 
   const newRankedRole = await discordGuild.roles.fetch(newTier.rankedRoleId);
   await member.roles.add(newRankedRole);
+  winston.info(`Se le ha añadido el rol ${newRankedRole.name} a ${member.displayName}`);
 };
 
 /**
@@ -376,6 +380,9 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
 
   await setAPI.unlinkLobby(interaction.channel.id);
 
+  winston.info(`${winner.displayName} ha ganado el set${porAbandono}`);
+  winston.info(rankedText);
+
   const responseObj = {
     content: `¡**${winner.displayName}**${emoji} ha ganado el set${porAbandono}!${rankedText}Puedes pedir la revancha, o cerrar la arena.`,
     components: setEndButtons(),
@@ -411,6 +418,7 @@ const setupNextGame = async (interaction) => {
 
     if (newGame.num > 1) {
       await interaction.channel.send(`__**Game ${newGame.num}**__`);
+      winston.info(`Empieza el Game ${newGame.num} donde juega ${interaction.user.username}`);
       return await setupBans(interaction, newGame.num);
     }
 
@@ -427,6 +435,8 @@ const setupNextGame = async (interaction) => {
 const setupFirstGame = async (interaction, members) => {
   const channel = interaction.channel;
   await channel.send("__**Game 1**__");
+
+  winston.info(`Primer game entre ${members.map((m) => m.displayName)}`);
 
   await Promise.all([
     members.map((member) => setupCharacter(channel, member, 1, interaction.guild)),
@@ -540,6 +550,8 @@ const pickCharacter = async (interaction, playerDiscordId, characterName) => {
     playerDiscordId,
     characterName
   );
+
+  winston.info(`${interaction.user.username} ha pickeado ${characterName}.`);
 
   if (allPicked) {
     if (interaction.isButton()) await interaction.deferUpdate();

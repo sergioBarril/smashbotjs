@@ -3,6 +3,7 @@ const smashCharacters = require("../params/smashCharacters.json");
 
 const { MessageActionRow } = require("discord.js");
 const { setupNextGame } = require("../utils/discordGameset");
+const winston = require("winston");
 
 const pickWinnerButtons = (message, votedPlayerId, isOpponentVoted, isDone) => {
   const winnerComponents = message.components.map((row) => {
@@ -43,6 +44,10 @@ const execute = async (interaction) => {
 
   const buttons = pickWinnerButtons(message, votedPlayerId, opponent.winner, winner != null);
 
+  winston.info(
+    `${interaction.user.username} ha votado al jugador con Discord ID ${votedPlayerId} como ganador`
+  );
+
   await interaction.deferUpdate();
   if (winner) {
     const winnerPlayer = await interaction.guild.members.fetch(winner.discordId);
@@ -63,6 +68,8 @@ const execute = async (interaction) => {
 
     let scoreText = `El marcador va ${playersScore[0].playerText} ${playersScore[0].playerScore}`;
     scoreText += ` - ${playersScore[1].playerScore} ${playersScore[1].playerText}`;
+
+    winston.info(`${winnerPlayer.displayName} ha ganado el game ${gameNum}. ${scoreText}`);
 
     await message.edit({
       content: `¡**${winnerPlayer.displayName}** ${emoji} ha ganado el **Game ${gameNum}**! ${scoreText}`,

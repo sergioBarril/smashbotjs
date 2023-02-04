@@ -1,3 +1,4 @@
+const winston = require("winston");
 const ratingAPI = require("../../../api/rating");
 
 const setScore = async (interaction) => {
@@ -9,6 +10,10 @@ const setScore = async (interaction) => {
 
   const scoreDiff = newScore - oldScore;
   let scoreDiffText = `(${scoreDiff >= 0 ? "+" : ""}${scoreDiff})`;
+
+  winston.info(
+    `[${interaction.user.username}]: La puntuación de ${member.displayName} ha pasado a ${newScore} ${scoreDiffText}`
+  );
   await interaction.reply(
     `La puntuación de **${member.displayName}** ha pasado a **${newScore}** ${scoreDiffText}`
   );

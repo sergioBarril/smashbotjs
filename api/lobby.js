@@ -749,7 +749,7 @@ const deleteLobbies = async (guildDiscordId, type, playerDiscordId) => {
   }
 
   let lobbies = await guild.getLobbies();
-  if (type) lobbies = lobbies.filter((lobby) => (lobby.status = type));
+  if (type) lobbies = lobbies.filter((lobby) => lobby.status == type);
 
   let count = 0;
   for (let lobby of lobbies) {

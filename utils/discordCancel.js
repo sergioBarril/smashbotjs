@@ -1,21 +1,7 @@
 const lobbyAPI = require("../api/lobby");
 const { Guild } = require("discord.js");
 const { Message, MESSAGE_TYPES } = require("../models/message");
-const { CustomError } = require("../errors/customError");
-
-const exceptionHandler = async (interaction, exception) => {
-  let message = exception.message;
-
-  if (!(exception instanceof CustomError)) {
-    message = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
-    console.error(exception, exception.stack);
-  }
-
-  await interaction.followUp({
-    content: message,
-    ephemeral: true,
-  });
-};
+const winston = require("winston");
 
 /**
  * Edits the direct messages sent to the players
@@ -96,24 +82,23 @@ const channelsRemoval = async (guild, channels) => {
 
 const cancelLobby = async (interaction) => {
   await interaction.deferReply();
-  try {
-    const player = interaction.user;
-    const { channels, guild: guildModel, messages } = await lobbyAPI.closeArena(player.id);
 
-    let guild = interaction.guild;
-    if (!guild) guild = await interaction.client.guilds.fetch(guildModel.discordId);
+  const player = interaction.user;
+  const { channels, guild: guildModel, messages } = await lobbyAPI.closeArena(player.id);
 
-    channelsRemoval(guild, channels);
+  let guild = interaction.guild;
+  if (!guild) guild = await interaction.client.guilds.fetch(guildModel.discordId);
 
-    const playerNames = await editDirectMessages(guild, messages);
-    await editTierMessages(guild, messages, playerNames);
+  channelsRemoval(guild, channels);
 
-    await interaction.editReply({
-      content: "GGs, ¡gracias por jugar!",
-    });
-  } catch (e) {
-    await exceptionHandler(interaction, e);
-  }
+  const playerNames = await editDirectMessages(guild, messages);
+  await editTierMessages(guild, messages, playerNames);
+
+  winston.info(`Se ha cerrado la arena de ${playerNames}`);
+
+  await interaction.editReply({
+    content: "GGs, ¡gracias por jugar!",
+  });
 };
 
 module.exports = {

@@ -1,3 +1,4 @@
+const winston = require("winston");
 const setAPI = require("../api/gameSet");
 
 const { stageFinalButtons, stageFinalText, setupCharacter } = require("../utils/discordGameset");
@@ -33,6 +34,8 @@ const execute = async (interaction) => {
 
   const stages = await setAPI.getStages(gameNum);
   const stage = await setAPI.pickStage(playerId, gameNum, stageName);
+
+  winston.info(`${interaction.user.username} ha pickeado ${stageName}`);
 
   return await endStageStep(interaction, gameNum, stages, stage);
 };

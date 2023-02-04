@@ -11,6 +11,13 @@ const messages = {
       "Este lobby ya había sido aceptado o rechazado. Contacta con un admin si no ha sido así.",
     CLOSE_ARENA: "Esta arena ya estaba cerrada. ¡Hasta pronto!",
     GAMESET: "La arena donde estuvieras ya cerró. ¡Busca partida de nuevo!",
+    SURRENDER:
+      "El comando /surrender tiene que ser usado en el canal de la arena donde estás jugando.",
+    REMAKE: "El comando /remake tiene que ser usado en el canal de la arena donde estás jugando.",
+  },
+  GAMESET: {
+    SURRENDER: "¡No estás jugando ningún set! No te puedes rendir si no estás jugando.",
+    REMAKE: "¡No estás jugando ningún set! No hay nada a remakear si no estás jugando.",
   },
 };
 
@@ -25,9 +32,7 @@ class NotFoundError extends CustomError {
 
     const typeUpper = type.toUpperCase();
 
-    if (typeUpper == "LOBBY") {
-      if (typeUpper in messages) message = messages[typeUpper][context];
-    }
+    if (typeUpper in messages) message = messages[typeUpper][context];
 
     if (type == "Tier") {
       if (context == "SEARCH_NO_TIER_ASSIGNED")

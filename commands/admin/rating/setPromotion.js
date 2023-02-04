@@ -1,3 +1,4 @@
+const winston = require("winston");
 const ratingAPI = require("../../../api/rating");
 
 const setPromotion = async (interaction) => {
@@ -16,6 +17,7 @@ const setPromotion = async (interaction) => {
     }`;
   else messageText = `**${member.displayName}** ya no está en promoción.`;
 
+  winston.info(`[${interaction.user.username}]: ${messageText}`);
   await interaction.reply(messageText);
 };
 

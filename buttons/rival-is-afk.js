@@ -1,4 +1,5 @@
 const { MessageActionRow, MessageButton } = require("discord.js");
+const winston = require("winston");
 
 const lobbyAPI = require("../api/lobby");
 const { TooManyPlayersError } = require("../errors/tooManyPlayers");
@@ -123,6 +124,8 @@ module.exports = {
     await editAcceptedDM(interaction, acceptedPlayer.id);
     await editAfkDM(interaction, declinedPlayer, acceptedDm);
     await editTierMessages(interaction, tierMessages, guild.id, declinedPlayer, otherPlayer);
+
+    winston.info(`${acceptedPlayer.username} dice que su rival está AFK. Match cancelado.`);
 
     const isSearching = await lobbyAPI.isSearching(otherPlayer.discordId);
     if (!isSearching) return;

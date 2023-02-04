@@ -14,7 +14,7 @@ const matched = async (interaction, players) => {
   const guild = interaction.guild;
   await discordMatchingUtils.matched(guild, players);
 
-  winston.info(`${interaction.user.username} ha matcheado con ${players} de forma directa`);
+  winston.info(`${interaction.user.username} ha matcheado de forma directa`);
 
   await interaction.editReply({
     content: "¡Te he encontrado rival! Mira tus MDs.",

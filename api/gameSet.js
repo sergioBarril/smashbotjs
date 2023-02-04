@@ -430,9 +430,9 @@ const canPickCharacter = async (playerDiscordId, channelDiscordId, gameNum) => {
  */
 const surrender = async (playerDiscordId, channelDiscordId) => {
   const player = await getPlayerOrThrow(playerDiscordId, true);
-  const lobby = await getLobbyByTextChannelOrThrow(channelDiscordId, "GAMESET");
+  const lobby = await getLobbyByTextChannelOrThrow(channelDiscordId, "SURRENDER");
   const gameset = await lobby.getGameset();
-  if (!gameset) throw new NotFoundError("Gameset");
+  if (!gameset) throw new NotFoundError("Gameset", "SURRENDER");
 
   if (gameset.finishedAt) throw new AlreadyFinishedError();
 
@@ -447,16 +447,15 @@ const surrender = async (playerDiscordId, channelDiscordId) => {
 };
 
 const removeCurrentGame = async (channelDiscordId) => {
-  const lobby = await lobbyDB.getByTextChannel(channelDiscordId);
-  if (!lobby) throw { name: "NO_LOBBY" };
+  const lobby = await getLobbyByTextChannelOrThrow(channelDiscordId, "REMAKE");
 
-  const gameset = await gameSetDB.getByLobby(lobby.id);
-  if (!gameset) throw { name: "NO_GAMESET" };
+  const gameset = await lobby.getGameset();
+  if (!gameset) throw new NotFoundError("Gameset", "REMAKE");
 
-  const game = await gameDB.getCurrent(gameset.id);
-  if (!game) throw { name: "NO_GAME" };
+  const game = await gameset.getCurrentGame();
+  if (!game) throw new NotFoundError("Game");
 
-  await gameDB.remove(game.id);
+  await game.remove();
 };
 
 /**

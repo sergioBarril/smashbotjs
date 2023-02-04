@@ -108,7 +108,7 @@ const createArena = async (interaction, players, guild, ranked) => {
     });
   }
 
-  winston.info(`Text channel y voice channel creados para ${players}`);
+  winston.info(`Text channel y voice channel creados para ${players.map((p) => p.username)}`);
   winston.debug(`Text: ${channel.id}. Voice: ${voiceChannel.id}`);
   return { text: channel, voice: voiceChannel };
 };

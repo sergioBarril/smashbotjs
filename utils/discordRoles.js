@@ -42,15 +42,15 @@ const assignCharacter = async (interaction, characterName, type) => {
   const emoji = smashCharacters[key].emoji;
 
   if (action === "CREATE") {
-    winston.info(`Añadido el rol ${role.name} a ${player.displayName} como ${type.toLowerCase()}`);
+    winston.info(`Añadido el rol ${role.name} a ${player.username} como ${type.toLowerCase()}`);
     return `Te he asignado a **${key}** ${emoji} como ${type.toLowerCase()}.`;
   } else if (action === "UPDATE") {
     winston.info(
-      `El rol ${role.name} a ${player.displayName} ha pasado a ser su ${type.toLowerCase()}`
+      `El rol ${role.name} a ${player.username} ha pasado a ser su ${type.toLowerCase()}`
     );
     return `**${key}** ${emoji} ha pasado a ser tu ${type.toLowerCase()}.`;
   } else if (action === "REMOVE") {
-    winston.info(`Quitado el rol ${role.name} a ${player.displayName}`);
+    winston.info(`Quitado el rol ${role.name} a ${player.username}`);
     return `**${key}** ${emoji} ya no será tu ${type.toLowerCase()}.`;
   }
 };
@@ -78,11 +78,11 @@ const assignRegion = async (interaction, name) => {
 
   if (action === "REMOVE") {
     await member.roles.remove(role);
-    winston.info(`Quitado el rol ${role.name} a ${player.displayName}`);
+    winston.info(`Quitado el rol ${role.name} a ${player.username}`);
     return `Ya no estás en la región de **${key}** ${emoji}.`;
   } else {
     await member.roles.add(role);
-    winston.info(`Añadido el rol ${role.name} a ${player.displayName}`);
+    winston.info(`Añadido el rol ${role.name} a ${player.username}`);
     return `Te he asignado la región **${key}** ${emoji}.`;
   }
 };
