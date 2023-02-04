@@ -446,6 +446,31 @@ const surrender = async (playerDiscordId, channelDiscordId) => {
   await gameset.setSurrender();
 };
 
+/**
+ * Force the opponent of the player to surrender
+ */
+const surrenderOpponent = async (playerDiscordId, channelDiscordId) => {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const lobby = await getLobbyByTextChannelOrThrow(channelDiscordId, "ADMINSETWIN");
+
+  const lps = await lobby.getLobbyPlayers();
+  if (!lps.some((lp) => lp.playerId === player.id)) {
+    throw new NotFoundError("Player", "ADMINSETWIN");
+  }
+
+  const gameset = await lobby.getGameset();
+  if (!gameset) throw new NotFoundError("Gameset", "ADMINSETWIN");
+
+  if (gameset.finishedAt) throw new AlreadyFinishedError();
+
+  const game = await gameset.getCurrentGame();
+
+  await game?.setWinner(player.id);
+  await gameset.setWinner(player.id);
+  await gameset.setFinish();
+  await gameset.setSurrender();
+};
+
 const removeCurrentGame = async (channelDiscordId) => {
   const lobby = await getLobbyByTextChannelOrThrow(channelDiscordId, "REMAKE");
 
@@ -509,6 +534,7 @@ module.exports = {
   getGameNumber,
   canPickCharacter,
   surrender,
+  surrenderOpponent,
   removeCurrentGame,
   voteNewSet,
 };

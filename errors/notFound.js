@@ -17,7 +17,11 @@ const messages = {
   },
   GAMESET: {
     SURRENDER: "¡No estás jugando ningún set! No te puedes rendir si no estás jugando.",
+    ADMINSETWIN: "No se está jugando ningún set en este canal. Imposible configurar el ganador.",
     REMAKE: "¡No estás jugando ningún set! No hay nada a remakear si no estás jugando.",
+  },
+  PLAYER: {
+    ADMINSETWIN: "El jugador introducido como ganador no forma parte de este lobby.",
   },
 };
 

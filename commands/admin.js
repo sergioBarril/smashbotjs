@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const { channel } = require("./admin/roles/channel");
 const { channel: rankedChannel } = require("./admin/ranked/channel");
+const { setWinner } = require("./admin/ranked/setWinner");
 const { channel: leaderboardChannel } = require("./admin/leaderboard/channel");
 
 const { upsert } = require("./admin/roles/upsert");
@@ -80,6 +81,17 @@ const data = new SlashCommandBuilder()
       .setDescription("Comandos de admin relacionados con las ranked")
       .addSubcommand((subcommand) =>
         subcommand.setName("channel").setDescription("Crea el canal de rankeds")
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("setwinner")
+          .setDescription("Decide el ganador del set.")
+          .addUserOption((option) =>
+            option
+              .setName("player")
+              .setDescription("Jugador que se marcará como ganador del set")
+              .setRequired(true)
+          )
       )
   )
   .addSubcommandGroup((leaderboardCommandGroup) =>
@@ -222,6 +234,7 @@ module.exports = {
     }
     if (interaction.options.getSubcommandGroup() === "ranked") {
       if (interaction.options.getSubcommand() === "channel") await rankedChannel(interaction);
+      if (interaction.options.getSubcommand() === "setwinner") await setWinner(interaction);
     }
 
     if (interaction.options.getSubcommandGroup() === "welcome") {
