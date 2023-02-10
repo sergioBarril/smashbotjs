@@ -730,6 +730,8 @@ const isInCurrentLobby = async (playerDiscordId, textChannelId) => {
 
 /**
  * Delete lobbies of a type. If an ID is provided, delete only that player's lobby
+ *
+ * If the lobby has an unfinished gameset, cancel it.
  * @param {string} guildDiscordId
  * @param {string} type
  * @param {string} playerDiscordId
@@ -753,6 +755,12 @@ const deleteLobbies = async (guildDiscordId, type, playerDiscordId) => {
 
   let count = 0;
   for (let lobby of lobbies) {
+    const gameset = await lobby.getGameset();
+
+    if (gameset && !gameset.finishedAt) {
+      await gameset.remove();
+    }
+
     await lobby.remove();
     count++;
   }

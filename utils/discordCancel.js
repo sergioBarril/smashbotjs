@@ -80,25 +80,19 @@ const channelsRemoval = async (guild, channels) => {
   voiceChannel.delete();
 };
 
-const cancelLobby = async (interaction) => {
-  await interaction.deferReply();
-
-  const player = interaction.user;
-  const { channels, guild: guildModel, messages } = await lobbyAPI.closeArena(player.id);
-
-  let guild = interaction.guild;
-  if (!guild) guild = await interaction.client.guilds.fetch(guildModel.discordId);
-
+/**
+ *
+ * @param {User} player DiscordJS User
+ * @param {Guild} guild DiscordJS Guild
+ */
+const cancelLobby = async (player, guild) => {
+  const { channels, messages } = await lobbyAPI.closeArena(player.id);
   channelsRemoval(guild, channels);
 
   const playerNames = await editDirectMessages(guild, messages);
   await editTierMessages(guild, messages, playerNames);
 
   winston.info(`Se ha cerrado la arena de ${playerNames}`);
-
-  await interaction.editReply({
-    content: "GGs, ¡gracias por jugar!",
-  });
 };
 
 module.exports = {

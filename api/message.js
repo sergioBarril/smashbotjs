@@ -1,5 +1,6 @@
 const { NotFoundError } = require("../errors/notFound");
 const db = require("../models/db");
+const { getLobby } = require("../models/lobby");
 const { MESSAGE_TYPES, insertMessage, Message } = require("../models/message");
 const { getPlayer } = require("../models/player");
 const { getTierByRole, getTier } = require("../models/tier");
@@ -134,9 +135,22 @@ const popRankedMessage = async (playerDiscordId) => {
   return message;
 };
 
+const getMessagesFromLobby = async (lobbyId) => {
+  const lobby = await getLobby(lobbyId);
+
+  const messages = await lobby.getOwnMessages();
+  for (let message of messages) {
+    const author = await getPlayer(message.playerId, false);
+    message.authorId = author.discordId;
+  }
+
+  return messages;
+};
+
 module.exports = {
   getSearchTierMessages,
   getLeaderboardMessage,
+  getMessagesFromLobby,
   popSearchTierMessages,
   popRankedMessage,
   saveSearchTierMessage,

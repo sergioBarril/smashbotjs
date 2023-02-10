@@ -67,6 +67,11 @@ module.exports = {
     return getRes;
   },
 
+  async getAll(table, client = null) {
+    if (!table) return null;
+    return this.getQuery(`SELECT * FROM ${table}`, client);
+  },
+
   async updateBy(table, dictSet, dictWhere, client = null) {
     const setValuesString = Object.keys(dictSet)
       .map((field, index) => `${field} = $${index + 1}`)

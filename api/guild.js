@@ -1,6 +1,6 @@
 const { NotFoundError } = require("../errors/notFound");
 const db = require("../models/db");
-const { getGuild: getGuildByDiscord, Guild } = require("../models/guild");
+const { getGuild: getGuildByDiscord, getAllGuilds, Guild } = require("../models/guild");
 const { insertMessage, MESSAGE_TYPES } = require("../models/message");
 const { getPlayer } = require("../models/player");
 const { getTierByRole, getTier } = require("../models/tier");
@@ -286,6 +286,7 @@ const removeLeaderboardMessages = async (guildDiscordId) => {
 
 module.exports = {
   getGuild,
+  getAllGuilds,
   setRolesChannel,
   setMatchmakingChannel,
   getRankedChannel,
