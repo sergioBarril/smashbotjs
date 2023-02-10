@@ -226,6 +226,7 @@ const allAccepted = async (interaction, players, guild, ranked) => {
     });
 
     await channels.text.send("__**Game 1**__");
+    winston.info(`Inicio del Game 1 entre ${memberNames}`);
 
     await Promise.all([
       members.map((member) => setupCharacter(channels.text, member, 1, discordGuild)),
