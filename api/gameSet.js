@@ -201,15 +201,15 @@ const banStage = async (playerDiscordId, gameNum, stageName) => {
 
   if (gameNum == 1) {
     // Swap striker at odd bans
-    if (bannedStages.length % 2 !== 0) nextStriker = otherPlayer;
+    if (bannedStages.length === 3 || bannedStages.length === 7) nextStriker = otherPlayer;
     // All banned except 1
-    else if (bannedStages.length == 4) {
+    else if (bannedStages.length == 8) {
       nextStriker = null;
       const starters = await getStarters();
       starter = starters.find((stage) => bannedStages.every((bs) => bs.name !== stage.name));
       await pickStage(playerDiscordId, gameNum, starter.name);
     }
-  } else if (bannedStages.length == 2) {
+  } else if (bannedStages.length == 3) {
     nextStriker = null;
     nextPicker = otherPlayer;
   }

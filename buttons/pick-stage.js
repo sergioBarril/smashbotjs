@@ -1,7 +1,7 @@
 const winston = require("winston");
 const setAPI = require("../api/gameSet");
 
-const { stageFinalButtons, stageFinalText, setupCharacter } = require("../utils/discordGameset");
+const { stageFinalButtons, stageFinalText, setupGameWinner } = require("../utils/discordGameset");
 
 const endStageStep = async (interaction, gameNum, stages, pickedStage) => {
   const stageMessageComponents = stageFinalButtons(stages, pickedStage);
@@ -13,10 +13,7 @@ const endStageStep = async (interaction, gameNum, stages, pickedStage) => {
   });
 
   await interaction.deferUpdate();
-  const { discordId: winnerId } = await setAPI.getGameWinner(interaction.channel.id, gameNum - 1);
-  const winner = await interaction.guild.members.fetch(winnerId);
-
-  await setupCharacter(interaction.channel, winner, gameNum, interaction.guild);
+  return await setupGameWinner(interaction, gameNum);
 };
 
 const execute = async (interaction) => {

@@ -32,10 +32,10 @@ const stageText = (nextPlayer, gameNum, bannedStagesLength, isBan) => {
     text += "**ESCOGER** un escenario.";
   } else {
     text += "banear ";
-    if (gameNum == 1 && bannedStagesLength == 0) text += "un escenario.";
-    else if ((gameNum == 1 && bannedStagesLength == 1) || (gameNum > 1 && bannedStagesLength === 0))
-      text += "**DOS** escenarios.";
-    else text += "otro escenario.";
+
+    if ([2, 6, 7].includes(bannedStagesLength)) text += `**1** escenario.`;
+    else if (bannedStagesLength < 3) text += `**${3 - bannedStagesLength}** escenarios.`;
+    else if (bannedStagesLength < 7) text += `**${7 - bannedStagesLength}** escenarios.`;
   }
 
   text += ` Pulsa el botón del escenario que quieras __**${isBan ? "BANEAR" : "JUGAR"}**__.`;
@@ -415,32 +415,25 @@ const setupNextGame = async (interaction) => {
     );
   } else {
     const newGame = await setAPI.newGame(interaction.channel.id);
-
-    if (newGame.num > 1) {
-      await interaction.channel.send(`__**Game ${newGame.num}**__`);
-      winston.info(`Empieza el Game ${newGame.num} donde juega ${interaction.user.username}`);
-      return await setupBans(interaction, newGame.num);
-    }
+    await interaction.channel.send(`__**Game ${newGame.num}**__`);
 
     const players = await lobbyAPI.getPlayingPlayers(interaction.channel.id);
-
     const members = await Promise.all(
       players.map(async (p) => await interaction.guild.members.fetch(p.discordId))
     );
 
-    return await setupFirstGame(interaction, members);
+    winston.info(`Empieza el Game ${newGame.num} entre ${members.map((m) => m.displayName)}`);
+
+    if (newGame.num == 1) {
+      return await Promise.all([
+        members.map((member) => setupCharacter(interaction.channel, member, 1, interaction.guild)),
+      ]);
+    }
+
+    const lastWinner = await setAPI.getGameWinner(interaction.channel.id, newGame.num - 1);
+    const player = members.find((m) => m.id == lastWinner.discordId);
+    return await setupCharacter(interaction.channel, player, newGame.num, interaction.guild);
   }
-};
-
-const setupFirstGame = async (interaction, members) => {
-  const channel = interaction.channel;
-  await channel.send("__**Game 1**__");
-
-  winston.info(`Primer game entre ${members.map((m) => m.displayName)}`);
-
-  await Promise.all([
-    members.map((member) => setupCharacter(channel, member, 1, interaction.guild)),
-  ]);
 };
 
 // **********************************
@@ -479,8 +472,7 @@ const allHavePicked = async (interaction, playerDiscordId, gameNum) => {
     content: `El **Game ${gameNum}** será entre ${playersText}.`,
   });
 
-  if (gameNum == 1) return await setupBans(interaction, gameNum);
-  else return await setupGameWinner(interaction, gameNum);
+  return await setupBans(interaction, gameNum);
 };
 
 const disableAllButtons = (message) => {

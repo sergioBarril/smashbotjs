@@ -29,12 +29,7 @@ const endStageStep = async (interaction, gameNum, stages, pickedStage) => {
   });
 
   await interaction.deferUpdate();
-  if (gameNum == 1) return await setupGameWinner(interaction, gameNum);
-  else {
-    const lastWinner = await setAPI.getGameWinner(gameNum - 1);
-    const player = await interaction.guild.members.fetch(lastWinner.discordId);
-    return await setupCharacter(interaction.channel, player, interaction.guild.id);
-  }
+  return await setupGameWinner(interaction, gameNum);
 };
 
 const nextStep = async (interaction, gameNum, nextPlayerId, stages, bannedStages, isBan) => {
