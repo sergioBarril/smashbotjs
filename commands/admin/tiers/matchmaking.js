@@ -1,80 +1,100 @@
 const tierAPI = require("../../../api/tier");
 const guildAPI = require("../../../api/guild");
-const { MessageActionRow, MessageButton } = require("discord.js");
+const { MessageActionRow, MessageButton, Interaction } = require("discord.js");
 
 const searchButtons = new MessageActionRow().addComponents(
-  new MessageButton().setCustomId("friendlies").setLabel("Jugar").setStyle("SUCCESS"),
-  new MessageButton().setCustomId("cancel-friendlies").setLabel("Cancelar").setStyle("DANGER")
+  new MessageButton().setCustomId("search").setLabel("Jugar").setStyle("SUCCESS"),
+  new MessageButton().setCustomId("cancel-search").setLabel("Cancelar").setStyle("DANGER")
+);
+
+const rankedButtons = new MessageActionRow().addComponents(
+  new MessageButton().setCustomId("search").setLabel("Ranked").setStyle("SUCCESS").setEmoji("⚔️"),
+  new MessageButton().setCustomId("cancel-search").setLabel("Cancelar").setStyle("DANGER")
 );
 
 const searchAllButtons = new MessageActionRow().addComponents(
-  new MessageButton().setCustomId("friendlies-all-tiers").setLabel("Jugar").setStyle("SUCCESS"),
-  new MessageButton()
-    .setCustomId("cancel-friendlies-all-tiers")
-    .setLabel("Cancelar")
-    .setStyle("DANGER")
+  new MessageButton().setCustomId("search-all-tiers").setLabel("Jugar").setStyle("SUCCESS"),
+  new MessageButton().setCustomId("cancel-search-all-tiers").setLabel("Cancelar").setStyle("DANGER")
 );
 
 const sendMessage = async (channel, name) => {
-  return await channel.send({
+  return channel.send({
     content: `**${name}**`,
     components: [searchButtons],
   });
 };
 
+/**
+ * Remakes the matchmaking channel
+ * @param {Interaction} interaction DiscordJS interaction
+ */
 const matchmaking = async (interaction) => {
   await interaction.deferReply({ ephehemral: true });
-  // Remake the matchmaking channel
+
   const guild = interaction.guild;
   const guildInfo = await guildAPI.getGuild(guild.id);
 
-  const adminChannel = await guild.channels.fetch(guildInfo.admin_channel_id);
+  const adminChannel = await guild.channels.fetch(guildInfo.adminChannelId);
   await adminChannel.send("Reset matchmaking channel");
 
   // Add Channel
   await guild.fetch();
-  const category = await guild.channels.cache.find(
+  const category = guild.channels.cache.find(
     (chan) => chan.name === "MATCHMAKING" && chan.type === "GUILD_CATEGORY"
   );
 
-  // PERMISSIONS MISSING
-  let searchChannel;
+  let matchmakingChannel;
   if (category) {
-    searchChannel = await guild.channels.create("matchmaking", {
+    matchmakingChannel = await guild.channels.create("matchmaking", {
       parent: category.id,
     });
-  } else searchChannel = await guild.channels.create("matchmaking");
+  } else {
+    // TODO: Create category
+    matchmakingChannel = await guild.channels.create("matchmaking");
+  }
 
   const { weighted, open } = await tierAPI.getTiers(interaction.guild.id);
 
   // Swap channels
-  const oldSearchChannel = await guild.channels.fetch(guildInfo.search_channel_id);
-  await oldSearchChannel.delete();
-  await guildAPI.setMatchmakingChannel(guild.id, searchChannel.id);
+  const oldMatchmakingChannel = await guild.channels.fetch(guildInfo.matchmakingChannelId);
+  await oldMatchmakingChannel.delete();
 
-  if (weighted.length > 0) await searchChannel.send("__**CABLE LAN**__");
-  for (tierInfo of weighted) {
-    const tier = await guild.roles.fetch(tierInfo.discord_id);
-    const message = await sendMessage(searchChannel, tier.name);
-    await tierAPI.setSearchMessage(tier.id, message.id);
+  await guildAPI.removeAllGuildSearchMessages(guild.id);
+  await guildAPI.setMatchmakingChannel(guild.id, matchmakingChannel.id);
+
+  const rankedMessage = await matchmakingChannel.send({
+    content: "__**RANKED**__",
+    components: [rankedButtons],
+  });
+
+  await guildAPI.insertMatchmakingMessage(guild.id, rankedMessage.id, null, false, false, true);
+
+  if (weighted.length > 0) await matchmakingChannel.send("__**CABLE LAN**__");
+  for (let tier of weighted) {
+    const role = await guild.roles.fetch(tier.roleId);
+    const message = await sendMessage(matchmakingChannel, role.name);
+    await guildAPI.insertMatchmakingMessage(guild.id, message.id, tier.roleId);
   }
 
-  await searchChannel.send({
+  await matchmakingChannel.send({
     content: `**Todas las tiers**`,
     components: [searchAllButtons],
   });
 
-  if (open.length > 0) await searchChannel.send("__**OTROS**__");
-  for (tierInfo of open) {
-    if (tierInfo.yuzu) {
-      const message = await sendMessage(searchChannel, "Yuzu");
-      await tierAPI.setYuzuSearchMessage(guild.id, message.id);
+  if (open.length > 0) await matchmakingChannel.send("__**OTROS**__");
+  for (let tier of open) {
+    if (tier.yuzu) {
+      const message = await sendMessage(matchmakingChannel, "Yuzu");
+      await guildAPI.insertMatchmakingMessage(guild.id, message.id, null, true);
     } else {
-      const tier = await guild.roles.fetch(tierInfo.discord_id);
-      const message = await sendMessage(searchChannel, tier.name);
-      await tierAPI.setSearchMessage(tier.id, message.id);
+      const role = await guild.roles.fetch(tier.roleId);
+      const message = await sendMessage(matchmakingChannel, role.name);
+      await guildAPI.insertMatchmakingMessage(guild.id, message.id, tier.roleId);
     }
   }
+
+  const listMessage = await matchmakingChannel.send("Lista");
+  await guildAPI.insertListMessage(guild.id, listMessage.id);
 
   await interaction.editReply({
     content: `Canal de matchmaking actualizado`,

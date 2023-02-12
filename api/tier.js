@@ -1,31 +1,64 @@
-const guildDB = require("../db/guild");
-const tierDB = require("../db/tier");
+const { NotFoundError } = require("../errors/notFound");
+const { getGuild } = require("../models/guild");
+const { getTierByRole, insertTier } = require("../models/tier");
 
+/**
+ * Añade la tier
+ * @param {string} roleDiscordId DiscordID of the role of the tier
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @param {string} channelDiscordId DiscordID of the channel of the tier
+ * @param {int} weight Weight of the tier (1 for tier 1, 3 for tier 3, etc.)
+ * @param {int} threshold Base score of a tier
+ */
 const addTier = async (roleDiscordId, guildDiscordId, channelDiscordId, weight, threshold) => {
-  // Add tier to DB
-  const guild = await guildDB.get(guildDiscordId, true);
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
-  await tierDB.create(roleDiscordId, channelDiscordId, guild.id, weight, threshold, false);
+  await insertTier(roleDiscordId, channelDiscordId, guild.id, weight, threshold, false);
 };
 
+/**
+ * Sets the ranked tier of a tier
+ * @param {string} roleDiscordId DiscordID of the role of the existing tier
+ * @param {string} rankedRoleId DiscordID of the role of the ranked
+ */
 const addRankedTier = async (roleDiscordId, rankedRoleId) => {
-  const tier = await tierDB.getByRole(roleDiscordId);
-  await tierDB.setRankedRole(tier.id, rankedRoleId);
+  const tier = await getTierByRole(roleDiscordId);
+  if (!tier) throw new NotFoundError("Tier");
+  await tier.setRankedRole(rankedRoleId);
+
+  return tier;
 };
 
+/**
+ * Add the yuzu tier
+ * @param {string} yuzuDiscordId DiscordID of the role of yuzu
+ * @param {string} parsecDiscordId DiscordID of the role of parsec
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @param {string} channelDiscordId DiscordID of the channel
+ */
 const addYuzuTier = async (yuzuDiscordId, parsecDiscordId, guildDiscordId, channelDiscordId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
   // General yuzu tier
-  await tierDB.create(null, channelDiscordId, guild.id, null, null, true);
+  const tier = await insertTier(null, channelDiscordId, guild.id, null, null, true);
 
   // Guild yuzu role
-  await guildDB.setYuzuRole(guild.id, yuzuDiscordId);
-  await guildDB.setParsecRole(guild.id, parsecDiscordId);
+  await guild.setYuzuRole(yuzuDiscordId);
+  await guild.setParsecRole(parsecDiscordId);
 };
 
+/**
+ * Gets all the tiers of the guild
+ * @param {string} guildDiscordId Discord ID of the guild
+ * @returns All the tiers of the guild. Weighted property for the LAN Cable, open for the rest
+ */
 const getTiers = async (guildDiscordId) => {
-  const tiers = await tierDB.getByGuild(guildDiscordId, true);
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
+
+  const tiers = await guild.getTiers();
 
   const weighted = tiers.filter((tier) => tier.weight !== null);
   const open = tiers.filter((tier) => tier.weight === null);
@@ -33,24 +66,17 @@ const getTiers = async (guildDiscordId) => {
   return { weighted, open };
 };
 
-const setSearchMessage = async (tierDiscordId, searchMessageId) => {
-  const tier = await tierDB.get(tierDiscordId, true);
+const getTier = async (guildDiscordId, tierRoleId) => {
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
-  await tierDB.setSearchMessage(tier.id, searchMessageId);
-};
-
-const setYuzuSearchMessage = async (guildDiscordId, searchMessageId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
-  const tier = await tierDB.getYuzu(guild.id);
-
-  await tierDB.setSearchMessage(tier.id, searchMessageId);
+  return await getTierByRole(tierRoleId);
 };
 
 module.exports = {
   addTier,
   addRankedTier,
   addYuzuTier,
+  getTier,
   getTiers,
-  setSearchMessage,
-  setYuzuSearchMessage,
 };

@@ -1,37 +1,42 @@
 const lobbyAPI = require("../api/lobby");
+const { Guild } = require("discord.js");
+const { Message, MESSAGE_TYPES } = require("../models/message");
+const winston = require("winston");
 
-const exceptionHandler = async (interaction, exception) => {
-  EXCEPTION_MESSAGES = {
-    NOT_PLAYING: "¡No estás jugando! No hay ninguna arena por cerrar.",
-    IN_GAMESET: "¡Estás jugando un set! Tenéis que acabarlo o cancelarlo antes de cerrar el lobby.",
-  };
-  const { name } = exception;
+/**
+ * Edits the direct messages sent to the players
+ * @param {Guild} guild DiscordJS Guild object
+ * @param {Array<Message>} messages Direct messages to edit (will only edit LOBBY_PLAYERs)
+ * @returns List of display names of the players
+ */
+const editDirectMessages = async (guild, messages) => {
+  const discordMessages = [];
 
-  // Get message
-  let response = EXCEPTION_MESSAGES[name];
-  if (!response) throw exception;
+  const dms = messages.filter((m) => m.type === MESSAGE_TYPES.LOBBY_PLAYER);
 
-  // Send reply
-  return await interaction.reply({
-    content: response,
-    ephemeral: true,
-  });
-};
-
-const deleteDirectMessages = async (guild, players) => {
-  const playerNames = [];
-
-  for (player of players) {
-    const member = await guild.members.fetch(player.discord_id);
+  for (let dm of dms) {
+    const member = await guild.members.fetch(dm.playerDiscordId);
     const dmChannel = await member.user.createDM();
-    const message = await dmChannel.messages.fetch(player.message_id);
-    message.delete();
-    playerNames.push(member.displayName);
+    const message = await dmChannel.messages.fetch(dm.discordId);
+    discordMessages.push({ member, message });
   }
 
-  return playerNames;
+  for (let { member, message } of discordMessages) {
+    const opponent = discordMessages.find((dm) => dm.member.id !== member.id).member;
+    message.edit({
+      content: `Jugaste con **${opponent.displayName}**. GGs!`,
+    });
+  }
+
+  return discordMessages.map((dm) => dm.member.displayName);
 };
 
+/**
+ * Edits the LOBBY_TIER messages
+ * @param {Guild} guild DiscordJs guild object
+ * @param {Array<Message>} messages List of Message to edit
+ * @param {Array<string>} playerNames List of displayName of all the players
+ */
 const editTierMessages = async (guild, messages, playerNames) => {
   const memberFormatter = new Intl.ListFormat("es", {
     style: "long",
@@ -41,9 +46,11 @@ const editTierMessages = async (guild, messages, playerNames) => {
 
   const timestamp = new Date();
 
-  for (messageInfo of messages) {
-    const channel = await guild.channels.fetch(messageInfo.channel_id);
-    const message = await channel.messages.fetch(messageInfo.message_id);
+  const ltMessages = messages.filter((m) => m.type === MESSAGE_TYPES.LOBBY_TIER);
+
+  for (messageInfo of ltMessages) {
+    const channel = await guild.channels.fetch(messageInfo.channelId);
+    const message = await channel.messages.fetch(messageInfo.discordId);
 
     const hours = timestamp.getHours();
     const minutes = timestamp.getMinutes();
@@ -58,35 +65,34 @@ const editTierMessages = async (guild, messages, playerNames) => {
   }
 };
 
-const channelsRemoval = async (guild, lobby) => {
-  const textChannel = await guild.channels.fetch(lobby.text_channel_id);
-  const voiceChannel = await guild.channels.fetch(lobby.voice_channel_id);
+/**
+ * Deletes the channels of this lobby
+ * @param {Guild} guild DiscordJS Guild
+ * @param {Object} channels Channels of this lobby
+ */
+const channelsRemoval = async (guild, channels) => {
+  const textChannel = await guild.channels.fetch(channels.text);
+  const voiceChannel = await guild.channels.fetch(channels.voice);
 
-  await new Promise((r) => setTimeout(r, 5000));
+  await new Promise((r) => setTimeout(r, 600000));
 
   textChannel.delete();
   voiceChannel.delete();
 };
 
-const cancelLobby = async (interaction) => {
-  try {
-    const player = interaction.user;
-    const lobbyPlayers = await lobbyAPI.getPlayingPlayers(player.id);
-    const messages = await lobbyAPI.getMessages(player.id);
-    const lobby = await lobbyAPI.closeArena(player.id);
-    const guild = await interaction.client.guilds.fetch(lobby.guild_id);
+/**
+ *
+ * @param {User} player DiscordJS User
+ * @param {Guild} guild DiscordJS Guild
+ */
+const cancelLobby = async (player, guild) => {
+  const { channels, messages } = await lobbyAPI.closeArena(player.id);
+  channelsRemoval(guild, channels);
 
-    channelsRemoval(guild, lobby);
+  const playerNames = await editDirectMessages(guild, messages);
+  await editTierMessages(guild, messages, playerNames);
 
-    const playerNames = await deleteDirectMessages(guild, lobbyPlayers);
-    await editTierMessages(guild, messages, playerNames);
-
-    await interaction.reply({
-      content: "GGs, ¡gracias por jugar!",
-    });
-  } catch (e) {
-    await exceptionHandler(interaction, e);
-  }
+  winston.info(`Se ha cerrado la arena de ${playerNames}`);
 };
 
 module.exports = {

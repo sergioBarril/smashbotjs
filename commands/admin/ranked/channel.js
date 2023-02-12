@@ -5,17 +5,19 @@ const rankedButtons = () => {
   return [
     new MessageActionRow().addComponents(
       new MessageButton()
-        .setCustomId("ranked")
+        .setCustomId("search")
         .setLabel("Ranked")
-        .setStyle("PRIMARY")
+        .setStyle("SUCCESS")
         .setEmoji("⚔️"),
-      new MessageButton().setCustomId("cancel-ranked").setLabel("Cancelar").setStyle("DANGER")
+      new MessageButton().setCustomId("cancel-search").setLabel("Cancelar").setStyle("DANGER")
     ),
   ];
 };
 
 const channel = async (interaction) => {
   const guild = interaction.guild;
+
+  await guildAPI.removeRankedChannelMessages(guild.id);
 
   // Add Channel
   await guild.fetch();
@@ -40,10 +42,20 @@ const channel = async (interaction) => {
   }
   await guildAPI.setRankedChannel(guild.id, rankedChannel.id);
 
-  await rankedChannel.send({
+  const rankedMessage = await rankedChannel.send({
     content: "__**RANKED**__",
     components: rankedButtons(),
   });
+
+  await guildAPI.insertMatchmakingMessage(
+    guild.id,
+    rankedMessage.id,
+    null,
+    false,
+    false,
+    true,
+    true
+  );
 
   await interaction.reply({
     content: "¡Canal de ranked creado!",

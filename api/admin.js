@@ -1,41 +1,37 @@
-const db = require("../db/index");
-
-const guildDB = require("../db/guild");
-
-const characterDB = require("../db/character");
-const characterRoleDB = require("../db/characterRole");
-
-const regionDB = require("../db/region");
-const regionRoleDB = require("../db/regionRole");
-
-const getAdminChannel = async (guildDiscordId) => {
-  const guild = await guildDB.get(guildDiscordId, true);
-  return guild.admin_channel_id;
-};
+const { getGuild } = require("../models/guild");
+const { NotFoundError } = require("../errors/notFound");
+const { getAllCharacters, insertCharacter, getCharacterByName } = require("../models/character");
+const { getAllRegions, insertRegion, getRegionByName } = require("../models/region");
+const db = require("../models/db");
 
 const upsertRoles = async (roleList, type) => {
   if (roleList.length === 0) return false;
 
   const guildDiscordId = roleList[0].guild.id;
-  const guild = await guildDB.get(guildDiscordId, true);
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
-  let baseDB;
-  let roleDB;
-  let baseIdName;
+  let allElements;
+  let allRoles;
+  let createElement;
+  let getElementByName;
+  let elementIdName;
 
   if (type === "CHARACTERS") {
-    baseDB = characterDB;
-    roleDB = characterRoleDB;
-    baseIdName = "character_id";
+    allElements = await getAllCharacters();
+    allRoles = await guild.getCharacterRoles();
+    createElement = insertCharacter;
+    getElementByName = getCharacterByName;
+    elementIdName = "characterId";
   } else if (type === "REGIONS") {
-    baseDB = regionDB;
-    roleDB = regionRoleDB;
-    baseIdName = "region_id";
+    allElements = await getAllRegions();
+    allRoles = await guild.getRegionRoles();
+    createElement = insertRegion;
+    getElementByName = getRegionByName;
+    elementIdName = "regionId";
   }
 
-  const dbBaseElements = await baseDB.getAll();
-  const dbBaseNames = dbBaseElements.map((element) => element.name);
-  const dbRoles = await roleDB.getByGuild(guild.id);
+  const elementNames = allElements.map((element) => element.name);
 
   let baseInserted = 0;
   let rolesInserted = 0;
@@ -46,23 +42,21 @@ const upsertRoles = async (roleList, type) => {
   try {
     await client.query("BEGIN");
     // Insert Base Elements
-    for (role of roleList) {
-      if (!dbBaseNames.includes(role.name)) {
-        await baseDB.create(role.name, client);
+    for (let role of roleList) {
+      if (!elementNames.includes(role.name)) {
+        await createElement(role.name, client);
         baseInserted++;
       }
 
-      const element = await baseDB.getByName(role.name, client);
-      const dbRole = dbRoles.find(
-        (role) => role.guild_id == guild.id && role[baseIdName] == element.id
-      );
+      const element = await getElementByName(role.name, client);
+      const dbRole = allRoles.find((role) => role[elementIdName] == element.id);
 
       // Insert Character Role
       if (!dbRole) {
-        await roleDB.create(role.id, element.id, guild.id, client);
+        await element.insertRole(role.id, guild.id, client);
         rolesInserted++;
-      } else if (dbRole.discord_id != role.id) {
-        await roleDB.update(role.id, element.id, guild.id, client);
+      } else if (dbRole.roleId != role.id) {
+        await dbRole.setRoleId(role.id, client);
         rolesUpdated++;
       }
     }
@@ -82,6 +76,5 @@ const upsertRoles = async (roleList, type) => {
 };
 
 module.exports = {
-  getAdminChannel,
   upsertRoles,
 };

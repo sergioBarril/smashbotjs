@@ -1,3 +1,6 @@
+const { CustomError } = require("../errors/customError");
+const winston = require("winston");
+
 module.exports = {
   name: "interactionCreate",
   async execute(interaction) {
@@ -13,11 +16,12 @@ module.exports = {
         command = interaction.client.buttons.get("game-winner");
       if (!command && interaction.customId.startsWith("pick-stage"))
         command = interaction.client.buttons.get("pick-stage");
+      if (!command && interaction.customId.startsWith("register-tier"))
+        command = interaction.client.buttons.get("register-tier");
     }
 
     if (!command) {
-      console.log("Rip");
-      console.log(interaction.customId);
+      winston.error("Comando inválido: " + interaction.customId);
       return;
     }
 
@@ -25,10 +29,20 @@ module.exports = {
       await command.execute(interaction);
     } catch (error) {
       console.error(error.stack);
-      await interaction.reply({
-        content: "There was an error while executing this command!",
-        ephemeral: true,
-      });
+
+      let content;
+      const ephemeral = true;
+
+      if (error instanceof CustomError) {
+        content = error.message;
+      } else content = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+
+      winston.error(content);
+      winston.debug(error.stack);
+
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({ content, ephemeral });
+      } else await interaction.reply({ content, ephemeral });
     }
   },
 };

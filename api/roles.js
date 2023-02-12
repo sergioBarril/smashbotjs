@@ -1,136 +1,193 @@
-const db = require("../db/index");
+const { getPlayer } = require("../models/player");
+const { NotFoundError } = require("../errors/notFound");
+const { getGuild } = require("../models/guild");
+const { getCharacterByName } = require("../models/character");
+const { TooManyCharactersError } = require("../errors/tooManyCharacters");
+const { CustomError } = require("../errors/customError");
+const { getRegionByName } = require("../models/region");
+const { TooManyRegionsError } = require("../errors/tooManyRegions");
 
-const playerDB = require("../db/player");
-const guildDB = require("../db/guild");
-const characterDB = require("../db/character");
-const characterRoleDB = require("../db/characterRole");
-const characterPlayerDB = require("../db/characterPlayer");
-
-const regionDB = require("../db/region");
-const regionRoleDB = require("../db/regionRole");
-const regionPlayerDB = require("../db/regionPlayer");
-
-const yuzuPlayerDB = require("../db/yuzuPlayer");
-
+/**
+ * Assigns the region role to a player
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} regionName Name of the region
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @returns
+ */
 const assignRegion = async (playerDiscordId, regionName, guildDiscordId) => {
-  // Assigns a player a role
-  const player = await playerDB.get(playerDiscordId, true);
-  const guild = await guildDB.get(guildDiscordId, true);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const region = await regionDB.getByName(regionName);
-  if (!region) throw { name: "DB_ERR_NO_REGION" };
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
-  const regions = await regionPlayerDB.getByPlayer(player.id);
+  const region = await getRegionByName(regionName);
+  if (!region) throw new NotFoundError("Region");
 
-  const rp = await regionPlayerDB.get(region.id, player.id);
+  const regions = await player.getAllRegions();
 
+  const rp = await player.getRegionPlayer(region.id);
+
+  // Manage RegionPlayer
   let action = null;
-  // Add region
   if (rp) {
-    await regionPlayerDB.remove(region.id, player.id);
+    await rp.remove();
     action = "REMOVE";
   } else {
-    if (regions.length >= 2) throw { name: "TOO_MANY_REGIONS", args: { current: regions } };
-    await regionPlayerDB.create(region.id, player.id);
+    if (regions.length >= 2) throw new TooManyRegionsError(regions);
+    await player.insertRegion(region.id);
     action = "CREATE";
   }
 
-  // Return role id
-  const regionRole = await regionRoleDB.getByRegion(region.id, guild.id);
-  return { roleId: regionRole.discord_id, action };
+  // Return role
+  const regionRole = await region.getRole(guild.id);
+  return { regionRoleId: regionRole.roleId, action };
 };
 
+/**
+ * Assigns a character role to a player
+ * @param {string} playerDiscordId Discord ID of the player
+ * @param {string} characterName Character name
+ * @param {string} guildDiscordId Discord ID of the guild
+ * @param {string} type MAIN, SECOND or POCKET
+ * @returns
+ */
 const assignCharacter = async (playerDiscordId, characterName, guildDiscordId, type) => {
-  // Assigns a player a role
-  const player = await playerDB.get(playerDiscordId, true);
-  const guild = await guildDB.get(guildDiscordId, true);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const character = await characterDB.getByName(characterName);
-  if (!character) throw { name: "DB_ERR_NO_CHAR" };
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
-  const mains = await characterPlayerDB.getByType(player.id, "MAIN");
-  const seconds = await characterPlayerDB.getByType(player.id, "SECOND");
-  const pockets = await characterPlayerDB.getByType(player.id, "POCKET");
+  const character = await getCharacterByName(characterName);
+  if (!character) throw new NotFoundError("Character");
 
-  const cp = await characterPlayerDB.get(character.id, player.id);
+  const mains = await player.getCharactersByType("MAIN");
+  const seconds = await player.getCharactersByType("SECOND");
+  const pockets = await player.getCharactersByType("POCKET");
+
+  const cp = await player.getCharacterPlayer(character.id);
 
   let action = null;
-  // Add main
+  // Manage ChacterPlayer
   if (cp && cp.type === type) {
-    await characterPlayerDB.remove(character.id, player.id);
+    await cp.remove();
     action = "REMOVE";
   } else {
-    if (type === "MAIN" && mains.length >= 2)
-      throw { name: "TOO_MANY_MAINS", args: { current: mains } };
-    if (type === "SECOND" && seconds.length >= 3)
-      throw { name: "TOO_MANY_SECONDS", args: { current: seconds } };
-    if (type === "POCKET" && pockets.length >= 5)
-      throw { name: "TOO_MANY_POCKETS", args: { current: pockets } };
-
+    if (type === "MAIN" && mains.length >= 2) throw new TooManyCharactersError(type, mains);
+    if (type === "SECOND" && seconds.length >= 3) throw new TooManyCharactersError(type, seconds);
+    if (type === "POCKET" && pockets.length >= 5) throw new TooManyCharactersError(type, pockets);
     if (cp) {
-      await characterPlayerDB.update(character.id, player.id, type);
+      await cp.setType(type);
       action = "UPDATE";
     } else {
-      await characterPlayerDB.create(character.id, player.id, type);
+      await player.insertCharacter(character.id, type);
       action = "CREATE";
     }
   }
 
   // Return role id
-  const characterRole = await characterRoleDB.getByChar(character.id, guild.id);
-  return { roleId: characterRole.discord_id, action };
+  const characterRole = await character.getRole(guild.id);
+  if (!characterRole) throw NotFoundError("CharacterRole");
+  return { characterRole, action };
 };
 
+/**
+ * Toggles the yuzu / parsec roles
+ * @param {string} playerDiscordId Discord ID of the player
+ * @param {string} guildDiscordId Discord ID of the guild
+ * @param {string} yuzuRoleName YUZU or PARSEC
+ * @returns
+ */
 const assignYuzu = async (playerDiscordId, guildDiscordId, yuzuRoleName) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const guild = await guildDB.get(guildDiscordId, true);
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
 
   if (!["YUZU", "PARSEC"].includes(yuzuRoleName))
-    throw { name: "WRONG_YUZU_TOGGLE", args: { yuzuRoleName } };
+    throw new CustomError("Wrong Yuzu Toggle. Contact admins.");
 
   const isYuzu = yuzuRoleName == "YUZU";
   let newStatus;
 
-  const yuzuPlayer = await yuzuPlayerDB.get(player.id, guild.id);
+  const yuzuPlayer = await player.getYuzuPlayer(guild.id);
   if (!yuzuPlayer) {
-    await yuzuPlayerDB.create(player.id, guild.id, isYuzu, !isYuzu);
+    await player.insertYuzuPlayer(guild.id, isYuzu, !isYuzu);
     newStatus = true;
   } else {
     newStatus = !yuzuPlayer[yuzuRoleName.toLowerCase()];
-    await yuzuPlayerDB.setRole(player.id, guild.id, yuzuRoleName, newStatus);
+    if (isYuzu) await yuzuPlayer.setYuzu(newStatus);
+    else await yuzuPlayer.setParsec(newStatus);
   }
 
-  const roleId = isYuzu ? guild.yuzu_role_id : guild.parsec_role_id;
+  const roleId = isYuzu ? guild.yuzuRoleId : guild.parsecRoleId;
 
   return { roleId, newStatus };
 };
 
-const getYuzuMessageRoles = async (playerDiscordId, guildDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
-  const guild = await guildDB.get(guildDiscordId, true);
+/**
+ * Gets the yuzu role that the opponents must have to play yuzu
+ * with this player
+ *
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} guildDiscordId DiscordID of the guild
+ * @returns An array containing:
+ *  - yuzuRoleId if the player has parsec role
+ *  - parsecRoleId if the player has yuzu role
+ *  - both if has both
+ */
+const getYuzuRolesForMessage = async (playerDiscordId, guildDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const yuzuPlayer = await yuzuPlayerDB.get(player.id, guild.id);
+  const guild = await getGuild(guildDiscordId, true);
+  if (!guild) throw new NotFoundError("Guild");
+
+  const yuzuPlayer = await player.getYuzuPlayer(guild.id);
+  if (!yuzuPlayer) throw new NotFoundError("YuzuPlayer");
+
   const roles = [];
-  if (yuzuPlayer.parsec) roles.push(guild.yuzu_role_id);
-  if (yuzuPlayer.yuzu) roles.push(guild.parsec_role_id);
+  if (yuzuPlayer.parsec) roles.push(guild.yuzuRoleId);
+  if (yuzuPlayer.yuzu) roles.push(guild.parsecRoleId);
 
   return roles;
 };
 
-const getCharacters = async (playerDiscordId, guildDiscordId) => {
-  const player = await playerDB.get(playerDiscordId, true);
+/**
+ * Get the characters associated with a player
+ * @param {string} playerDiscordId Discord ID of the player
+ * @returns Object with three arrays: mains, seconds and pockets.
+ */
+const getCharacters = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
 
-  const mains = await characterPlayerDB.getByType(player.id, "MAIN");
-  const seconds = await characterPlayerDB.getByType(player.id, "SECOND");
-  const pockets = await characterPlayerDB.getByType(player.id, "POCKET");
+  const mains = await player.getCharactersByType("MAIN");
+  const seconds = await player.getCharactersByType("SECOND");
+  const pockets = await player.getCharactersByType("POCKET");
 
   return { mains, seconds, pockets };
+};
+
+/**
+ * Get the regions associated with a player
+ * @param {string} playerDiscordId DiscordID of the player
+ * @returns
+ */
+const getRegions = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  return await player.getAllRegions();
 };
 
 module.exports = {
   assignCharacter,
   assignRegion,
   assignYuzu,
-  getYuzuMessageRoles,
+  getYuzuRolesForMessage,
   getCharacters,
+  getRegions,
 };

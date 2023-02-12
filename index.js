@@ -11,8 +11,19 @@ const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const guildId = process.env.GUILD_ID;
 
+// Setup Logger
+const winston = require("winston");
+winston.configure({
+  level: "info",
+  format: winston.format.combine(
+    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+    winston.format.json()
+  ),
+  transports: [new winston.transports.File({ filename: "matchmaking.log" })],
+});
+
 // Create a new client instance
-const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MEMBERS] });
 
 // Commands
 client.commands = new Collection();
@@ -31,6 +42,7 @@ for (const file of buttonFiles) {
   const command = require(`./buttons/${file}`);
   client.buttons.set(command.data.name, command);
 }
+
 // Events
 const eventFiles = fs.readdirSync("./events").filter((file) => file.endsWith(".js"));
 
@@ -46,7 +58,6 @@ for (const file of eventFiles) {
 
 // Guild commands
 const { REST } = require("@discordjs/rest");
-
 const rest = new REST({ version: "9" }).setToken(token);
 
 // (async () => {

@@ -3,6 +3,7 @@ const smashCharacters = require("../params/smashCharacters.json");
 
 const { MessageActionRow } = require("discord.js");
 const { setupNextGame } = require("../utils/discordGameset");
+const winston = require("winston");
 
 const pickWinnerButtons = (message, votedPlayerId, isOpponentVoted, isDone) => {
   const winnerComponents = message.components.map((row) => {
@@ -35,30 +36,40 @@ const execute = async (interaction) => {
 
   const isWinner = player.id == votedPlayerId;
 
-  const { winner, opponent } = await setAPI.pickWinner(player.id, isWinner, gameNum);
+  const { winner, opponent, winnerCharacter } = await setAPI.pickWinner(
+    player.id,
+    isWinner,
+    gameNum
+  );
 
   const buttons = pickWinnerButtons(message, votedPlayerId, opponent.winner, winner != null);
 
+  winston.info(
+    `${interaction.user.username} ha votado al jugador con Discord ID ${votedPlayerId} como ganador`
+  );
+
   await interaction.deferUpdate();
   if (winner) {
-    const winnerPlayer = await interaction.guild.members.fetch(winner.discord_id);
-    const characterName = winner.character_name;
+    const winnerPlayer = await interaction.guild.members.fetch(winner.discordId);
+    const characterName = winnerCharacter.name;
     const { emoji } = smashCharacters[characterName];
 
     const score = await setAPI.getScore(interaction.channel.id);
 
     // Get players and emojis for the response
-    const pc = await setAPI.getPlayersAndCharacters(votedPlayerId);
+    const pcs = await setAPI.getPlayersAndCharacters(votedPlayerId);
     let playersScore = [];
-    for ({ discord_id: playerId, character_name: charName } of pc) {
-      const player = await interaction.guild.members.fetch(playerId);
-      const emoji = smashCharacters[charName].emoji;
-      const playerScore = score.find((p) => p.discord_id === player.id).wins;
+    for (let pc of pcs) {
+      const player = await interaction.guild.members.fetch(pc.playerDiscordId);
+      const emoji = smashCharacters[pc.characterName].emoji;
+      const playerScore = score.find((ps) => ps.player.discordId === player.id).wins;
       playersScore.push({ playerText: `**${player.displayName}** ${emoji}`, playerScore });
     }
 
     let scoreText = `El marcador va ${playersScore[0].playerText} ${playersScore[0].playerScore}`;
     scoreText += ` - ${playersScore[1].playerScore} ${playersScore[1].playerText}`;
+
+    winston.info(`${winnerPlayer.displayName} ha ganado el game ${gameNum}. ${scoreText}`);
 
     await message.edit({
       content: `¡**${winnerPlayer.displayName}** ${emoji} ha ganado el **Game ${gameNum}**! ${scoreText}`,

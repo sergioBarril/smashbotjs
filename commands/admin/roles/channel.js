@@ -1,19 +1,20 @@
-const tierAPI = require("../../../api/tier");
 const guildAPI = require("../../../api/guild");
 const { MessageActionRow, MessageButton } = require("discord.js");
+const winston = require("winston");
 
 const YUZU_EMOJI = "<:yuzu:945850935035441202>";
 const PARSEC_EMOJI = "<:parsec:945853565405114510>";
+const WIFI_EMOJI = "<:wifi:945988666994602065>";
 
 const channelCommand = async (interaction) => {
-  await interaction.deferReply({ ephehemral: true });
+  await interaction.deferReply({ ephemeral: true });
 
   const guild = interaction.guild;
 
   // Delete old channel
-  let rolesChannel = await guildAPI.getRolesChannel(guild.id);
-  if (rolesChannel) {
-    const channel = await guild.channels.fetch(rolesChannel);
+  let { rolesChannelId } = await guildAPI.getGuild(guild.id);
+  if (rolesChannelId) {
+    const channel = await guild.channels.fetch(rolesChannelId);
     await channel.delete();
   }
 
@@ -23,7 +24,7 @@ const channelCommand = async (interaction) => {
     (chan) => chan.name === "PERFIL" && chan.type === "GUILD_CATEGORY"
   );
 
-  // PERMISSIONS MISSING
+  let rolesChannel;
   if (category) {
     rolesChannel = await guild.channels.create("roles", {
       parent: category.id,
@@ -46,6 +47,14 @@ const channelCommand = async (interaction) => {
       .setEmoji(PARSEC_EMOJI)
   );
 
+  const wifiButton = new MessageActionRow().addComponents(
+    new MessageButton()
+      .setCustomId("wifi-role")
+      .setLabel("Wifi")
+      .setStyle("SECONDARY")
+      .setEmoji(WIFI_EMOJI)
+  );
+
   // Send messages
   await rolesChannel.send({
     content:
@@ -55,6 +64,14 @@ const channelCommand = async (interaction) => {
     components: [yuzuButtons],
   });
 
+  await rolesChannel.send({
+    content:
+      `**__WIFI__**\n` +
+      `Para que os notifique cuando alguien busque partida sin cable, necesitaréis el rol de **Wifi**. Os lo podéis poner/quitar dándole a este botón:`,
+    components: [wifiButton],
+  });
+
+  winston.info(`[${interaction.user.username}] Canal de roles creado`);
   await interaction.editReply({
     content: `Listo: canal de roles creado en ${rolesChannel}`,
     ephehemral: true,

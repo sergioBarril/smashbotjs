@@ -1,4 +1,6 @@
+const winston = require("winston");
 const setAPI = require("../api/gameSet");
+const { Stage } = require("../models/stage");
 
 const {
   setupGameWinner,
@@ -9,6 +11,14 @@ const {
   setupCharacter,
 } = require("../utils/discordGameset");
 
+/**
+ *
+ * @param {Interaction} interaction DiscordJS Interaction
+ * @param {int} gameNum Number of the game
+ * @param {Stage[]} stages Stages
+ * @param {Stage} pickedStage Picked stage
+ * @returns
+ */
 const endStageStep = async (interaction, gameNum, stages, pickedStage) => {
   const banMessageComponents = stageFinalButtons(stages, pickedStage);
   const banMessageText = stageFinalText(gameNum, pickedStage);
@@ -19,12 +29,7 @@ const endStageStep = async (interaction, gameNum, stages, pickedStage) => {
   });
 
   await interaction.deferUpdate();
-  if (gameNum == 1) return await setupGameWinner(interaction, gameNum);
-  else {
-    const lastWinner = await setAPI.getGameWinner(gameNum - 1);
-    const player = await interaction.guild.members.fetch(lastWinner.discord_id);
-    return await setupCharacter(interaction.channel, player, interaction.guild.id);
-  }
+  return await setupGameWinner(interaction, gameNum);
 };
 
 const nextStep = async (interaction, gameNum, nextPlayerId, stages, bannedStages, isBan) => {
@@ -55,6 +60,8 @@ const execute = async (interaction) => {
 
   const stages = await setAPI.getStages(gameNum);
   const banResponse = await setAPI.banStage(playerId, gameNum, stageName);
+  winston.info(`${interaction.user.username} ha baneado ${stageName}`);
+
   const { nextStriker, nextPicker, starter, bannedStages } = banResponse;
   const isBan = nextPicker == null;
 
@@ -62,7 +69,7 @@ const execute = async (interaction) => {
     return await endStageStep(interaction, gameNum, stages, starter);
 
   const nextPlayer = nextStriker ?? nextPicker;
-  return await nextStep(interaction, gameNum, nextPlayer.discord_id, stages, bannedStages, isBan);
+  return await nextStep(interaction, gameNum, nextPlayer.discordId, stages, bannedStages, isBan);
 };
 
 module.exports = {
