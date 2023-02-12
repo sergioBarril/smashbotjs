@@ -177,7 +177,7 @@ const editTierMessages = async (interaction, guildDiscordId, tierMessages, playe
  * @param {Date} acceptedAt Timestamp when accepted
  */
 const timeOutMessage = async (message, acceptedPlayerId, acceptedAt) => {
-  await new Promise((r) => setTimeout(r, 5000));
+  await new Promise((r) => setTimeout(r, 90000));
 
   const isAfk = await lobbyAPI.timeOutCheck(acceptedPlayerId, acceptedAt);
 

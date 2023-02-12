@@ -74,7 +74,7 @@ const channelsRemoval = async (guild, channels) => {
   const textChannel = await guild.channels.fetch(channels.text);
   const voiceChannel = await guild.channels.fetch(channels.voice);
 
-  await new Promise((r) => setTimeout(r, 5000));
+  await new Promise((r) => setTimeout(r, 600000));
 
   textChannel.delete();
   voiceChannel.delete();
