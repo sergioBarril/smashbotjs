@@ -14,6 +14,7 @@ const { setScore } = require("./admin/rating/setScore");
 const { addScore } = require("./admin/rating/addScore");
 const { setPromotion } = require("./admin/rating/setPromotion");
 const { deleteLobbies } = require("./admin/bug/deleteLobbies");
+const { cancelSet } = require("./admin/ranked/cancelSet");
 
 const data = new SlashCommandBuilder()
   .setName("admin")
@@ -92,6 +93,9 @@ const data = new SlashCommandBuilder()
               .setDescription("Jugador que se marcará como ganador del set")
               .setRequired(true)
           )
+      )
+      .addSubcommand((subcommand) =>
+        subcommand.setName("cancelset").setDescription("Cancela el set en juego en este canal")
       )
   )
   .addSubcommandGroup((leaderboardCommandGroup) =>
@@ -235,6 +239,7 @@ module.exports = {
     if (interaction.options.getSubcommandGroup() === "ranked") {
       if (interaction.options.getSubcommand() === "channel") await rankedChannel(interaction);
       if (interaction.options.getSubcommand() === "setwinner") await setWinner(interaction);
+      if (interaction.options.getSubcommand() === "cancelset") await cancelSet(interaction);
     }
 
     if (interaction.options.getSubcommandGroup() === "welcome") {
