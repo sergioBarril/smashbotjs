@@ -1,5 +1,5 @@
 const lobbyAPI = require("../api/lobby");
-const setAPI = require("../api/gameset");
+const setAPI = require("../api/gameSet");
 
 const { MessageActionRow, MessageButton, Permissions } = require("discord.js");
 const { Player } = require("../models/player");
