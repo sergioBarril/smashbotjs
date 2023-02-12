@@ -1,6 +1,6 @@
 const cron = require("node-cron");
 const winston = require("winston");
-const { getGuild, getCurrentList } = require("../api/guild");
+const { getGuild, getCurrentList, getAllGuilds } = require("../api/guild");
 const { NotFoundError } = require("../errors/notFound");
 
 const GREEN_CHECK_EMOJI = ":white_check_mark:";
@@ -100,33 +100,36 @@ async function formatListMessage(discordGuild, ranked, searching, confirmation, 
 function searchListJob(client) {
   cron.schedule("*/5 * * * * *", async () => {
     try {
-      const guild = await getGuild("885501308805738577");
+      const guildModels = await getAllGuilds();
+      for (let guild of guildModels) {
+        const listMessage = await guild.getListMessage();
+        if (!listMessage) throw new NotFoundError("ListMessage");
 
-      const listMessage = await guild.getListMessage();
-      if (!listMessage) throw new NotFoundError("ListMessage");
+        const discordGuild = await client.guilds.fetch(guild.discordId);
+        const channel = await discordGuild.channels.fetch(guild.matchmakingChannelId);
+        const message = await channel.messages.fetch(listMessage.discordId);
 
-      const discordGuild = await client.guilds.fetch(guild.discordId);
-      const channel = await discordGuild.channels.fetch(guild.matchmakingChannelId);
-      const message = await channel.messages.fetch(listMessage.discordId);
+        let { ranked, searching, confirmation, playing } = await getCurrentList(guild.discordId);
+        const response = await formatListMessage(
+          discordGuild,
+          ranked,
+          searching,
+          confirmation,
+          playing
+        );
 
-      let { ranked, searching, confirmation, playing } = await getCurrentList(guild.discordId);
-      const response = await formatListMessage(
-        discordGuild,
-        ranked,
-        searching,
-        confirmation,
-        playing
-      );
-
-      await message.fetch();
-      if (message.content != response.trim()) {
-        winston.debug(`Updated list message`);
-        winston.debug(`Old message: ${message.content}`);
-        winston.debug(`New message: ${response.trim()}`);
-        await message.edit(response);
+        await message.fetch();
+        if (message.content != response.trim()) {
+          winston.debug(`Updated list message`);
+          winston.debug(`Old message: ${message.content}`);
+          winston.debug(`New message: ${response.trim()}`);
+          await message.edit(response);
+        }
       }
     } catch (e) {
       console.error(e);
+      winston.error(e.message);
+      winston.error(e.stack);
     }
   });
 }
