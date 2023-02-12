@@ -1,15 +1,12 @@
 // Require the necessary discord.js classes
 
 const fs = require("fs");
-const { Routes } = require("discord-api-types/v9");
 const { Client, Collection, Intents } = require("discord.js");
 
 // Get ENV variables
 const dotenv = require("dotenv");
 dotenv.config();
 const token = process.env.DISCORD_TOKEN;
-const clientId = process.env.CLIENT_ID;
-const guildId = process.env.GUILD_ID;
 
 // Setup Logger
 const winston = require("winston");
@@ -55,27 +52,6 @@ for (const file of eventFiles) {
     client.on(event.name, async (...args) => await event.execute(...args));
   }
 }
-
-// Guild commands
-const { REST } = require("@discordjs/rest");
-const rest = new REST({ version: "9" }).setToken(token);
-
-// (async () => {
-//   try {
-//     console.log("Started refreshing application (/) commands.");
-
-//     await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
-//       body: commandFiles.map((file) => {
-//         const command = require(`./commands/${file}`);
-//         return command.data.toJSON();
-//       }),
-//     });
-
-//     console.log("Successfully reloaded application (/) commands");
-//   } catch (error) {
-//     console.error(error);
-//   }
-// })();
 
 // Login to Discord with your client's token
 client.login(token);
