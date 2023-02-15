@@ -103,6 +103,39 @@ class Player {
     else return new Gameset(gameset);
   };
 
+  /**
+   * Get a count of all ranked sets played today against the given opponent
+   * @param {int} opponentPlayerId Player.id of the opponent
+   * @param {*} client Optional PG Client
+   * @returns
+   */
+  getRankedCountToday = async (opponentPlayerId, client = null) => {
+    const today = new Date();
+    const formattedToday = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDay()}`;
+
+    const getQuery = {
+      text: `SELECT COUNT(1) as count FROM (
+	        SELECT gs.id, gp1.player_id, gp2.player_id FROM gameset gs
+          INNER JOIN game g
+	          ON g.gameset_id = gs.id
+          INNER JOIN game_player gp1
+	          ON g.id = gp1.game_id
+          INNER JOIN game_player gp2
+	          ON g.id = gp2.game_id
+          WHERE gs.created_at > $1
+          AND gp1.player_id = $2
+          AND gp2.player_id = $3
+          AND gs.ranked
+          GROUP BY gs.id, gp1.player_id, gp2.player_id          
+        ) x`,
+      values: [formattedToday, this.id, opponentPlayerId],
+    };
+
+    const result = await db.getQuery(getQuery, client);
+    if (result == null) return null;
+    else return Number(result.count);
+  };
+
   insertRating = async (guildId, tierId, score, client = null) => {
     const insertQuery = {
       text: `

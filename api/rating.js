@@ -132,12 +132,18 @@ const updateScore = async (
   oldRating.tier = tier;
   rating.tier = tier;
 
+  // Win/Lose streak. Positive if win, negative if lose
   const streak = await rating.getStreak();
+
+  const rankedCountToday = await player.getRankedCountToday(opponent.id);
 
   if (streak > 0) {
     if (!rating.promotion && nextTier) {
       let scoreToAdd = 20 + 5 * streak;
       if (!isSameTier) scoreToAdd = 15;
+      if (rankedCountToday == 3) scoreToAdd = 10;
+      if (rankedCountToday > 3) scoreToAdd = 5;
+
       let newScore = rating.score + scoreToAdd;
       if (newScore > nextTier.threshold) {
         await rating.setScore(nextTier.threshold);
@@ -154,6 +160,10 @@ const updateScore = async (
       const probability = getProbability(rating.score, opponentOldScore || opponentRating.score);
       let scoreToAdd = 42 * (1 - probability);
       scoreToAdd = scoreToAdd * (1 + 0.05 * streak);
+
+      if (rankedCountToday == 3 && scoreToAdd > 10) scoreToAdd = 10;
+      if (rankedCountToday > 3 && scoreToAdd > 5) scoreToAdd = 5;
+
       const newScore = Number.parseInt(rating.score + scoreToAdd);
 
       await rating.setScore(newScore);
@@ -168,6 +178,9 @@ const updateScore = async (
         scoreToSubstract = 42 * probability;
         scoreToSubstract = scoreToSubstract * (1 - 0.05 * streak); // streak is negative: ;
       }
+
+      if (rankedCountToday == 3 && scoreToSubstract > 10) scoreToSubstract = 10;
+      if (rankedCountToday > 3 && scoreToSubstract > 5) scoreToSubstract = 5;
 
       let newScore = Number.parseInt(rating.score - scoreToSubstract);
       if (newScore < tier.threshold - 150 && previousTier) {

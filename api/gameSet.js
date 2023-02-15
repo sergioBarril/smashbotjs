@@ -120,6 +120,13 @@ const isRankedSet = async (playerDiscordId) => {
   return gameset.ranked;
 };
 
+const getRankedCountToday = async (playerDiscordId, opponentDiscordId) => {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const opponent = await getPlayerOrThrow(opponentDiscordId, true);
+
+  return player.getRankedCountToday(opponent.id);
+};
+
 /**
  * Save the CharacterSelect message in the database
  * @param {string} playerDiscordId Discord ID of the player
@@ -518,6 +525,7 @@ module.exports = {
   newGame,
   cancelSet,
   isRankedSet,
+  getRankedCountToday,
   getPlayersAndCharacters,
   pickCharacter,
   setCharacterSelectMessage,
