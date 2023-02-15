@@ -139,6 +139,11 @@ class Lobby {
 
     if (isPromotion) weightCondition = `AND t.weight = $4 - 1 AND NOT r.promotion`;
 
+    const today = new Date();
+    const formattedToday = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDay()}`;
+
+    const SET_LIMIT_PER_DAY = 2;
+
     const matchmakingQuery = {
       text: `
       SELECT p.*
@@ -158,9 +163,32 @@ class Lobby {
         WHERE (pr.rejected_player_id = $3 AND pr.rejecter_player_id = p.id)
         OR (pr.rejected_player_id = p.id AND pr.rejecter_player_id = $3)
       )
+      AND NOT EXISTS (
+        SELECT COUNT(1) FROM (
+	        SELECT gs.id, gp1.player_id, gp2.player_id FROM gameset gs
+          INNER JOIN game g
+	          ON g.gameset_id = gs.id
+          INNER JOIN game_player gp1
+	          ON g.id = gp1.game_id
+          INNER JOIN game_player gp2
+	          ON g.id = gp2.game_id
+          WHERE gs.created_at > $5
+          AND gp1.player_id = $3
+          AND gp2.player_id = p.id
+          GROUP BY gs.id, gp1.player_id, gp2.player_id          
+        ) x
+        HAVING COUNT(1) >= $6
+      )
       ${weightCondition}
       `,
-      values: [this.guildId, this.id, this.createdBy, playerTierWeight],
+      values: [
+        this.guildId,
+        this.id,
+        this.createdBy,
+        playerTierWeight,
+        formattedToday,
+        SET_LIMIT_PER_DAY,
+      ],
     };
 
     const matchmakingResult = await db.getQuery(matchmakingQuery);
