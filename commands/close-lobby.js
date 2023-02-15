@@ -12,7 +12,6 @@ const execute = async (interaction) => {
     throw new CustomError("Este comando tienes que usarlo en el lobby.");
   }
   await cancelLobby(interaction.user, interaction.guild);
-  await cancelLobby(interaction);
   await interaction.editReply({
     content: "GGs, ¡gracias por jugar!",
   });

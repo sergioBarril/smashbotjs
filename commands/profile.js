@@ -48,8 +48,7 @@ function makeEmbed(member, tierRole, regions, rating, characters) {
   if (rating && rating.score) {
     const name = `**Ranked:**`;
     let value = `Puntuación: ${rating.score}`;
-    if (rating.promotion)
-      rankedValue += `**[${rating.promotionWins} - ${rating.promotionLosses}]**`;
+    if (rating.promotion) value += ` **[${rating.promotionWins} - ${rating.promotionLosses}]**`;
     fields.push({ name, value, inline: false });
 
     tierText = ` (${tierRole.name})`;

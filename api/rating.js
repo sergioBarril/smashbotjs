@@ -1,5 +1,6 @@
 const { NotFoundError } = require("../errors/notFound");
-const { getPlayer } = require("../models/player");
+const { getGuildOrThrow } = require("../models/guild");
+const { getPlayer, getPlayerOrThrow } = require("../models/player");
 const { getTier, getTierByRole } = require("../models/tier");
 const { getGuild } = require("./guild");
 
@@ -203,6 +204,23 @@ const updateScore = async (
 };
 
 /**
+ * Returns true if promoPlayer is promo AND has already beat opponent during the promo
+ * @param {*} promoPlayerDiscordId
+ * @param {*} opponentDiscordId
+ * @param {*} guildDiscordId
+ * @returns
+ */
+const wonAgainstInPromo = async (promoPlayerDiscordId, opponentDiscordId, guildDiscordId) => {
+  const promoPlayer = await getPlayerOrThrow(promoPlayerDiscordId, true);
+  const opponent = await getPlayerOrThrow(opponentDiscordId, true);
+  const guild = await getGuildOrThrow(guildDiscordId, true);
+
+  const promoRating = await promoPlayer.getRating(guild.id);
+  if (!promoRating || !promoRating.isPromotion) return false;
+  else return promoRating.wonAgainstInPromo(opponent.id);
+};
+
+/**
  * Get all the ratings of all players, split by tier and ordered by score
  * @param {string} guildDiscordId Guild discord ID
  * @returns
@@ -297,4 +315,5 @@ module.exports = {
   getRatingsByTier,
   setScore,
   setPromotion,
+  wonAgainstInPromo,
 };

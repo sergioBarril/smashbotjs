@@ -61,6 +61,43 @@ class Rating {
     return streak;
   };
 
+  /**
+   * Returns true if during this player's promo, they have already won against the Opponent
+   * @param {int} opponentId Player.id of the opponent
+   * @param {Client} client Optional PG Client
+   * @returns
+   */
+  wonAgainstInPromo = async (opponentId, client = null) => {
+    if (!this.isPromotion) return false;
+
+    const gameCount = this.promotionWins + this.promotionLosses;
+
+    const getQuery = {
+      text: `
+        SELECT 1 FROM (
+          SELECT * FROM gameset
+          WHERE gameset.ranked
+          ORDER BY created_at DESC
+          LIMIT $1
+        ) gs
+        INNER JOIN game g
+          ON g.gameset_id = gs.id
+        INNER JOIN game_player gp1
+          ON gp1.game_id = g.id
+        INNER JOIN game_player gp2
+          ON gp2.game_id = g.id
+        WHERE gs.ranked
+        AND gp1.player_id = $2
+        AND gp2.player_id = $3
+        AND gs.winner_id = $2
+      `,
+      values: [gameCount, this.playerId, opponentId],
+    };
+
+    const result = await db.getQuery(getQuery, client);
+    return Boolean(result);
+  };
+
   setTier = async (tierId, client = null) => {
     await db.updateBy("rating", { tier_id: tierId }, { id: this.id }, client);
     this.tierId = tierId;

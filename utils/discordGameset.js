@@ -234,9 +234,13 @@ const setupGameWinner = async (interaction, gameNum) => {
   });
 };
 
-const setEndButtons = () => {
+const setEndButtons = (rematchAvailable = true) => {
   const newSet = new MessageActionRow().addComponents(
-    new MessageButton().setCustomId("new-set").setLabel("Revancha").setStyle("SECONDARY"),
+    new MessageButton()
+      .setCustomId("new-set")
+      .setLabel("Revancha")
+      .setStyle("SECONDARY")
+      .setDisabled(!rematchAvailable),
     new MessageButton().setCustomId("close-lobby").setLabel("Cerrar arena").setStyle("DANGER")
   );
 
@@ -347,6 +351,7 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
 
   const isRanked = await setAPI.isRankedSet(winnerDiscordId);
   let rankedText = " ";
+  let rematchAvailable = true;
 
   if (isRanked) {
     const { oldRating: winnerOldRating, rating: winnerRating } = await ratingAPI.updateScore(
@@ -376,6 +381,14 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
     await changeTier(winnerDiscordId, winnerOldRating.tier, winnerRating.tier, interaction.guild);
     await changeTier(loserDiscordId, loserOldRating.tier, loserRating.tier, interaction.guild);
     updateLeaderboard(interaction.guild);
+
+    let alreadyBeat = await ratingAPI.wonAgainstInPromo(
+      loserDiscordId,
+      winnerDiscordId,
+      interaction.guild.id
+    );
+
+    rematchAvailable = !winnerRating.promotion && !alreadyBeat;
   }
 
   await setAPI.unlinkLobby(interaction.channel.id);
@@ -383,9 +396,13 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
   winston.info(`${winner.displayName} ha ganado el set${porAbandono}`);
   winston.info(rankedText);
 
+  let rematchText = `Puedes pedir la revancha, o cerrar la arena.`;
+  if (!rematchAvailable)
+    rematchText = `No podéis jugar más ranked juntos de momento. Volved a probar después de la promoción.`;
+
   const responseObj = {
-    content: `¡**${winner.displayName}**${emoji} ha ganado el set${porAbandono}!${rankedText}Puedes pedir la revancha, o cerrar la arena.`,
-    components: setEndButtons(),
+    content: `¡**${winner.displayName}**${emoji} ha ganado el set${porAbandono}!${rankedText}${rematchText}`,
+    components: setEndButtons(rematchAvailable),
   };
 
   if (interaction.isButton()) return await interaction.channel.send(responseObj);
