@@ -687,7 +687,7 @@ const timeOutCheck = async (acceptedPlayerId, acceptedAt) => {
   if (!lobby) return false;
 
   const lp = await lobby.getLobbyPlayer(player.id);
-  if (!lp || lp.acceptedAt.getTime() !== acceptedAt.getTime()) return false;
+  if (!lp || !lp.acceptedAt || lp.acceptedAt.getTime() !== acceptedAt.getTime()) return false;
 
   const lps = await lobby.getLobbyPlayers();
   return lps.some((lp) => lp.status === "CONFIRMATION");
