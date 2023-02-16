@@ -146,7 +146,7 @@ const updateScore = async (
       if (rankedCountToday > 3) scoreToAdd = 5;
 
       let newScore = rating.score + scoreToAdd;
-      if (newScore > nextTier.threshold) {
+      if (newScore >= nextTier.threshold) {
         await rating.setScore(nextTier.threshold);
         await rating.startPromotion();
       } else await rating.setScore(newScore);
