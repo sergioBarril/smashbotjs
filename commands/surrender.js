@@ -11,6 +11,7 @@ const execute = async (interaction) => {
   const player = interaction.user;
   const channel = interaction.channel;
 
+  await interaction.deferReply();
   await setAPI.surrender(player.id, channel.id);
   winston.info(`${player.username} se ha rendido.`);
   await setupNextGame(interaction);

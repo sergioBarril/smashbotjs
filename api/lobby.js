@@ -269,7 +269,13 @@ const matchmaking = async (playerDiscordId) => {
 
   if (lobby.ranked) {
     const playerTier = await getTier(rating.tierId);
-    rivalPlayer = await lobby.rankedMatchmaking(playerTier.weight, rating.promotion);
+
+    rivalPlayer = await lobby.rankedMatchmaking(
+      playerTier.weight,
+      rating.promotion,
+      rating.promotionWins,
+      rating.promotionLosses
+    );
     searchedRanked = true;
     foundRanked = rivalPlayer != null;
   }

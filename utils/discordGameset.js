@@ -406,7 +406,9 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
   };
 
   if (interaction.isButton()) return await interaction.channel.send(responseObj);
-  return await interaction.reply(responseObj);
+
+  if (interaction.replied || interaction.deferred) return await interaction.editReply(responseObj);
+  else return await interaction.reply(responseObj);
 };
 
 /**

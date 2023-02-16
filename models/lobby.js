@@ -120,9 +120,11 @@ class Lobby {
    * Matchmaking for rankeds
    * @param {int} playerTierWeight Weight of the player
    * @param {boolean} isPromotion True if player is in promotion, false otherwise
+   * @param {int} promotionWins Number of wins so far in promotion -- null if not in promo
+   * @param {int} promotionLosses Number of losses so far in promotion -- null if not in promo
    * @returns
    */
-  rankedMatchmaking = async (playerTierWeight, isPromotion) => {
+  rankedMatchmaking = async (playerTierWeight, isPromotion, promotionWins, promotionLosses) => {
     let weightCondition = `
       AND (
         ( t.weight <= $4 + 1
@@ -137,8 +139,49 @@ class Lobby {
       )
       `;
 
-    if (isPromotion) weightCondition = `AND t.weight = $4 - 1 AND NOT r.promotion`;
+    let promoBeatCondition = `AND NOT (
+      r.promotion AND
+      EXISTS (
+        SELECT 1 FROM (
+          SELECT * FROM gameset
+          WHERE gameset.ranked
+          ORDER BY gameset.created_at DESC
+          LIMIT r.promotion_wins + r.promotion_losses
+        ) gs
+        INNER JOIN game g
+          ON g.gameset_id = gs.id
+        INNER JOIN game_player gp1
+          ON g.id = gp1.game_id
+        INNER JOIN game_player gp2
+          ON g.id = gp2.game_id
+        WHERE gs.ranked
+        AND gp1.player_id = p.id
+        AND gp2.player_id = $3
+        AND gs.winner_id = p.id
+      )
+    )`;
 
+    if (isPromotion) {
+      weightCondition = `AND t.weight = $4 - 1 AND NOT r.promotion`;
+      promoBeatCondition = `AND NOT EXISTS (
+        SELECT 1 FROM (
+          SELECT * FROM gameset
+          WHERE gameset.ranked
+          ORDER BY gameset.created_at DESC
+          LIMIT ${promotionWins + promotionLosses}
+        ) gs 
+        INNER JOIN game g
+          ON g.gameset_id = gs.id
+        INNER JOIN game_player gp1
+          ON g.id = gp1.game_id
+        INNER JOIN game_player gp2
+          ON g.id = gp2.game_id
+        WHERE gs.ranked
+        AND gp1.player_id = $3
+        AND gp2.player_id = p.id
+        AND gs.winner_id = $3
+      )`;
+    }
     const today = new Date();
     const formattedToday = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDay()}`;
 
@@ -172,13 +215,15 @@ class Lobby {
 	          ON g.id = gp1.game_id
           INNER JOIN game_player gp2
 	          ON g.id = gp2.game_id
-          WHERE gs.created_at > $5
+          WHERE gs.ranked
+          AND gs.created_at > $5
           AND gp1.player_id = $3
           AND gp2.player_id = p.id
           GROUP BY gs.id, gp1.player_id, gp2.player_id          
         ) x
         HAVING COUNT(1) >= $6
       )
+      ${promoBeatCondition}
       ${weightCondition}
       `,
       values: [
