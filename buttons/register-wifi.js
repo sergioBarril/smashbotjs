@@ -1,5 +1,5 @@
+const winston = require("winston");
 const guildAPI = require("../api/guild");
-const playerAPI = require("../api/player");
 const { NotFoundError } = require("../errors/notFound");
 
 const execute = async (interaction) => {
@@ -18,7 +18,7 @@ const execute = async (interaction) => {
   await player.roles.add(noCableRole);
 
   const wifiChannel = await guild.channels.fetch(wifiTier.channelId);
-  const { matchmakingChannelId } = await guildAPI.getGuild(guild.id);
+  const { matchmakingChannelId, panelistChannelId } = await guildAPI.getGuild(guild.id);
   const matchmakingChannel = await guild.channels.fetch(matchmakingChannelId);
 
   const messageText =
@@ -30,6 +30,15 @@ const execute = async (interaction) => {
     `Eso es todo: si tienes alguna duda más, ¡pregunta sin miedo!`;
 
   const message = interaction.message;
+
+  // Edit channel name
+  await interaction.channel.setName("registro-completado");
+
+  // Send message in #panelists
+  const panelistChannel = await guild.channels.fetch(panelistChannelId);
+  await panelistChannel.send(`**${player.displayName}** se ha autoasignado la tier Wifi`);
+
+  winston.info(`**${player.displayName}** se ha autoasignado la tier Wifi`);
 
   message.components[0].components.forEach((button) => button.setDisabled(true));
   await interaction.message.edit({
