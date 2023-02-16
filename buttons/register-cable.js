@@ -31,7 +31,7 @@ const execute = async (interaction) => {
     `\t3. ¿Vives en España?\n` +
     `\t4. **Comentarios sobre tu nivel**. ¿Alguien a quien hayas ganado que merezca la pena destacar? ¿Has ido a pocos torneos y eres principiante? ¿Mejores posiciones en torneos?\n` +
     `\tEso me ayudará a determinar mejor en qué Tier ponerte :)\n\n` +
-    `Una vez hayas respondido a esto, pulsa el botón de **"Aceptar"** para avisar a un Admin y te asigne el rol adecuado.\n` +
+    `Una vez hayas respondido a esto, pulsa el botón verde de **"Todo respondido"** para avisar a un Admin y te asigne el rol adecuado.\n` +
     `Si tienes alguna duda, pulsa el botón azul de **"Ayuda"**\n` +
     `Si realmente no tienes cable o te da pereza responder a todo esto y` +
     ` con jugar con gente por Wifi te vale, pulsa el botón rojo de **"No tengo cable"**`;
