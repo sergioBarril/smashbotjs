@@ -17,6 +17,7 @@ const { Stage } = require("../models/stage");
 const { Tier } = require("../models/tier");
 const { updateLeaderboard } = require("./discordLeaderboard");
 const winston = require("winston");
+const { assignTier } = require("./discordTiers");
 
 /**
  * Get the text that will be displayed after picking or banning
@@ -305,25 +306,27 @@ const allRankedScoreText = async (
 /**
  *
  * @param {string} playerDiscordId DiscordId of the player that needs their role changed
- * @param {Tier} oldTier Old tier
- * @param {Tier} newTier New tier
+ * @param {Rating} oldRating Old rating
+ * @param {Rating} newRating New rating
  * @param {Guild} discordGuild DiscordGuild object
  */
-const changeTier = async (playerDiscordId, oldTier, newTier, discordGuild) => {
-  if (oldTier.id === newTier.id) return;
+const changeTier = async (playerDiscordId, oldRating, newRating, discordGuild) => {
+  const newTier = newRating.tier;
+  const oldTier = oldRating.tier;
 
-  const member = await discordGuild.members.fetch(playerDiscordId);
-  const oldRole = await discordGuild.roles.fetch(oldTier.roleId);
-  await member.roles.remove(oldRole);
-  winston.info(`Se le ha eliminado el rol ${oldRole.name} a ${member.displayName}`);
+  if (oldTier.id === newTier.id && oldRating.promotion === newRating.promotion) return;
+  const enterNewPromo = !oldRating.promotion && newRating.promotion;
+  const isTierChange = oldTier.id !== newTier.id;
 
-  const newRole = await discordGuild.roles.fetch(newTier.roleId);
-  await member.roles.add(newRole);
-  winston.info(`Se le ha añadido el rol ${newRole.name} a ${member.displayName}`);
-
-  const newRankedRole = await discordGuild.roles.fetch(newTier.rankedRoleId);
-  await member.roles.add(newRankedRole);
-  winston.info(`Se le ha añadido el rol ${newRankedRole.name} a ${member.displayName}`);
+  await assignTier(
+    newTier.roleId,
+    playerDiscordId,
+    null,
+    discordGuild,
+    oldTier,
+    enterNewPromo,
+    isTierChange
+  );
 };
 
 /**
@@ -378,8 +381,8 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
       interaction.guild
     );
 
-    await changeTier(winnerDiscordId, winnerOldRating.tier, winnerRating.tier, interaction.guild);
-    await changeTier(loserDiscordId, loserOldRating.tier, loserRating.tier, interaction.guild);
+    await changeTier(winnerDiscordId, winnerOldRating, winnerRating, interaction.guild);
+    await changeTier(loserDiscordId, loserOldRating, loserRating, interaction.guild);
     updateLeaderboard(interaction.guild);
 
     let alreadyBeat = await ratingAPI.wonAgainstInPromo(

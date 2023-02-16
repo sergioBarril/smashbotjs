@@ -1,5 +1,5 @@
 const { NotFoundError } = require("../errors/notFound");
-const { getGuild } = require("../models/guild");
+const { getGuild, getGuildOrThrow } = require("../models/guild");
 const { getTierByRole, insertTier } = require("../models/tier");
 
 /**
@@ -73,10 +73,28 @@ const getTier = async (guildDiscordId, tierRoleId) => {
   return await getTierByRole(tierRoleId);
 };
 
+const getNextTier = async (guildDiscordId, tierRoleId) => {
+  await getGuildOrThrow(guildDiscordId, true);
+  const baseTier = await getTierByRole(tierRoleId);
+
+  if (!baseTier) return null;
+  return await baseTier.getNextTier();
+};
+
+const getPreviousTier = async (guildDiscordId, tierRoleId) => {
+  await getGuildOrThrow(guildDiscordId, true);
+  const baseTier = await getTierByRole(tierRoleId);
+
+  if (!baseTier) return null;
+  return await baseTier.getPreviousTier();
+};
+
 module.exports = {
   addTier,
   addRankedTier,
   addYuzuTier,
   getTier,
   getTiers,
+  getNextTier,
+  getPreviousTier,
 };

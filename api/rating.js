@@ -34,8 +34,9 @@ const getPlayerTier = async (playerDiscordId, guildDiscordId, ignorePromotion = 
  * @param {string} playerDiscordId DiscordID of the player
  * @param {string} guildDiscordId DiscordID of the guild
  * @param {string} roleId DiscordID of the tier role
+ * @param {boolean} changeScore True if it should set score
  */
-const setPlayerTier = async (playerDiscordId, guildDiscordId, roleId) => {
+const setPlayerTier = async (playerDiscordId, guildDiscordId, roleId, changeScore = true) => {
   const player = await getPlayer(playerDiscordId, true);
   if (!player) throw new NotFoundError("Player");
 
@@ -49,10 +50,10 @@ const setPlayerTier = async (playerDiscordId, guildDiscordId, roleId) => {
     const tier = await getTierByRole(roleId);
     if (!tier) throw new NotFoundError("Tier");
     await rating.setTier(tier.id);
-    await rating.setScore(tier.threshold);
+    if (changeScore) await rating.setScore(tier.threshold);
   } else {
     await rating.setTier(null);
-    await rating.setScore(null);
+    if (changeScore) await rating.setScore(null);
   }
 
   await rating.setPromotion(false);

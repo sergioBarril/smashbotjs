@@ -19,13 +19,16 @@ const setTier = async (interaction) => {
     throw new NotFoundError("Tier");
   }
 
+  await interaction.deferReply();
+
   let roleId = role ? role.id : "wifi";
 
   const assignedRole = await assignTier(roleId, member.id, interaction.member.id, guild);
   winston.info(
     `[${interaction.user.username}] Se le ha asignado ${assignedRole.name} a ${member.displayName}`
   );
-  await interaction.reply(
+
+  await interaction.editReply(
     `Se le ha asignado **${assignedRole.name}** a **${member.displayName}**.`
   );
 };

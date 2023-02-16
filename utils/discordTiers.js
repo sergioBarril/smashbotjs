@@ -11,14 +11,25 @@ const winston = require("winston");
  * @param {string} playerId DiscordID of the player receiving the tier
  * @param {string} panelistId DiscordID of the panelist
  * @param {Guild} guild DiscordJS guild object
+ * @param {Tier} oldTier BD Tier object
+ * @param {boolean} isNewPromotion True if has just entered promotion
+ * @param {boolean} isTierChange True if there's a tier change
  */
-async function assignTier(tierRoleId, playerId, panelistId, guild) {
+async function assignTier(
+  tierRoleId,
+  playerId,
+  panelistId,
+  guild,
+  oldTier = null,
+  isNewPromotion = false,
+  isTierChange = true
+) {
   let tierRole;
   const isWifi = tierRoleId == "wifi";
 
   const member = await guild.members.fetch(playerId);
 
-  const oldTier = await ratingAPI.getPlayerTier(playerId, guild.id, true);
+  oldTier = oldTier ?? (await ratingAPI.getPlayerTier(playerId, guild.id, true));
   const guildInfo = await getGuild(guild.id);
 
   const cableRole = await guild.roles.fetch(guildInfo.cableRoleId);
@@ -26,10 +37,21 @@ async function assignTier(tierRoleId, playerId, panelistId, guild) {
 
   // Remove old roles
   if (oldTier) {
-    const oldRole = await guild.roles.fetch(oldTier.roleId);
+    let oldRole = await guild.roles.fetch(oldTier.roleId);
     const oldRankedRole = await guild.roles.fetch(oldTier.rankedRoleId);
+
+    const previousTierInfo = await tierAPI.getPreviousTier(guild.id, oldTier.roleId);
+    const previousRankedRole = previousTierInfo
+      ? await guild.roles.fetch(previousTierInfo.rankedRoleId)
+      : null;
+
+    const nextTierInfo = await tierAPI.getNextTier(guild.id, oldTier.roleId);
+    const nextRankedRole = nextTierInfo ? await guild.roles.fetch(nextTierInfo.rankedRoleId) : null;
+
     await member.roles.remove(oldRole);
     await member.roles.remove(oldRankedRole);
+    if (previousRankedRole) await member.roles.remove(previousRankedRole);
+    if (nextRankedRole) await member.roles.remove(nextRankedRole);
   }
 
   // Add wifi roles
@@ -42,13 +64,27 @@ async function assignTier(tierRoleId, playerId, panelistId, guild) {
     await member.roles.add(noCableRole);
   } else {
     // Cable roles
-    await ratingAPI.setPlayerTier(playerId, guild.id, tierRoleId);
+
+    if (isTierChange) {
+      await ratingAPI.setPlayerTier(playerId, guild.id, tierRoleId, Boolean(panelistId));
+    }
     tierRole = await guild.roles.fetch(tierRoleId);
 
     const tierInfo = await tierAPI.getTier(guild.id, tierRoleId);
     const rankedRole = await guild.roles.fetch(tierInfo.rankedRoleId);
 
-    await member.roles.add(rankedRole);
+    const previousTierInfo = await tierAPI.getPreviousTier(guild.id, tierRoleId);
+    const previousRankedRole = previousTierInfo
+      ? await guild.roles.fetch(previousTierInfo.rankedRoleId)
+      : null;
+
+    const nextTierInfo = await tierAPI.getNextTier(guild.id, tierRoleId);
+    const nextRankedRole = nextTierInfo ? await guild.roles.fetch(nextTierInfo.rankedRoleId) : null;
+
+    if (!isNewPromotion) await member.roles.add(rankedRole);
+    if (previousRankedRole && !isNewPromotion) await member.roles.add(previousRankedRole);
+    if (nextRankedRole) await member.roles.add(nextRankedRole);
+
     await member.roles.add(cableRole);
     await member.roles.remove(noCableRole);
   }
@@ -57,14 +93,19 @@ async function assignTier(tierRoleId, playerId, panelistId, guild) {
 
   // Send message in #panelists
   const panelistChannel = await guild.channels.fetch(guildInfo.panelistChannelId);
-  const panelistMember = await guild.members.fetch(panelistId);
-  await panelistChannel.send(
-    `**${panelistMember.displayName}** le ha asignado la tier **${tierRole.name}** a **${member.displayName}**`
-  );
+  let panelistText = "Text";
 
-  winston.info(
-    `**${panelistMember.displayName}** le ha asignado la tier **${tierRole.name}** a **${member.displayName}**`
-  );
+  if (panelistId) {
+    const panelistMember = await guild.members.fetch(panelistId);
+    panelistText = `**${panelistMember.displayName}** le ha asignado la tier **${tierRole.name}** a **${member.displayName}**`;
+  } else {
+    if (isNewPromotion)
+      panelistText = `**${member.displayName}** acaba de entrar a Promoción para salir de ${tierRole.name}`;
+    else panelistText = `**${member.displayName}** está a partir de ahora en **${tierRole.name}**`;
+  }
+
+  await panelistChannel.send(panelistText);
+  winston.info(panelistText);
 
   return tierRole;
 }
