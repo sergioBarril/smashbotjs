@@ -1,4 +1,5 @@
 const { MessageButton, MessageActionRow } = require("discord.js");
+const winston = require("winston");
 const guildAPI = require("../api/guild");
 const playerAPI = require("../api/player");
 const tierAPI = require("../api/tier");
@@ -52,6 +53,20 @@ const execute = async (interaction) => {
     content: messageText,
     components: [new MessageActionRow().addComponents(...tierButtons, wifiButton)],
   });
+
+  const guildInfo = await guildAPI.getGuild(guild.id);
+  if (!guildInfo) throw new NotFoundError("Guild");
+
+  // Alert panelists
+  if (guildInfo.panelistRoleId && guildInfo.panelistChannelId) {
+    const panelistChannel = await guild.channels.fetch(guildInfo.panelistChannelId);
+    const panelistRole = await guild.roles.fetch(guildInfo.panelistRoleId);
+
+    const adminMessageText = `:information_source: Atención ${panelistRole}, ¡${player.displayName} ha terminado con el registro en ${interaction.channel}!`;
+    await panelistChannel.send(adminMessageText);
+  }
+
+  winston.info(`${player.displayName} ha respondido el formulario de registro.`);
 };
 
 module.exports = {
