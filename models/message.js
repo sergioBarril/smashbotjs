@@ -27,6 +27,11 @@ class Message {
     this.ranked = ranked;
   }
 
+  getPlayer = async (client = null) => {
+    const { getPlayer } = require("./player");
+    return await getPlayer(this.playerId, false, client);
+  };
+
   getTier = async (client = null) => {
     const { getTier } = require("./tier");
     return await getTier(this.tierId, client);

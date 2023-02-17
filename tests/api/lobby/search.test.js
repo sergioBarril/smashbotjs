@@ -313,7 +313,8 @@ describe("test search method", () => {
 
     const result = await search(player.discordId, guild.discordId, message4.discordId);
 
-    expect(result.afkMessage).not.toBeNull();
+    expect(result.afkMessages).not.toBeNull();
+    expect(result.afkMessages[0].discordId).toEqual(afkMessageId);
     expect(result.matched).toBe(false);
 
     const messageFromGet = await getMessage(afkMessageId, true);

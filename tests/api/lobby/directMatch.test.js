@@ -195,7 +195,8 @@ describe("test lobbyAPI.directMatch() method", () => {
 
     const result = await directMatch(player.discordId, messageLt3.discordId);
 
-    expect(result.afkMessage).not.toBeNull();
+    expect(result.afkMessages).not.toBeNull();
+    expect(result.afkMessages[0].discordId).toEqual(afkMessageId);
     expect(result.matched).toBe(true);
 
     const messageFromGet = await getMessage(afkMessageId, true);

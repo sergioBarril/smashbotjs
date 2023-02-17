@@ -234,17 +234,18 @@ const search = async (playerDiscordId, guildDiscordId, messageDiscordId) => {
 
   const { rivalPlayer, foundRanked } = await matchmaking(player.discordId);
 
-  // Remove afk messages (from the person that searched)
+  // Remove afk messages (from the person that clicked the button)
   const afkMessages = await lobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
-  if (afkMessages.length > 1) throw new CustomError("Too many afk messages. Bug!");
-  const afkMessage = afkMessages.length > 0 ? afkMessages[0] : null;
-  if (afkMessage) await afkMessage.remove();
-
+  for (let afkMessage of afkMessages) {
+    const author = await afkMessage.getPlayer();
+    afkMessage.authorId = author.discordId;
+    afkMessage.remove();
+  }
   return {
     matched: rivalPlayer != null,
     tiers: newTiers,
     players: [player, rivalPlayer],
-    afkMessage,
+    afkMessages,
     searchedRanked: isRanked,
     foundRanked,
   };
@@ -357,15 +358,17 @@ const directMatch = async (playerDiscordId, messageDiscordId) => {
 
   // Remove afk messages (from the person that clicked the button)
   const afkMessages = await playerLobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
-  if (afkMessages.length > 1) throw new CustomError("Too many afk messages. Bug!");
-  const afkMessage = afkMessages.length > 0 ? afkMessages[0] : null;
-  if (afkMessage) await afkMessage.remove();
+  for (let afkMessage of afkMessages) {
+    const author = await afkMessage.getPlayer();
+    afkMessage.authorId = author.discordId;
+    afkMessage.remove();
+  }
 
   await rivalLobby.setupMatch(player);
   return {
     matched: true,
     players: [player, rivalPlayer],
-    afkMessage,
+    afkMessages,
   };
 };
 

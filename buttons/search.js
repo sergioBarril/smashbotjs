@@ -72,12 +72,15 @@ const notMatched = async (interaction, tiers, isRanked) => {
  * @param {*} interaction Discord Interaction
  * @param {Message} message Message model
  */
-const deleteAfkMessage = async (interaction, message) => {
-  if (!message) return;
-  const dmChannel = await interaction.user.createDM();
-  const discordMessage = await dmChannel.messages.fetch(message.discordId);
-  await discordMessage.delete();
-  winston.debug(`Discord Message con id ${message.discordId} eliminado.`);
+const deleteAfkMessages = async (interaction, messages) => {
+  for (let message of messages) {
+    const member = await interaction.guild.members.fetch(message.authorId);
+    const dmChannel = await member.user.createDM();
+    const discordMessage = await dmChannel.messages.fetch(message.discordId);
+    await discordMessage.delete();
+
+    winston.debug(`Discord Message con id ${message.discordId} eliminado.`);
+  }
 };
 
 const execute = async (interaction) => {
@@ -90,7 +93,7 @@ const execute = async (interaction) => {
   winston.info(`${interaction.user.username} triggered a Search.`);
 
   const searchResult = await lobbyAPI.search(playerId, guildId, messageId);
-  await deleteAfkMessage(interaction, searchResult.afkMessage);
+  await deleteAfkMessages(interaction, searchResult.afkMessages);
   if (searchResult.matched) {
     await matched(interaction, searchResult.players, searchResult.foundRanked);
   } else {

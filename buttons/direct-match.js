@@ -25,9 +25,9 @@ const matched = async (interaction, players) => {
 /**
  * If the player was afk and started searching, delete the AFK message.
  * @param {*} interaction Discord Interaction
- * @param {Message} message Message model
+ * @param {Message} messages Message model
  */
-const deleteAfkMessage = async (interaction, message) => {
+const deleteAfkMessages = async (interaction, messages) => {
   if (!message) return;
   const discordMessage = await interaction.user.dmChannel.messages.fetch(message.discordId);
   await discordMessage.delete();
@@ -39,7 +39,7 @@ const execute = async (interaction) => {
 
   await interaction.deferReply({ ephemeral: true });
   const searchResult = await lobbyAPI.directMatch(playerId, messageId);
-  await deleteAfkMessage(interaction, searchResult.afkMessage);
+  await deleteAfkMessages(interaction, searchResult.afkMessages);
   await matched(interaction, searchResult.players);
 };
 
