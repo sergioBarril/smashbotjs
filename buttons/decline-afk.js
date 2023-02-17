@@ -1,11 +1,15 @@
-const lobbyDB = require("../db/lobby");
+const winston = require("winston");
+const { removeAfkLobby } = require("../api/lobby");
 
 module.exports = {
   data: { name: "decline-afk" },
   async execute(interaction) {
-    await lobbyDB.removeByPlayer(interaction.user.id, true);
+    await interaction.deferUpdate();
+    await removeAfkLobby(interaction.user.id);
 
-    await interaction.update({
+    winston.info(`${interaction.user.username} ha rechazado salir del AFK buscando.`);
+
+    await interaction.editReply({
       content: `De acuerdo **${interaction.user.username}**, ya no estás buscando partida.`,
       components: [],
     });
