@@ -25,12 +25,17 @@ const matched = async (interaction, players) => {
 /**
  * If the player was afk and started searching, delete the AFK message.
  * @param {*} interaction Discord Interaction
- * @param {Message} messages Message model
+ * @param {List<Message>} messages Message model
  */
 const deleteAfkMessages = async (interaction, messages) => {
-  if (!message) return;
-  const discordMessage = await interaction.user.dmChannel.messages.fetch(message.discordId);
-  await discordMessage.delete();
+  for (let message of messages) {
+    const member = await interaction.guild.members.fetch(message.authorId);
+    const dmChannel = await member.user.createDM();
+    const discordMessage = await dmChannel.messages.fetch(message.discordId);
+    await discordMessage.delete();
+
+    winston.debug(`Discord Message con id ${message.discordId} eliminado.`);
+  }
 };
 
 const execute = async (interaction) => {
