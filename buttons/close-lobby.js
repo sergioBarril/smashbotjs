@@ -8,8 +8,12 @@ const execute = async (interaction) => {
   }
   await cancelLobby(interaction.user, interaction.guild);
   await interaction.editReply({
-    content: "GGs, ¡gracias por jugar!",
+    content: "GGs, ¡gracias por jugar! _(Esta arena se destruirá en 10 minutos...)_",
   });
+
+  const components = interaction.message.components;
+  components[0].components.forEach((button) => button.setDisabled(true));
+  await interaction.message.edit({ components });
 };
 
 module.exports = {
