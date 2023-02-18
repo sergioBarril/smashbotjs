@@ -238,7 +238,8 @@ const allAccepted = async (interaction, players, guild, ranked) => {
     directMessages.map(async (message) => {
       const player = players.find((p) => p.id === message.playerId);
       const discordPlayer = discordPlayers.find((dp) => dp.id === player.discordId);
-      return await discordPlayer.dmChannel.messages.fetch(message.discordId);
+      const dmChannel = await discordPlayer.createDM();
+      return await dmChannel.messages.fetch(message.discordId);
     })
   );
 
