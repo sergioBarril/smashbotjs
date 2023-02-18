@@ -1,4 +1,4 @@
-const { MessageEmbed, Guild } = require("discord.js");
+const { MessageEmbed, Guild, DiscordAPIError } = require("discord.js");
 const tierAPI = require("../api/tier");
 const ratingAPI = require("../api/rating");
 const guildAPI = require("../api/guild");
@@ -11,13 +11,20 @@ const messageAPI = require("../api/message");
  * @param {*} leaderboardInfo Object with the player + rating info of this tier
  */
 async function getLeaderboardEmbed(guild, role, leaderboardInfo) {
-  let playerMessage = "No hay nadie en esta tier... ¡de momento!";
+  let playerMessage = "";
 
   if (leaderboardInfo) {
     const playersInfo = await Promise.all(
       leaderboardInfo.map(async (row, i) => {
         let player = guild.members.cache.get(row.displayName);
-        if (!player) player = await guild.members.fetch(row.playerDiscordId);
+        if (!player) {
+          try {
+            player = await guild.members.fetch(row.playerDiscordId);
+          } catch (e) {
+            if (e instanceof DiscordAPIError) return null;
+            else throw e;
+          }
+        }
         const playerName = guild.members.cache.get(row.playerDiscordId).displayName;
         const rating = row.rating;
         const promotionText = rating.promotion
@@ -28,8 +35,13 @@ async function getLeaderboardEmbed(guild, role, leaderboardInfo) {
       })
     );
 
-    playerMessage = playersInfo.slice(0, 20).join("\n");
+    playerMessage = playersInfo
+      .filter((pi) => pi != null)
+      .slice(0, 20)
+      .join("\n");
   }
+
+  if (playerMessage.trim() == "") playerMessage = "No hay nadie en esta tier... ¡de momento!";
 
   return new MessageEmbed()
     .setColor(role.color)
