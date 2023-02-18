@@ -111,7 +111,7 @@ class Player {
    */
   getRankedCountToday = async (opponentPlayerId, client = null) => {
     const today = new Date();
-    const formattedToday = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDay()}`;
+    const formattedToday = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
 
     const getQuery = {
       text: `SELECT COUNT(1) as count FROM (
