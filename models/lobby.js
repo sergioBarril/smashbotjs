@@ -183,7 +183,7 @@ class Lobby {
       )`;
     }
     const today = new Date();
-    const formattedToday = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDay()}`;
+    const formattedToday = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
 
     const SET_LIMIT_PER_DAY = 2;
 
