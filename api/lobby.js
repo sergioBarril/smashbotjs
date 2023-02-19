@@ -319,8 +319,9 @@ const directMatch = async (playerDiscordId, messageDiscordId) => {
   // Check tier in case of yuzu
   const tier = await lobbyTierMessage.getTier();
   const playerTier = await player.getTier(guild.id);
-  if (!playerTier) throw new NotFoundError("Tier");
-  if (!tier.yuzu && !playerTier.canSearchIn(tier)) throw new TooNoobError(playerTier.id, tier.id);
+  if (!playerTier && !tier.wifi) throw new NotFoundError("Tier");
+  if (playerTier && !tier.yuzu && !playerTier.canSearchIn(tier))
+    throw new TooNoobError(playerTier.id, tier.id);
 
   const rivalPlayer = await getPlayer(rivalLobby.createdBy, false);
   if (tier.yuzu) {
