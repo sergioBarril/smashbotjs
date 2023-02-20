@@ -321,7 +321,7 @@ const directMatch = async (playerDiscordId, messageDiscordId) => {
   const playerTier = await player.getTier(guild.id);
   if (!playerTier && !tier.wifi) throw new NotFoundError("Tier");
   if (playerTier && !tier.yuzu && !playerTier.canSearchIn(tier))
-    throw new TooNoobError(playerTier.id, tier.id);
+    throw new TooNoobError(playerTier.roleId, tier.roleId);
 
   const rivalPlayer = await getPlayer(rivalLobby.createdBy, false);
   if (tier.yuzu) {
