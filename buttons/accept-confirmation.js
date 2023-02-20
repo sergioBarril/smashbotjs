@@ -89,7 +89,7 @@ const createArena = async (interaction, players, guild, ranked) => {
     permissionOverwrites: [
       {
         id: discordGuild.id,
-        deny: [Permissions.FLAGS.CONNECT],
+        deny: [Permissions.FLAGS.VIEW_CHANNEL],
       },
       ...voicePermisssion,
     ],
