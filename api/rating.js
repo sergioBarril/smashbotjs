@@ -174,7 +174,7 @@ const updateScore = async (
     if (!rating.promotion) {
       let scoreToSubstract = 20 + 5 * -streak;
       if (!isSameTier) scoreToSubstract = 15;
-      if (!nextTier) {
+      else if (!nextTier) {
         //ELO
         const probability = getProbability(rating.score, opponentOldScore || opponentRating.score);
         scoreToSubstract = 42 * probability;
@@ -185,7 +185,7 @@ const updateScore = async (
       if (rankedCountToday > 3 && scoreToSubstract > 5) scoreToSubstract = 5;
 
       let newScore = Number.parseInt(rating.score - scoreToSubstract);
-      if (newScore < tier.threshold - 150 && previousTier) {
+      if (newScore < tier.threshold - 200 && previousTier) {
         await rating.setScore(newScore);
         await rankDown(rating, previousTier);
         rating.tier = previousTier;
