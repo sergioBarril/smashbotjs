@@ -104,6 +104,30 @@ class LobbyPlayer {
   };
 
   /**
+   * Insert a Confirmation in Guild to the database
+   * @param {string} messageId DiscordID of the message being added
+   * @param {boolean} ranked True if this is a DM about a ranked match
+   * @param {Client} client Optional PG client
+   * @returns
+   */
+  insertConfirmationGuildMessage = async (messageId, channelId, ranked = false, client = null) => {
+    const lobby = await this.getLobby();
+    if (!lobby) throw new NotFoundError("Lobby");
+
+    return insertMessage(
+      messageId,
+      MESSAGE_TYPES.LOBBY_PLAYER_GUILD,
+      null,
+      channelId,
+      this.playerId,
+      lobby.guildId,
+      lobby.id,
+      ranked,
+      client
+    );
+  };
+
+  /**
    * Removes all LOBBY_PLAYER messages from this LP
    * @param {Client} client Optional PG client
    */
