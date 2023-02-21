@@ -24,6 +24,8 @@ class Guild {
     ranked_channel_id,
     cable_role_id,
     no_cable_role_id,
+    confirmation_channel_id,
+    no_dm_role_id,
   }) {
     this.id = id;
     this.discordId = discord_id;
@@ -42,6 +44,9 @@ class Guild {
 
     this.cableRoleId = cable_role_id;
     this.noCableRoleId = no_cable_role_id;
+
+    this.confirmationChannelId = confirmation_channel_id;
+    this.noDmRoleId = no_dm_role_id;
   }
 
   // **********

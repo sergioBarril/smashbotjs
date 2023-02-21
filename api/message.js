@@ -2,7 +2,7 @@ const { NotFoundError } = require("../errors/notFound");
 const db = require("../models/db");
 const { getLobby } = require("../models/lobby");
 const { MESSAGE_TYPES, insertMessage, Message } = require("../models/message");
-const { getPlayer } = require("../models/player");
+const { getPlayer, getPlayerOrThrow } = require("../models/player");
 const { getTierByRole, getTier } = require("../models/tier");
 const { getGuild } = require("./guild");
 
@@ -19,6 +19,24 @@ const saveConfirmationDM = async (playerDiscordId, messageId, isRanked = false) 
   if (!lobbyPlayer) throw new NotFoundError("LobbyPlayer");
 
   await lobbyPlayer.insertMessage(messageId, isRanked);
+};
+
+const saveConfirmationGuild = async (playerDiscordId, messageId, isRanked = false) => {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const lobby = await player.getLobbyOrThrow("CONFIRMATION");
+
+  const lobbyPlayer = await lobby.getLobbyPlayer(player.id);
+  if (!lobbyPlayer) throw new NotFoundError("LobbyPlayer");
+
+  const guild = await lobby.getGuild();
+  if (!guild) throw new NotFoundError("Guild");
+  if (!guild.confirmationChannelId) throw NotFoundError("ConfirmationChannel");
+
+  await lobbyPlayer.insertConfirmationGuildMessage(
+    messageId,
+    guild.confirmationChannelId,
+    isRanked
+  );
 };
 
 /**
@@ -155,5 +173,6 @@ module.exports = {
   popRankedMessage,
   saveSearchTierMessage,
   saveConfirmationDM,
+  saveConfirmationGuild,
   saveSearchRankedMessage,
 };

@@ -1,4 +1,10 @@
-const { MessageActionRow, MessageButton, GuildMember, Guild } = require("discord.js");
+const {
+  MessageActionRow,
+  MessageButton,
+  GuildMember,
+  Guild,
+  DiscordAPIError,
+} = require("discord.js");
 
 const lobbyAPI = require("../api/lobby");
 const messageAPI = require("../api/message");
@@ -36,12 +42,38 @@ async function sendConfirmation(player, opponent, isRanked, guild) {
     new MessageButton().setCustomId("accept-confirmation").setLabel("Aceptar").setStyle("SUCCESS"),
     new MessageButton().setCustomId("decline-confirmation").setLabel("Rechazar").setStyle("DANGER")
   );
-  const directMessage = await player.send({
+
+  const { noDmRoleId } = await guildAPI.getGuild(guild.id);
+  const noDmRole = await player.roles.fetch(noDmRoleId);
+
+  if (!noDmRole)
+    try {
+      const directMessage = await player.send({
+        content: messageText,
+        components: [row],
+      });
+
+      return await messageAPI.saveConfirmationDM(player.id, directMessage.id, isRanked);
+    } catch (e) {
+      const isDiscord = e instanceof DiscordAPIError;
+      if (!isDiscord) throw e;
+    }
+  return await sendGuildConfirmation(player, messageText, guild, row, isRanked);
+}
+
+async function sendGuildConfirmation(player, messageText, guild, buttons, isRanked) {
+  const { confirmationChannelId, noDmRoleId } = await guildAPI.getGuild(guild.id);
+  const confirmationChannel = await guild.channels.fetch(confirmationChannelId);
+
+  const noDmRole = await player.roles.fetch(noDmRoleId);
+  await player.roles.add(noDmRole);
+
+  const confirmationMessage = await confirmationChannel.send({
     content: messageText,
-    components: [row],
+    components: [buttons],
   });
 
-  await messageAPI.saveConfirmationDM(player.id, directMessage.id, isRanked);
+  await messageAPI.saveConfirmationGuild(player.id, confirmationMessage.id, isRanked);
 }
 
 /**
