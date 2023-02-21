@@ -43,29 +43,25 @@ async function sendConfirmation(player, opponent, isRanked, guild) {
     new MessageButton().setCustomId("decline-confirmation").setLabel("Rechazar").setStyle("DANGER")
   );
 
-  const { noDmRoleId } = await guildAPI.getGuild(guild.id);
-  const noDmRole = await player.roles.fetch(noDmRoleId);
+  try {
+    const directMessage = await player.send({
+      content: messageText,
+      components: [row],
+    });
 
-  if (!noDmRole)
-    try {
-      const directMessage = await player.send({
-        content: messageText,
-        components: [row],
-      });
-
-      return await messageAPI.saveConfirmationDM(player.id, directMessage.id, isRanked);
-    } catch (e) {
-      const isDiscord = e instanceof DiscordAPIError;
-      if (!isDiscord) throw e;
-    }
-  return await sendGuildConfirmation(player, messageText, guild, row, isRanked);
+    await messageAPI.saveConfirmationDM(player.id, directMessage.id, isRanked);
+  } catch (e) {
+    if (e instanceof DiscordAPIError)
+      await sendGuildConfirmation(player, messageText, guild, row, isRanked);
+    else throw e;
+  }
 }
 
 async function sendGuildConfirmation(player, messageText, guild, buttons, isRanked) {
   const { confirmationChannelId, noDmRoleId } = await guildAPI.getGuild(guild.id);
   const confirmationChannel = await guild.channels.fetch(confirmationChannelId);
 
-  const noDmRole = await player.roles.fetch(noDmRoleId);
+  const noDmRole = await guild.roles.fetch(noDmRoleId);
   await player.roles.add(noDmRole);
 
   const confirmationMessage = await confirmationChannel.send({
