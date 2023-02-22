@@ -254,9 +254,37 @@ const editDirectMessage = async (interaction, message, player, newMessage) => {
   await discordMessage.edit(newMessage);
 };
 
+/**
+ * Edits the guild confirmation message (guild dm)
+ * @param {Interaction} interaction Discord Button interaction
+ * @param {Message} message Message to edit
+ * @param {Object} newMessage Content and components of the new message
+ */
+const editGuildConfirmationMessage = async (interaction, message, newMessage) => {
+  const guildInfo = await messageAPI.getGuildFromMessage(message.discordId);
+  const guild = await interaction.client.guilds.fetch(guildInfo.discordId);
+  const channel = await guild.channels.fetch(guildInfo.confirmationChannelId);
+  const discordMessage = await channel.messages.fetch(message.discordId);
+  await discordMessage.edit(newMessage);
+};
+
+/**
+ * Delete the guild confirmation message (guild dm)
+ * @param {Guild} guild DiscordJS Guild
+ * @param {Message} message Message to delete
+ */
+const deleteGuildConfirmationMessage = async (guild, message) => {
+  const guildInfo = await guildAPI.getGuild(guild.id);
+  const channel = await guild.channels.fetch(guildInfo.confirmationChannelId);
+  const discordMessage = await channel.messages.fetch(message.discordId);
+  await discordMessage.delete();
+};
+
 module.exports = {
   matched,
   notMatched,
   editMessages,
   editDirectMessage,
+  editGuildConfirmationMessage,
+  deleteGuildConfirmationMessage,
 };

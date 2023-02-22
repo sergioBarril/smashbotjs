@@ -2,33 +2,49 @@ const lobbyAPI = require("../api/lobby");
 const { Guild } = require("discord.js");
 const { Message, MESSAGE_TYPES } = require("../models/message");
 const winston = require("winston");
+const { getGuild } = require("../api/guild");
 
 /**
- * Edits the direct messages sent to the players
+ * Edits the direct messages sent to the players and to the guild
  * @param {Guild} guild DiscordJS Guild object
- * @param {Array<Message>} messages Direct messages to edit (will only edit LOBBY_PLAYERs)
+ * @param {Array<Message>} messages Direct messages to edit (will only edit LOBBY_PLAYERs and LOBBY_PLAYER_GUILD)
  * @returns List of display names of the players
  */
 const editDirectMessages = async (guild, messages) => {
+  const { confirmationChannelId } = await getGuild(guild.id);
+
   const discordMessages = [];
+  const displayNames = [];
 
   const dms = messages.filter((m) => m.type === MESSAGE_TYPES.LOBBY_PLAYER);
+  const guildMessages = messages.filter((m) => m.type === MESSAGE_TYPES.LOBBY_PLAYER_GUILD);
 
   for (let dm of dms) {
     const member = await guild.members.fetch(dm.playerDiscordId);
     const dmChannel = await member.user.createDM();
     const message = await dmChannel.messages.fetch(dm.discordId);
     discordMessages.push({ member, message });
+    displayNames.push(member.displayName);
+  }
+
+  for (let messageInfo of guildMessages) {
+    const member = await guild.members.fetch(messageInfo.playerDiscordId);
+    const channel = await guild.channels.fetch(confirmationChannelId);
+    const message = await channel.messages.fetch(messageInfo.discordId);
+    displayNames.push(member.displayName);
+    await message.delete();
   }
 
   for (let { member, message } of discordMessages) {
-    const opponent = discordMessages.find((dm) => dm.member.id !== member.id).member;
+    let opponentDisplayName = displayNames.find((dn) => dn !== member.displayName);
+    if (!opponentDisplayName) opponentDisplayName = "tu rival";
+
     message.edit({
-      content: `Jugaste con **${opponent.displayName}**. GGs!`,
+      content: `Jugaste con **${opponentDisplayName}**. GGs!`,
     });
   }
 
-  return discordMessages.map((dm) => dm.member.displayName);
+  return displayNames;
 };
 
 /**

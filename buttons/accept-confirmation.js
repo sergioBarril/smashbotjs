@@ -5,7 +5,7 @@ const { MessageActionRow, MessageButton, Permissions } = require("discord.js");
 const { Player } = require("../models/player");
 const { Guild } = require("../models/guild");
 const { NotFoundError } = require("../errors/notFound");
-const { Message } = require("../models/message");
+const { Message, MESSAGE_TYPES } = require("../models/message");
 const { setupNextGame, setupCharacter } = require("../utils/discordGameset");
 const winston = require("winston");
 
@@ -121,14 +121,18 @@ const createArena = async (interaction, players, guild, ranked) => {
  */
 const editDMs = async (channels, messages) => {
   const { text: textChannel, voice: voiceChannel } = channels;
-  // DM messages
+
   let updatedText =
     `¡Hay partido! Dirígete a ${textChannel} y a pelear.\n` +
     `También podéis ir a ${voiceChannel} para disfrutar de un voice chat privado.`;
 
+  const guildText = ` En principio esto era un DM, pero los tienes cerrados. Ábrelos, o sigue usando este canal -- lo que prefieras.`;
+
   for (let message of messages) {
+    let messageGuildText = guildText;
+    if (message.channel.type === "DM") messageGuildText = "";
     await message.edit({
-      content: updatedText,
+      content: updatedText + messageGuildText,
       components: [],
     });
   }
@@ -207,10 +211,11 @@ const allAccepted = async (interaction, players, guild, ranked) => {
     channels.voice.id
   );
 
+  const discordGuild = await interaction.client.guilds.fetch(guild.discordId);
+
   if (ranked) {
     const { players: setPlayers } = await setAPI.newSet(channels.text.id);
 
-    const discordGuild = await interaction.client.guilds.fetch(guild.discordId);
     const members = await Promise.all(
       setPlayers.map(async (p) => await discordGuild.members.fetch(p.discordId))
     );
@@ -236,10 +241,14 @@ const allAccepted = async (interaction, players, guild, ranked) => {
   // Fetch Discord DMs
   const dms = await Promise.all(
     directMessages.map(async (message) => {
-      const player = players.find((p) => p.id === message.playerId);
-      const discordPlayer = discordPlayers.find((dp) => dp.id === player.discordId);
-      const dmChannel = await discordPlayer.createDM();
-      return await dmChannel.messages.fetch(message.discordId);
+      let channel = null;
+      if (message.type === MESSAGE_TYPES.LOBBY_PLAYER) {
+        const player = players.find((p) => p.id === message.playerId);
+        const discordPlayer = discordPlayers.find((dp) => dp.id === player.discordId);
+        channel = await discordPlayer.createDM();
+      } else channel = await discordGuild.channels.fetch(message.channelId);
+
+      return await channel.messages.fetch(message.discordId);
     })
   );
 

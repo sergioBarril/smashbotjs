@@ -70,16 +70,27 @@ const notMatched = async (interaction, tiers, isRanked) => {
 /**
  * If the player was afk and started searching, delete the AFK message.
  * @param {*} interaction Discord Interaction
- * @param {Message} message Message model
+ * @param {List<Message>} messages Message model
  */
 const deleteAfkMessages = async (interaction, messages) => {
-  for (let message of messages) {
-    const member = await interaction.guild.members.fetch(message.authorId);
+  const dms = messages.filter((m) => m.channelId == null);
+  const gms = messages.filter((m) => m.channelId != null);
+
+  for (let dm of dms) {
+    const member = await interaction.guild.members.fetch(dm.authorId);
     const dmChannel = await member.user.createDM();
-    const discordMessage = await dmChannel.messages.fetch(message.discordId);
+    const discordMessage = await dmChannel.messages.fetch(dm.discordId);
     await discordMessage.delete();
 
-    winston.debug(`Discord Message con id ${message.discordId} eliminado.`);
+    winston.debug(`Discord Message con id ${dm.discordId} eliminado.`);
+  }
+
+  for (let gm of gms) {
+    const channel = await interaction.guild.channels.fetch(gm.channelId);
+    const discordMessage = await channel.messages.fetch(gm.discordId);
+    await discordMessage.delete();
+
+    winston.debug(`Discord Message con id ${gm.discordId} eliminado.`);
   }
 };
 

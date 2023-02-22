@@ -45,10 +45,10 @@ class LobbyPlayer {
     return lobby;
   };
 
-  getMessage = async (client = null) => {
+  getMessage = async (type = MESSAGE_TYPES.LOBBY_PLAYER, client = null) => {
     const message = await db.getBy(
       "message",
-      { lobby_id: this.lobbyId, player_id: this.playerId, type: MESSAGE_TYPES.LOBBY_PLAYER },
+      { lobby_id: this.lobbyId, player_id: this.playerId, type },
       client
     );
     if (message == null) return null;
