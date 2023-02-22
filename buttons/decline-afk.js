@@ -9,9 +9,12 @@ module.exports = {
 
     winston.info(`${interaction.user.username} ha rechazado salir del AFK buscando.`);
 
-    await interaction.editReply({
-      content: `De acuerdo **${interaction.user.username}**, ya no estás buscando partida.`,
-      components: [],
-    });
+    if (interaction.inGuild()) {
+      await interaction.deleteReply();
+    } else
+      await interaction.editReply({
+        content: `De acuerdo **${interaction.user.username}**, ya no estás buscando partida.`,
+        components: [],
+      });
   },
 };
