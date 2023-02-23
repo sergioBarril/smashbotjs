@@ -51,7 +51,7 @@ const editTierMessages = async (
  * @param {Message} dm DM of the player that didn't decline
  * @returns
  */
-const editRejectedDM = async (interaction, otherPlayer, dm) => {
+const editRejectedDM = async (interaction, otherPlayer, dm, guild) => {
   const rejectedIsSearching = await lobbyAPI.isSearching(otherPlayer.discordId);
 
   let rejectedText = `Tu rival ha **rechazado** la partida.`;
@@ -63,7 +63,9 @@ const editRejectedDM = async (interaction, otherPlayer, dm) => {
     components: [],
   };
 
-  await discordMatchingUtils.editDirectMessage(interaction, dm, otherPlayer, newMessage);
+  if (dm.type === MESSAGE_TYPES.LOBBY_PLAYER_GUILD)
+    await discordMatchingUtils.deleteGuildConfirmationMessage(guild, dm);
+  else await discordMatchingUtils.editDirectMessage(interaction, dm, otherPlayer, newMessage);
 };
 
 const editDeclinerDM = async (interaction) => {
@@ -78,9 +80,20 @@ const editDeclinerDM = async (interaction) => {
 };
 
 const execute = async (interaction) => {
-  await interaction.deferUpdate();
+  const customId = interaction.customId.split("-");
+  const buttonPlayerId = customId.at(-1);
 
   const playerDiscordId = interaction.user.id;
+
+  if (buttonPlayerId != playerDiscordId) {
+    return await interaction.reply({
+      content: `¡Estos son los botones de otro jugador! ¡Cotilla!`,
+      ephemeral: true,
+    });
+  }
+
+  await interaction.deferUpdate();
+
   const {
     declinedPlayer,
     otherPlayers,
@@ -93,7 +106,11 @@ const execute = async (interaction) => {
   // Messages
   const tierMessages = messages.filter((message) => message.type === MESSAGE_TYPES.LOBBY_TIER);
 
-  const dms = messages.filter((message) => message.type === MESSAGE_TYPES.LOBBY_PLAYER);
+  const dms = messages.filter(
+    (message) =>
+      message.type === MESSAGE_TYPES.LOBBY_PLAYER ||
+      message.type === MESSAGE_TYPES.LOBBY_PLAYER_GUILD
+  );
 
   if (otherPlayers.length > 1) throw new TooManyPlayersError();
 
@@ -102,8 +119,10 @@ const execute = async (interaction) => {
 
   winston.info(`${interaction.user.username} ha rechazado el match.`);
 
-  await editDeclinerDM(interaction);
-  await editRejectedDM(interaction, otherPlayer, otherDm);
+  if (interaction.inGuild()) await interaction.deleteReply();
+  else await editDeclinerDM(interaction);
+
+  await editRejectedDM(interaction, otherPlayer, otherDm, guild);
   await editTierMessages(interaction, tierMessages, guild.id, declinedPlayer, otherPlayer);
 
   const isSearching = await lobbyAPI.isSearching(otherPlayer.discordId);

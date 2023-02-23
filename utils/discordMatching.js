@@ -1,4 +1,10 @@
-const { MessageActionRow, MessageButton, GuildMember, Guild } = require("discord.js");
+const {
+  MessageActionRow,
+  MessageButton,
+  GuildMember,
+  Guild,
+  DiscordAPIError,
+} = require("discord.js");
 
 const lobbyAPI = require("../api/lobby");
 const messageAPI = require("../api/message");
@@ -33,15 +39,43 @@ async function sendConfirmation(player, opponent, isRanked, guild) {
     messageText = `¡Match ranked encontrado! ${player}, te toca contra alguien de **${discordTier.name}**`;
   }
   const row = new MessageActionRow().addComponents(
-    new MessageButton().setCustomId("accept-confirmation").setLabel("Aceptar").setStyle("SUCCESS"),
-    new MessageButton().setCustomId("decline-confirmation").setLabel("Rechazar").setStyle("DANGER")
+    new MessageButton()
+      .setCustomId(`accept-confirmation-${player.id}`)
+      .setLabel("Aceptar")
+      .setStyle("SUCCESS"),
+    new MessageButton()
+      .setCustomId(`decline-confirmation-${player.id}`)
+      .setLabel("Rechazar")
+      .setStyle("DANGER")
   );
-  const directMessage = await player.send({
+
+  try {
+    const directMessage = await player.send({
+      content: messageText,
+      components: [row],
+    });
+
+    await messageAPI.saveConfirmationDM(player.id, directMessage.id, isRanked);
+  } catch (e) {
+    if (e instanceof DiscordAPIError)
+      await sendGuildConfirmation(player, messageText, guild, row, isRanked);
+    else throw e;
+  }
+}
+
+async function sendGuildConfirmation(player, messageText, guild, buttons, isRanked) {
+  const { confirmationChannelId, noDmRoleId } = await guildAPI.getGuild(guild.id);
+  const confirmationChannel = await guild.channels.fetch(confirmationChannelId);
+
+  const noDmRole = await guild.roles.fetch(noDmRoleId);
+  await player.roles.add(noDmRole);
+
+  const confirmationMessage = await confirmationChannel.send({
     content: messageText,
-    components: [row],
+    components: [buttons],
   });
 
-  await messageAPI.saveConfirmationDM(player.id, directMessage.id, isRanked);
+  await messageAPI.saveConfirmationGuild(player.id, confirmationMessage.id, isRanked);
 }
 
 /**
@@ -226,9 +260,37 @@ const editDirectMessage = async (interaction, message, player, newMessage) => {
   await discordMessage.edit(newMessage);
 };
 
+/**
+ * Edits the guild confirmation message (guild dm)
+ * @param {Interaction} interaction Discord Button interaction
+ * @param {Message} message Message to edit
+ * @param {Object} newMessage Content and components of the new message
+ */
+const editGuildConfirmationMessage = async (interaction, message, newMessage) => {
+  const guildInfo = await messageAPI.getGuildFromMessage(message.discordId);
+  const guild = await interaction.client.guilds.fetch(guildInfo.discordId);
+  const channel = await guild.channels.fetch(guildInfo.confirmationChannelId);
+  const discordMessage = await channel.messages.fetch(message.discordId);
+  await discordMessage.edit(newMessage);
+};
+
+/**
+ * Delete the guild confirmation message (guild dm)
+ * @param {Guild} guild DiscordJS Guild
+ * @param {Message} message Message to delete
+ */
+const deleteGuildConfirmationMessage = async (guild, message) => {
+  const guildInfo = await guildAPI.getGuild(guild.id);
+  const channel = await guild.channels.fetch(guildInfo.confirmationChannelId);
+  const discordMessage = await channel.messages.fetch(message.discordId);
+  await discordMessage.delete();
+};
+
 module.exports = {
   matched,
   notMatched,
   editMessages,
   editDirectMessage,
+  editGuildConfirmationMessage,
+  deleteGuildConfirmationMessage,
 };

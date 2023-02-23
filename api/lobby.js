@@ -58,6 +58,12 @@ const matchNotAccepted = async (playerDiscordId, isTimeout) => {
       // Remove all DMs from the DataBase
       await lp.removeMessages(client);
       const otherPlayer = await lp.getPlayer(client);
+
+      const guildMessageOtherPlayer = await lp.getMessage(MESSAGE_TYPES.LOBBY_PLAYER_GUILD, client);
+      if (guildMessageOtherPlayer) {
+        guildMessageOtherPlayer.remove(client);
+      }
+
       const otherOwnLobby = await otherPlayer.getOwnLobbyOrThrow(client);
 
       await otherOwnLobby.removeMessages(MESSAGE_TYPES.LOBBY_TIER, client);
@@ -75,16 +81,20 @@ const matchNotAccepted = async (playerDiscordId, isTimeout) => {
 
     if (isTimeout) {
       await declinedLobby.removeMessages(MESSAGE_TYPES.LOBBY_TIER, client);
+      let afkMessage = await declinerLp.getMessage(MESSAGE_TYPES.LOBBY_PLAYER, client);
+      if (afkMessage) {
+        await afkMessage.setLobby(declinedLobby.id, client);
+        await afkMessage.setType(MESSAGE_TYPES.LOBBY_PLAYER_AFK, client);
 
-      const afkMessage = await declinerLp.getMessage(client);
-      await afkMessage.setLobby(declinedLobby.id, client);
-      await afkMessage.setType(MESSAGE_TYPES.LOBBY_PLAYER_AFK, client);
-
-      const hasAnyTier = await declinedLobby.hasAnyTier(client);
-      if (hasAnyTier || declinedLobby.ranked) {
-        await declinedLobby.setStatus("AFK", client);
-        await declinedLobby.setLobbyPlayersStatus("AFK", client);
-      } else await declinedLobby.remove(client);
+        const hasAnyTier = await declinedLobby.hasAnyTier(client);
+        if (hasAnyTier || declinedLobby.ranked) {
+          await declinedLobby.setStatus("AFK", client);
+          await declinedLobby.setLobbyPlayersStatus("AFK", client);
+        } else await declinedLobby.remove(client);
+      } else {
+        await declinerLp.removeMessages(client);
+        await declinedLobby.remove(client);
+      }
     } else {
       await declinerLp.removeMessages(client);
       await declinedLobby.remove(client);
@@ -587,7 +597,11 @@ const setupArena = async (playerDiscordId, textChannelId, voiceChannelId) => {
 
     const messages = await lobby.getMessagesFromEveryone();
     return {
-      directMessages: messages.filter((message) => message.type == MESSAGE_TYPES.LOBBY_PLAYER),
+      directMessages: messages.filter(
+        (message) =>
+          message.type == MESSAGE_TYPES.LOBBY_PLAYER ||
+          message.type == MESSAGE_TYPES.LOBBY_PLAYER_GUILD
+      ),
       tierMessages: messages.filter((message) => message.type == MESSAGE_TYPES.LOBBY_TIER),
     };
   } catch (e) {
@@ -617,6 +631,14 @@ const searchAgainAfkLobby = async (playerDiscordId) => {
   const guild = await lobby.getGuild();
 
   if (rivalPlayer) players.push(rivalPlayer);
+
+  // Remove afk messages (from the person that clicked the button)
+  const afkMessages = await lobby.getMessagesFromEveryone(MESSAGE_TYPES.LOBBY_PLAYER_AFK);
+  for (let afkMessage of afkMessages) {
+    const author = await afkMessage.getPlayer();
+    afkMessage.authorId = author.discordId;
+    afkMessage.remove();
+  }
 
   return {
     matched: rivalPlayer != null,
@@ -739,6 +761,18 @@ const isInCurrentLobby = async (playerDiscordId, textChannelId) => {
 };
 
 /**
+ * Checks if the player is in any lobby (as SEARCHING, PLAYING, WAITING, CONFIRMATION...)
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} textChannelId DiscordId of the textChannel
+ * @returns True if the textChannel is assigned to this lobby, else false.
+ */
+const isInAnyLobby = async (playerDiscordId) => {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+
+  return await player.hasLobbyPlayer();
+};
+
+/**
  * Delete lobbies of a type. If an ID is provided, delete only that player's lobby
  *
  * If the lobby has an unfinished gameset, cancel it.
@@ -797,4 +831,5 @@ module.exports = {
   isInCurrentLobby,
   removeAfkLobby,
   deleteLobbies,
+  isInAnyLobby,
 };

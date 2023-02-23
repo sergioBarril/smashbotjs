@@ -143,9 +143,15 @@ class Lobby {
       r.promotion AND
       EXISTS (
         SELECT 1 FROM (
-          SELECT * FROM gameset
-          WHERE gameset.ranked
-          ORDER BY gameset.created_at DESC
+          SELECT gset.id as id, gset.winner_id FROM gameset gset
+          INNER JOIN game gm
+            ON gm.gameset_id = gset.id
+          INNER JOIN game_player gplayer
+            ON gplayer.game_id = gm.id
+          WHERE gset.ranked
+          AND gplayer.player_id = p.id
+          GROUP BY gset.id, gset.winner_id
+          ORDER BY gset.created_at DESC
           LIMIT r.promotion_wins + r.promotion_losses
         ) gs
         INNER JOIN game g
@@ -154,8 +160,7 @@ class Lobby {
           ON g.id = gp1.game_id
         INNER JOIN game_player gp2
           ON g.id = gp2.game_id
-        WHERE gs.ranked
-        AND gp1.player_id = p.id
+        WHERE gp1.player_id = p.id
         AND gp2.player_id = $3
         AND gs.winner_id = p.id
       )
@@ -165,9 +170,15 @@ class Lobby {
       weightCondition = `AND t.weight = $4 - 1 AND NOT r.promotion`;
       promoBeatCondition = `AND NOT EXISTS (
         SELECT 1 FROM (
-          SELECT * FROM gameset
-          WHERE gameset.ranked
-          ORDER BY gameset.created_at DESC
+          SELECT gset.id as id, gset.winner_id as winner_id FROM gameset gset
+          INNER JOIN game gm
+            ON gm.gameset_id = gset.id
+          INNER JOIN game_player gplayer
+            ON gplayer.game_id = gm.id
+          WHERE gset.ranked
+          AND gplayer.player_id = $3
+          GROUP BY gset.id, gset.winner_id
+          ORDER BY gset.created_at DESC
           LIMIT ${promotionWins + promotionLosses}
         ) gs 
         INNER JOIN game g
@@ -176,8 +187,7 @@ class Lobby {
           ON g.id = gp1.game_id
         INNER JOIN game_player gp2
           ON g.id = gp2.game_id
-        WHERE gs.ranked
-        AND gp1.player_id = $3
+        WHERE gp1.player_id = $3
         AND gp2.player_id = p.id
         AND gs.winner_id = $3
       )`;

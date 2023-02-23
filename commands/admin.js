@@ -9,6 +9,7 @@ const { add } = require("./admin/tiers/add");
 const { matchmaking } = require("./admin/tiers/matchmaking");
 const { update } = require("./admin/leaderboard/update");
 const { message } = require("./admin/welcome/message");
+const { message: nodmMessage } = require("./admin/no-dm/message");
 const { setTier } = require("./admin/rating/setTier");
 const { setScore } = require("./admin/rating/setScore");
 const { addScore } = require("./admin/rating/addScore");
@@ -214,6 +215,16 @@ const data = new SlashCommandBuilder()
               .setRequired(false)
           )
       )
+  )
+  .addSubcommandGroup((noDmGroup) =>
+    noDmGroup
+      .setName("no-dm")
+      .setDescription("Comandos de admin relacionados con la gente sin DM abiertos")
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("message")
+          .setDescription("Obtén el mensaje del canal de desasignarse el rol")
+      )
   );
 
 module.exports = {
@@ -256,6 +267,10 @@ module.exports = {
       else if (interaction.options.getSubcommand() === "score") await setScore(interaction);
       else if (interaction.options.getSubcommand() === "addscore") await addScore(interaction);
       else if (interaction.options.getSubcommand() === "promotion") await setPromotion(interaction);
+    }
+
+    if (interaction.options.getSubcommandGroup() === "no-dm") {
+      if (interaction.options.getSubcommand() === "message") await nodmMessage(interaction);
     }
 
     if (interaction.options.getSubcommandGroup() === "bug") {

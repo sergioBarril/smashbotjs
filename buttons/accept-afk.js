@@ -24,10 +24,13 @@ module.exports = {
     } else {
       winston.info(`${player.username} ha dejado de estar AFK y se ha puesto a buscar`);
       await discordMatchingUtils.notMatched(player.id, guild, null, searchedRanked, false);
-      await interaction.editReply({
-        content: `De acuerdo **${interaction.user.username}**, estás buscando partida de nuevo.`,
-        components: [],
-      });
+
+      if (interaction.inGuild()) await interaction.deleteReply();
+      else
+        await interaction.editReply({
+          content: `De acuerdo **${interaction.user.username}**, estás buscando partida de nuevo.`,
+          components: [],
+        });
     }
   },
 };

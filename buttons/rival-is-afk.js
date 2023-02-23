@@ -1,4 +1,4 @@
-const { MessageActionRow, MessageButton } = require("discord.js");
+const { MessageActionRow, MessageButton, Guild } = require("discord.js");
 const winston = require("winston");
 
 const lobbyAPI = require("../api/lobby");
@@ -63,10 +63,12 @@ const editAcceptedDM = async (interaction, acceptedPlayerDiscordId) => {
     acceptedText = `Como tu rival no respondía, te he vuelto a poner a buscar partida.`;
   else acceptedText = `Parece que tu rival no estaba... ¡Otra vez será! No estás buscando partida.`;
 
-  await interaction.editReply({
-    content: acceptedText,
-    components: [],
-  });
+  if (interaction.inGuild()) await interaction.deleteReply();
+  else
+    await interaction.editReply({
+      content: acceptedText,
+      components: [],
+    });
 };
 
 /**
@@ -74,8 +76,9 @@ const editAcceptedDM = async (interaction, acceptedPlayerDiscordId) => {
  * @param {Interaction} interaction DiscordJS interaction
  * @param {Player} afkPlayer Player that was afk
  * @param {Message} afkDM DM of the player that is afk
+ * @param {Guild} guild DiscordJS Guild object
  */
-const editAfkDM = async (interaction, afkPlayer, afkDM) => {
+const editAfkDM = async (interaction, afkPlayer, afkDM, guild) => {
   const afkIsSearching = await lobbyAPI.isSearching(afkPlayer.discordId);
   const component = [];
 
@@ -93,13 +96,28 @@ const editAfkDM = async (interaction, afkPlayer, afkDM) => {
     components: component,
   };
 
-  await discordMatchingUtils.editDirectMessage(interaction, afkDM, afkPlayer, newMessage);
+  if (afkDM.type === MESSAGE_TYPES.LOBBY_PLAYER)
+    await discordMatchingUtils.editDirectMessage(interaction, afkDM, afkPlayer, newMessage);
+  else {
+    await discordMatchingUtils.deleteGuildConfirmationMessage(guild, afkDM);
+  }
 };
 
 module.exports = {
   data: { name: "rival-is-afk" },
   async execute(interaction) {
+    const customId = interaction.customId.split("-");
+    const playerId = customId.at(-1);
+
     const acceptedPlayer = interaction.user;
+
+    if (playerId != acceptedPlayer.id) {
+      return await interaction.reply({
+        content: `¡Estos son los botones de otro jugador! ¡Cotilla!`,
+        ephemeral: true,
+      });
+    }
+
     await interaction.deferUpdate();
 
     const {
@@ -114,15 +132,20 @@ module.exports = {
     // Messages
     const tierMessages = messages.filter((message) => message.type === MESSAGE_TYPES.LOBBY_TIER);
 
-    const dms = messages.filter((message) => message.type === MESSAGE_TYPES.LOBBY_PLAYER);
+    const dms = messages.filter(
+      (message) =>
+        message.type === MESSAGE_TYPES.LOBBY_PLAYER ||
+        message.type === MESSAGE_TYPES.LOBBY_PLAYER_GUILD
+    );
 
     if (otherPlayers.length > 1) throw new TooManyPlayersError();
 
     const otherPlayer = otherPlayers[0];
-    const acceptedDm = dms.find((dm) => dm.playerId == declinedPlayer.id);
+    let acceptedDm = dms.find((dm) => dm.playerId == declinedPlayer.id);
 
     await editAcceptedDM(interaction, acceptedPlayer.id);
-    await editAfkDM(interaction, declinedPlayer, acceptedDm);
+    await editAfkDM(interaction, declinedPlayer, acceptedDm, guild);
+
     await editTierMessages(interaction, tierMessages, guild.id, declinedPlayer, otherPlayer);
 
     winston.info(`${acceptedPlayer.username} dice que su rival está AFK. Match cancelado.`);

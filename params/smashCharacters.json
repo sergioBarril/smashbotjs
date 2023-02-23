@@ -84,5 +84,6 @@
   "Sephiroth": { "emoji": "<:sephiroth:821160190132224010>", "color": "0xB6BBC7" },
   "Pyra/Mythra": { "emoji": "<:pyra:821160189813850212>", "color": "0x2AF8D3" },
   "Kazuya": { "emoji": "<:kazuya:865023090458886164>", "color": "0x1A1717" },
-  "Sora": { "emoji": "<:sora:900134746716262410>", "color": "0xF5EB2D" }
+  "Sora": { "emoji": "<:sora:900134746716262410>", "color": "0xF5EB2D" },
+  "Random": { "emoji": "<:random:1078112810724229140>", "color": "0xDEDCD7" }
 }

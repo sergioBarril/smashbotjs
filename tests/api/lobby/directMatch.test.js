@@ -157,7 +157,7 @@ describe("test lobbyAPI.directMatch() method", () => {
 
   test("throws TooNoobError if player doesn't have a high enough tier", async () => {
     await expect(directMatch(player.discordId, messageLt2.discordId)).rejects.toThrow(
-      new TooNoobError(tier3.id, tier2.id)
+      new TooNoobError(tier3.roleId, tier2.roleId)
     );
   });
 

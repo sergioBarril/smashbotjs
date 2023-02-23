@@ -45,10 +45,10 @@ class LobbyPlayer {
     return lobby;
   };
 
-  getMessage = async (client = null) => {
+  getMessage = async (type = MESSAGE_TYPES.LOBBY_PLAYER, client = null) => {
     const message = await db.getBy(
       "message",
-      { lobby_id: this.lobbyId, player_id: this.playerId, type: MESSAGE_TYPES.LOBBY_PLAYER },
+      { lobby_id: this.lobbyId, player_id: this.playerId, type },
       client
     );
     if (message == null) return null;
@@ -95,6 +95,30 @@ class LobbyPlayer {
       MESSAGE_TYPES.LOBBY_PLAYER,
       null,
       null,
+      this.playerId,
+      lobby.guildId,
+      lobby.id,
+      ranked,
+      client
+    );
+  };
+
+  /**
+   * Insert a Confirmation in Guild to the database
+   * @param {string} messageId DiscordID of the message being added
+   * @param {boolean} ranked True if this is a DM about a ranked match
+   * @param {Client} client Optional PG client
+   * @returns
+   */
+  insertConfirmationGuildMessage = async (messageId, channelId, ranked = false, client = null) => {
+    const lobby = await this.getLobby();
+    if (!lobby) throw new NotFoundError("Lobby");
+
+    return insertMessage(
+      messageId,
+      MESSAGE_TYPES.LOBBY_PLAYER_GUILD,
+      null,
+      channelId,
       this.playerId,
       lobby.guildId,
       lobby.id,
