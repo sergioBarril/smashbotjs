@@ -131,6 +131,9 @@ const updateScore = async (
   const nextTier = await tier.getNextTier();
   const previousTier = await tier.getPreviousTier();
 
+  const opponentTier = await getTier(opponentRating.tierId);
+  const upset = opponentTier.weight < tier.weight;
+
   oldRating.tier = tier;
   rating.tier = tier;
 
@@ -143,6 +146,7 @@ const updateScore = async (
     if (!rating.promotion && nextTier) {
       let scoreToAdd = 20 + 5 * streak;
       if (!isSameTier) scoreToAdd = 15;
+      if (!isSameTier && upset) scoreToAdd = 25;
       if (rankedCountToday == 3) scoreToAdd = 10;
       if (rankedCountToday > 3) scoreToAdd = 5;
 
@@ -162,6 +166,10 @@ const updateScore = async (
       const probability = getProbability(rating.score, opponentOldScore || opponentRating.score);
       let scoreToAdd = 42 * (1 - probability);
       scoreToAdd = scoreToAdd * (1 + 0.05 * streak);
+
+      if (scoreToAdd < 5) {
+        scoreToAdd = 5;
+      }
 
       if (rankedCountToday == 3 && scoreToAdd > 10) scoreToAdd = 10;
       if (rankedCountToday > 3 && scoreToAdd > 5) scoreToAdd = 5;
