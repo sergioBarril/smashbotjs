@@ -462,6 +462,12 @@ const normalizeCharacter = (characterName) => {
     case "mickey":
       return "Sora";
 
+    // Random
+    case "aleatorio":
+    case "azar":
+    case "rendom":
+      return "random";
+
     default:
       return null;
   }
