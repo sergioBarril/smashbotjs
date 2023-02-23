@@ -39,8 +39,14 @@ async function sendConfirmation(player, opponent, isRanked, guild) {
     messageText = `¡Match ranked encontrado! ${player}, te toca contra alguien de **${discordTier.name}**`;
   }
   const row = new MessageActionRow().addComponents(
-    new MessageButton().setCustomId("accept-confirmation").setLabel("Aceptar").setStyle("SUCCESS"),
-    new MessageButton().setCustomId("decline-confirmation").setLabel("Rechazar").setStyle("DANGER")
+    new MessageButton()
+      .setCustomId(`accept-confirmation-${player.id}`)
+      .setLabel("Aceptar")
+      .setStyle("SUCCESS"),
+    new MessageButton()
+      .setCustomId(`decline-confirmation-${player.id}`)
+      .setLabel("Rechazar")
+      .setStyle("DANGER")
   );
 
   try {

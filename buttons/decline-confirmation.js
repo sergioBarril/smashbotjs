@@ -80,9 +80,20 @@ const editDeclinerDM = async (interaction) => {
 };
 
 const execute = async (interaction) => {
-  await interaction.deferUpdate();
+  const customId = interaction.customId.split("-");
+  const buttonPlayerId = customId.at(-1);
 
   const playerDiscordId = interaction.user.id;
+
+  if (buttonPlayerId != playerDiscordId) {
+    return await interaction.reply({
+      content: `¡Estos son los botones de otro jugador! ¡Cotilla!`,
+      ephemeral: true,
+    });
+  }
+
+  await interaction.deferUpdate();
+
   const {
     declinedPlayer,
     otherPlayers,

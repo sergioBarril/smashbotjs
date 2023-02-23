@@ -106,7 +106,18 @@ const editAfkDM = async (interaction, afkPlayer, afkDM, guild) => {
 module.exports = {
   data: { name: "rival-is-afk" },
   async execute(interaction) {
+    const customId = interaction.customId.split("-");
+    const playerId = customId.at(-1);
+
     const acceptedPlayer = interaction.user;
+
+    if (playerId != acceptedPlayer.id) {
+      return await interaction.reply({
+        content: `¡Estos son los botones de otro jugador! ¡Cotilla!`,
+        ephemeral: true,
+      });
+    }
+
     await interaction.deferUpdate();
 
     const {
