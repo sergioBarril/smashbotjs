@@ -761,6 +761,18 @@ const isInCurrentLobby = async (playerDiscordId, textChannelId) => {
 };
 
 /**
+ * Checks if the player is in any lobby (as SEARCHING, PLAYING, WAITING, CONFIRMATION...)
+ * @param {string} playerDiscordId DiscordID of the player
+ * @param {string} textChannelId DiscordId of the textChannel
+ * @returns True if the textChannel is assigned to this lobby, else false.
+ */
+const isInAnyLobby = async (playerDiscordId) => {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+
+  return await player.hasLobbyPlayer();
+};
+
+/**
  * Delete lobbies of a type. If an ID is provided, delete only that player's lobby
  *
  * If the lobby has an unfinished gameset, cancel it.
@@ -819,4 +831,5 @@ module.exports = {
   isInCurrentLobby,
   removeAfkLobby,
   deleteLobbies,
+  isInAnyLobby,
 };
