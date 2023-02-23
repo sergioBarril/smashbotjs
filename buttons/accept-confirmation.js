@@ -10,25 +10,30 @@ const { setupNextGame, setupCharacter } = require("../utils/discordGameset");
 const winston = require("winston");
 
 // Disabled buttons
-const row = new MessageActionRow().addComponents(
-  new MessageButton()
-    .setCustomId("accept-confirmation")
-    .setLabel("Aceptar")
-    .setStyle("SUCCESS")
-    .setDisabled(),
-  new MessageButton()
-    .setCustomId("decline-confirmation")
-    .setLabel("Rechazar")
-    .setStyle("DANGER")
-    .setDisabled()
-);
 
-const timeoutButtons = new MessageActionRow().addComponents(
-  new MessageButton()
-    .setCustomId("rival-is-afk")
-    .setLabel("Buscar nuevo oponente")
-    .setStyle("DANGER")
-);
+const disabledConfirmationButtonBuilder = (playerDiscordId) => {
+  return new MessageActionRow().addComponents(
+    new MessageButton()
+      .setCustomId(`accept-confirmation-${playerDiscordId}`)
+      .setLabel("Aceptar")
+      .setStyle("SUCCESS")
+      .setDisabled(),
+    new MessageButton()
+      .setCustomId(`decline-confirmation-${playerDiscordId}`)
+      .setLabel("Rechazar")
+      .setStyle("DANGER")
+      .setDisabled()
+  );
+};
+
+const timeoutButtonBuilder = (playerDiscordId) => {
+  return new MessageActionRow().addComponents(
+    new MessageButton()
+      .setCustomId(`rival-is-afk-${playerDiscordId}`)
+      .setLabel("Buscar nuevo oponente")
+      .setStyle("DANGER")
+  );
+};
 
 const cancelSetButtons = () => {
   return [
@@ -181,14 +186,14 @@ const editTierMessages = async (interaction, guildDiscordId, tierMessages, playe
  * @param {Date} acceptedAt Timestamp when accepted
  */
 const timeOutMessage = async (message, acceptedPlayerId, acceptedAt) => {
-  await new Promise((r) => setTimeout(r, 90000));
+  await new Promise((r) => setTimeout(r, 2000));
 
   const isAfk = await lobbyAPI.timeOutCheck(acceptedPlayerId, acceptedAt);
 
   if (isAfk)
     await message.edit({
       content: `Parece que tu rival no contesta... Cuando te canses de esperar, pulsa el botón para buscar un nuevo oponente.`,
-      components: [timeoutButtons],
+      components: [timeoutButtonBuilder(acceptedPlayerId)],
     });
 };
 
@@ -275,14 +280,25 @@ const notAllAccepted = async (interaction, notAcceptedPlayers, acceptedAt, isRan
 
   await interaction.editReply({
     content: `Has aceptado, pero todavía falta que acepte ${missingNames}.`,
-    components: [row],
+    components: [disabledConfirmationButtonBuilder(interaction.user.id)],
   });
 
   timeOutMessage(interaction.message, interaction.user.id, acceptedAt);
 };
 
 const execute = async (interaction) => {
+  const customId = interaction.customId.split("-");
+  const buttonPlayerId = customId.at(-1);
+
   const playerDiscordId = interaction.user.id;
+
+  if (buttonPlayerId != playerDiscordId) {
+    return await interaction.reply({
+      content: `¡Estos son los botones de otro jugador! ¡Cotilla!`,
+      ephemeral: true,
+    });
+  }
+
   await interaction.deferUpdate();
   const { hasEveryoneAccepted, players, acceptedAt, guild, ranked } = await lobbyAPI.acceptMatch(
     playerDiscordId
