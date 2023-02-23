@@ -75,19 +75,24 @@ class Rating {
     const getQuery = {
       text: `
         SELECT 1 FROM (
-          SELECT * FROM gameset
-          WHERE gameset.ranked
-          ORDER BY created_at DESC
+          SELECT gset.id as id, gset.winner_id as winner_id FROM gameset gset
+          INNER JOIN game gm
+            ON gm.gameset_id = gset.id
+          INNER JOIN game_player gplayer
+            ON gplayer.game_id = gm.id
+          WHERE gset.ranked
+          AND gplayer.player_id = $2
+          GROUP BY gset.id, gset.winner_id
+          ORDER BY gset.created_at DESC
           LIMIT $1
-        ) gs
+        ) gs 
         INNER JOIN game g
           ON g.gameset_id = gs.id
         INNER JOIN game_player gp1
-          ON gp1.game_id = g.id
+          ON g.id = gp1.game_id
         INNER JOIN game_player gp2
-          ON gp2.game_id = g.id
-        WHERE gs.ranked
-        AND gp1.player_id = $2
+          ON g.id = gp2.game_id
+        WHERE gp1.player_id = $2
         AND gp2.player_id = $3
         AND gs.winner_id = $2
       `,
