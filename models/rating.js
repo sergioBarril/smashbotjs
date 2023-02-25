@@ -43,7 +43,7 @@ class Rating {
       )
       AND guild_id = $2
       ORDER BY finished_at DESC
-      LIMIT 3
+      LIMIT 5
       `,
       values: [this.playerId, this.guildId],
     };
