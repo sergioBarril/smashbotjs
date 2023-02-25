@@ -109,7 +109,8 @@ const updateScore = async (
   playerDiscordId,
   guildDiscordId,
   opponentDiscordId,
-  opponentOldScore = null
+  opponentOldScore = null,
+  playerRoles = []
 ) => {
   const player = await getPlayer(playerDiscordId, true);
   if (!player) throw new NotFoundError("Player");
@@ -138,7 +139,14 @@ const updateScore = async (
   rating.tier = tier;
 
   // Win/Lose streak. Positive if win, negative if lose
-  const streak = await rating.getStreak();
+  let streak = await rating.getStreak();
+
+  const hasStreakBoost = playerRoles.hasAny(guild.tryhardSupporterRoleId, guild.proSupporterRoleId);
+  const demotionProtection = playerRoles.has(guild.proSupporterRoleId) ? 100 : 0;
+
+  if (hasStreakBoost && streak < 0) streak = -1;
+  if (!hasStreakBoost && streak < -3) streak = -3;
+  if (!hasStreakBoost && streak > 3) streak = 3;
 
   const rankedCountToday = await player.getRankedCountToday(opponent.id);
 
@@ -193,7 +201,7 @@ const updateScore = async (
       if (rankedCountToday > 3 && scoreToSubstract > 5) scoreToSubstract = 5;
 
       let newScore = Number.parseInt(rating.score - scoreToSubstract);
-      if (newScore < tier.threshold - 200 && previousTier) {
+      if (newScore < tier.threshold - (200 + demotionProtection) && previousTier) {
         await rating.setScore(newScore);
         await rankDown(rating, previousTier);
         rating.tier = previousTier;
