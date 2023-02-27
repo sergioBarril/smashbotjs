@@ -26,6 +26,11 @@ class Guild {
     no_cable_role_id,
     confirmation_channel_id,
     no_dm_role_id,
+    supporter_role_id,
+    casual_supporter_role_id,
+    grind_supporter_role_id,
+    tryhard_supporter_role_id,
+    pro_supporter_role_id,
   }) {
     this.id = id;
     this.discordId = discord_id;
@@ -47,6 +52,12 @@ class Guild {
 
     this.confirmationChannelId = confirmation_channel_id;
     this.noDmRoleId = no_dm_role_id;
+
+    this.supporterRoleId = supporter_role_id;
+    this.casualSupporterRoleId = casual_supporter_role_id;
+    this.grindSupporterRoleId = grind_supporter_role_id;
+    this.tryhardSupporterRoleId = tryhard_supporter_role_id;
+    this.proSupporterRoleId = pro_supporter_role_id;
   }
 
   // **********

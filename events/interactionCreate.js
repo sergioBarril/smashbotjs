@@ -25,6 +25,8 @@ module.exports = {
           command = interaction.client.buttons.get("rival-is-afk");
         else if (interaction.customId.startsWith("decline-confirmation"))
           command = interaction.client.buttons.get("decline-confirmation");
+        else if (interaction.customId.startsWith("historial"))
+          command = interaction.client.buttons.get("historial");
       }
     }
 

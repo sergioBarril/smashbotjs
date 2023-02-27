@@ -357,18 +357,23 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
   let rematchAvailable = true;
 
   if (isRanked) {
+    const winnerRoles = winner.roles.cache;
+    const loserRoles = loser.roles.cache;
+
     const { oldRating: winnerOldRating, rating: winnerRating } = await ratingAPI.updateScore(
       winnerDiscordId,
       interaction.guild.id,
       loserDiscordId,
-      null
+      null,
+      winnerRoles
     );
 
     const { oldRating: loserOldRating, rating: loserRating } = await ratingAPI.updateScore(
       loserDiscordId,
       interaction.guild.id,
       winnerDiscordId,
-      winnerOldRating.score
+      winnerOldRating.score,
+      loserRoles
     );
 
     rankedText = await allRankedScoreText(
