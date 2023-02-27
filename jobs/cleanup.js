@@ -7,6 +7,7 @@ const { getMessagesFromLobby } = require("../api/message");
 const { CustomError } = require("../errors/customError");
 const { MESSAGE_TYPES } = require("../models/message");
 const { AlreadyFinishedError } = require("../errors/alreadyFinished");
+const { NotFoundError } = require("../errors/notFound");
 
 async function deleteMessage(guild, message) {
   let channel;
@@ -47,7 +48,7 @@ async function cancelGameset(textChannelId) {
     await cancelSet(textChannelId);
     winston.info(`[Cleanup job] El set en curso ha sido cancelado.`);
   } catch (e) {
-    if (e instanceof AlreadyFinishedError) {
+    if (e instanceof AlreadyFinishedError || e instanceof NotFoundError) {
       winston.info(`[Cleanup job] No había ningún set en curso.`);
     } else throw e;
   }
@@ -66,6 +67,7 @@ function dailyCleanup(client) {
         const lobbies = await guildModel.getLobbies();
         for (let lobby of lobbies) {
           try {
+            winston.info(`[Cleanup job] Lobby cleanup start`);
             const messages = await getMessagesFromLobby(lobby.id);
             for (let message of messages) {
               await deleteMessage(guild, message);
