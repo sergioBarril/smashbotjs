@@ -30,6 +30,40 @@ class Gameset {
     else return new Game(game);
   };
 
+  getAllGames = async (client = null) => {
+    const getQuery = {
+      text: `SELECT * FROM game
+      WHERE gameset_id = $1
+      ORDER BY num DESC`,
+      values: [this.id],
+    };
+
+    const games = await db.getQuery(getQuery, client, true);
+    return games.map((g) => new Game(g));
+  };
+
+  getCharacters = async (client = null) => {
+    const getString = {
+      text: `SELECT DISTINCT p.discord_id AS player_discord_id, c.name AS character_name
+      FROM game_player gp
+      INNER JOIN character c
+        ON c.id = gp.character_id
+      INNER JOIN player p
+        ON p.id = gp.player_id
+      INNER JOIN game g
+        ON g.id = gp.game_id
+      WHERE g.gameset_id = $1
+      `,
+      values: [this.id],
+    };
+
+    const result = await db.getQuery(getString, client, true);
+    return result.map((res) => ({
+      playerDiscordId: res.player_discord_id,
+      characterName: res.character_name,
+    }));
+  };
+
   getLobby = async (client = null) => {
     const { Lobby } = require("./lobby");
     if (this.lobbyId == null) return null;

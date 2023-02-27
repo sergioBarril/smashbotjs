@@ -25,6 +25,77 @@ class Rating {
   }
 
   /**
+   * Return last gamesets
+   * @param {int} limit Number of sets to return
+   * @param {int} offset Ignore the last X gamesets
+   * @param {Boolean} isRanked Only consider ranked sets
+   * @param {Client} client Optional pg Client
+   * @returns
+   */
+  getLastSets = async (limit = "ALL", offset = 0, isRanked = true, client = null) => {
+    const rankedCondition = isRanked ? " AND ranked " : "";
+
+    const getQuery = {
+      text: `
+        SELECT DISTINCT gs.* FROM gameset gs
+        INNER JOIN game g
+          ON g.gameset_id = gs.id
+        INNER JOIN game_player gp
+          ON gp.game_id = g.id
+        WHERE gp.player_id = $1
+        AND guild_id = $2
+        AND gs.winner_id IS NOT NULL
+        ${rankedCondition}
+        ORDER BY finished_at DESC
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `,
+      values: [this.playerId, this.guildId],
+    };
+
+    const result = await db.getQuery(getQuery, client, true);
+    const gamesets = result.map((row) => new Gameset(row));
+
+    return gamesets;
+  };
+
+  getSetCount = async (isRanked = true, client = null) => {
+    const rankedCondition = isRanked ? " AND ranked " : "";
+    const getQuery = {
+      text: `
+        SELECT COUNT(1) as sets, COUNT(vic.id) as wins FROM (
+          SELECT DISTINCT gs.id AS id FROM gameset gs
+        INNER JOIN game g
+          ON g.gameset_id = gs.id
+        INNER JOIN game_player gp
+          ON gp.game_id = g.id
+        WHERE gp.player_id = $1
+        AND guild_id = $2
+        AND gs.winner_id IS NOT NULL
+        ${rankedCondition}
+        ) gsets
+        LEFT JOIN
+        (
+          SELECT DISTINCT gs.id AS id FROM gameset gs
+        INNER JOIN game g
+          ON g.gameset_id = gs.id
+        INNER JOIN game_player gp
+          ON gp.game_id = g.id
+        WHERE gp.player_id = $1
+        AND gs.winner_id = $1
+        AND guild_id = $2
+        AND gs.winner_id IS NOT NULL
+        ${rankedCondition}
+        ) vic
+        ON gsets.id = vic.id`,
+      values: [this.playerId, this.guildId],
+    };
+
+    const result = await db.getQuery(getQuery, client);
+    return { sets: Number(result.sets), wins: Number(result.wins) };
+  };
+
+  /**
    *
    * @param {Client} client Optional pg client
    */
