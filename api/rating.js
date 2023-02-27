@@ -141,8 +141,8 @@ const updateScore = async (
   // Win/Lose streak. Positive if win, negative if lose
   let streak = await rating.getStreak();
 
-  const hasStreakBoost = playerRoles.hasAny(guild.tryhardSupporterRoleId, guild.proSupporterRoleId);
-  const demotionProtection = playerRoles.has(guild.proSupporterRoleId) ? 100 : 0;
+  const hasStreakBoost = false; //playerRoles.hasAny(guild.tryhardSupporterRoleId, guild.proSupporterRoleId);
+  const demotionProtection = 0; //playerRoles.has(guild.proSupporterRoleId) ? 100 : 0;
 
   if (hasStreakBoost && streak < 0) streak = -1;
   if (!hasStreakBoost && streak < -3) streak = -3;
