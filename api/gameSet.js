@@ -7,6 +7,7 @@ const { getStarters, getAllStages, getStageByName, getStage } = require("../mode
 const { getLobbyByTextChannel, getLobbyByTextChannelOrThrow } = require("../models/lobby");
 const { CustomError } = require("../errors/customError");
 const { AlreadyFinishedError } = require("../errors/alreadyFinished");
+const { getGuildOrThrow } = require("../models/guild");
 
 /**
  * -------------
@@ -520,6 +521,57 @@ const voteNewSet = async (playerDiscordId) => {
   return { decided, status: newStatus, opponent };
 };
 
+const getHistory = async (playerDiscordId, guildDiscordId, page, isRanked) => {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const guild = await getGuildOrThrow(guildDiscordId, true);
+
+  const rating = await player.getRating(guild.id);
+  if (!rating) throw new NotFoundError("Rating");
+
+  const setCount = await rating.getSetCount(isRanked);
+  if (setCount.sets == 0) {
+    return { page: 0, setCount, sets: [] };
+  }
+
+  if (page < 1) {
+    page = 1;
+  }
+
+  let offset = 10 * (page - 1);
+  if (offset >= setCount.sets) {
+    page = Math.ceil(setCount.sets / 10);
+    offset = 10 * (page - 1);
+  }
+
+  const lastSets = await rating.getLastSets(10, offset, isRanked);
+
+  const sets = await Promise.all(
+    lastSets.map(async (gs) => {
+      const characters = await gs.getCharacters();
+      const score = await gs.getScore();
+
+      return {
+        win: gs.winnerId == player.id,
+        scores: score.map((sc) => {
+          return {
+            playerDiscordId: sc.player.discordId,
+            wins: sc.wins,
+            characters: characters
+              .filter((c) => c.playerDiscordId === sc.player.discordId)
+              .map((c) => c.characterName),
+          };
+        }),
+      };
+    })
+  );
+
+  return {
+    page,
+    setCount,
+    sets,
+  };
+};
+
 module.exports = {
   newSet,
   newGame,
@@ -531,6 +583,7 @@ module.exports = {
   setCharacterSelectMessage,
   popCharacterMessages,
   getStages,
+  getHistory,
   getStriker,
   pickStage,
   pickWinner,
