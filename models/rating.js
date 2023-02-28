@@ -99,22 +99,20 @@ class Rating {
    *
    * @param {Client} client Optional pg client
    */
-  getStreak = async (client = null) => {
+  getStreak = async (isRanked = true, client = null) => {
+    const rankedCondition = isRanked ? " AND ranked " : "";
     const getQuery = {
-      text: `
-      SELECT *
-      FROM gameset 
-      WHERE id IN (
-        SELECT DISTINCT gs.id FROM gameset gs
+      text: `      
+        SELECT DISTINCT gs.* FROM gameset gs
         INNER JOIN game g
           ON g.gameset_id = gs.id
         INNER JOIN game_player gp
           ON gp.game_id = g.id
         WHERE gp.player_id = $1
-      )
-      AND guild_id = $2
-      ORDER BY finished_at DESC
-      LIMIT 5
+        AND guild_id = $2
+        ${rankedCondition}        
+        ORDER BY finished_at DESC
+        LIMIT 5
       `,
       values: [this.playerId, this.guildId],
     };
