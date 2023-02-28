@@ -8,6 +8,7 @@ const { getLobbyByTextChannel, getLobbyByTextChannelOrThrow } = require("../mode
 const { CustomError } = require("../errors/customError");
 const { AlreadyFinishedError } = require("../errors/alreadyFinished");
 const { getGuildOrThrow } = require("../models/guild");
+const { AlreadyWinnerError } = require("../errors/alreadyWinner");
 
 /**
  * -------------
@@ -303,11 +304,15 @@ const pickWinner = async (playerDiscordId, isWinner, gameNum) => {
   const { player, gameset } = await getObjects(playerDiscordId);
 
   const game = await gameset.getGameByNum(gameNum);
+  let winnerGp = await game.calculateWinner();
+
+  if (winnerGp) throw new AlreadyWinnerError();
 
   const gp = await game.getGamePlayer(player.id);
   await gp.setWinner(isWinner);
 
-  const winnerGp = await game.calculateWinner();
+  winnerGp = await game.calculateWinner();
+
   let winnerCharacter = null;
   const opponent = await gp.getOpponent();
 
