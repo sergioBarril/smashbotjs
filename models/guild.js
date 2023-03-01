@@ -84,14 +84,17 @@ class Guild {
     return getResult.map((row) => new Tier(row));
   };
 
-  getLeaderboardInfo = async (client = null) => {
+  getLeaderboardInfo = async (tierId = null, client = null) => {
+    let tierCondition = ` AND r.tier_id IS NOT NULL `;
+    if (tierId) tierCondition = ` AND r.tier_id = ${tierId} `;
+
     const getQuery = {
       text: `SELECT p.discord_id AS player_discord_id, r.*
       FROM rating r
       INNER JOIN player p
         ON p.id = r.player_id
       WHERE r.guild_id = $1
-      AND r.tier_id IS NOT NULL
+      ${tierCondition}
       `,
       values: [this.id],
     };

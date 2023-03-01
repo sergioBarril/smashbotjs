@@ -10,7 +10,7 @@ const messageAPI = require("../api/message");
  * @param {Role} role Role of the tier
  * @param {*} leaderboardInfo Object with the player + rating info of this tier
  */
-async function getLeaderboardEmbed(guild, role, leaderboardInfo) {
+async function leaderboardEmbedBuilder(guild, role, leaderboardInfo) {
   let playerMessage = "";
 
   if (leaderboardInfo) {
@@ -57,16 +57,22 @@ async function getLeaderboardEmbed(guild, role, leaderboardInfo) {
 async function getLeaderboardEmbeds(guild) {
   const { weighted } = await tierAPI.getTiers(guild.id);
 
-  const leaderboardInfo = await ratingAPI.getRatingsByTier(guild.id);
+  const leaderboardInfo = await ratingAPI.getRatingsSortedByTier(guild.id);
 
   const embeds = [];
   await guild.members.fetch();
   for (let tier of weighted) {
     const role = await guild.roles.fetch(tier.roleId);
-    const embed = await getLeaderboardEmbed(guild, role, leaderboardInfo[tier.id]);
+    const embed = await leaderboardEmbedBuilder(guild, role, leaderboardInfo[tier.id]);
     embeds.push(embed);
   }
   return embeds;
+}
+
+async function getLeaderboardEmbed(guild, tierRoleId) {
+  const leaderboardInfo = await ratingAPI.getRatingsByTier(tierRoleId);
+  const role = await guild.roles.fetch(tierRoleId);
+  return await leaderboardEmbedBuilder(guild, role, leaderboardInfo);
 }
 
 async function updateLeaderboard(guild) {
@@ -80,5 +86,6 @@ async function updateLeaderboard(guild) {
 
 module.exports = {
   getLeaderboardEmbeds,
+  getLeaderboardEmbed,
   updateLeaderboard,
 };
