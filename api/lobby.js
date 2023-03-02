@@ -21,6 +21,7 @@ const { getLobbyByTextChannel, getLobby } = require("../models/lobby");
 const { getTier } = require("../models/tier");
 
 const winston = require("winston");
+const { AlreadyAcceptedError } = require("../errors/alreadyAccepted");
 
 /**
  * Declines the match. If declined due to timeout, leaves the lobby in AFK
@@ -525,6 +526,7 @@ const acceptMatch = async (playerDiscordId) => {
 
   const lp = await lobby.getLobbyPlayer(player.id);
   if (!lp) throw new NotFoundError("LobbyPlayer");
+  if (lp.status === "ACCEPTED") throw new AlreadyAcceptedError();
 
   await lp.acceptMatch();
   const lps = await lobby.getLobbyPlayers();

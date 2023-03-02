@@ -299,12 +299,14 @@ const execute = async (interaction) => {
     });
   }
 
+  winston.info(`${interaction.user.username} acaba de empezar a aceptar el match`);
+
   await interaction.deferUpdate();
   const { hasEveryoneAccepted, players, acceptedAt, guild, ranked } = await lobbyAPI.acceptMatch(
     playerDiscordId
   );
 
-  winston.info(`${interaction.user.username} acaba de aceptar el match`);
+  winston.info(`${interaction.user.username} ha aceptado el match correctamente`);
 
   if (hasEveryoneAccepted) {
     await allAccepted(interaction, players, guild, ranked);
