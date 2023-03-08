@@ -27,6 +27,8 @@ module.exports = {
           command = interaction.client.buttons.get("decline-confirmation");
         else if (interaction.customId.startsWith("historial"))
           command = interaction.client.buttons.get("historial");
+        else if (interaction.customId.startsWith("leaderboard"))
+          command = interaction.client.buttons.get("leaderboard");
       }
     }
 

@@ -211,7 +211,10 @@ module.exports = {
 
     if (isShare) {
       await interaction.deleteReply();
-      await interaction.channel.send({ embeds: [embed], components: [historyButtons] });
+      let content = `_${interaction.member} ha compartido el historial de **${displayNames[memberId]}**:_`;
+      if (interaction.member.id === memberId)
+        content = `_${interaction.member} ha compartido **su historial**:_`;
+      await interaction.channel.send({ content, embeds: [embed], components: [historyButtons] });
     } else if (isPublic) {
       await interaction.followUp({
         embeds: [embed],

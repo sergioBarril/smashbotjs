@@ -242,7 +242,7 @@ const wonAgainstInPromo = async (promoPlayerDiscordId, opponentDiscordId, guildD
  * @param {string} guildDiscordId Guild discord ID
  * @returns
  */
-const getRatingsByTier = async (guildDiscordId) => {
+const getRatingsSortedByTier = async (guildDiscordId) => {
   const guild = await getGuild(guildDiscordId);
   if (!guild) throw new NotFoundError("Guild");
 
@@ -260,6 +260,25 @@ const getRatingsByTier = async (guildDiscordId) => {
   });
 
   return obj;
+};
+
+const getRatingsByTier = async (tierRoleId) => {
+  const tier = await getTierByRole(tierRoleId);
+
+  if (!tier) throw new NotFoundError("Tier");
+
+  const guild = await tier.getGuild();
+
+  const leaderboardInfo = await guild.getLeaderboardInfo(tier.id);
+
+  return leaderboardInfo.sort((a, b) => {
+    const diffScore = b.rating.score - a.rating.score;
+    if (!b.rating.promotion && !a.rating.promotion) return diffScore;
+
+    const diffPromowins = b.rating.promotionWins - a.rating.promotionWins;
+    if (diffPromowins !== 0) return diffPromowins;
+    else return b.rating.promotionLosses - a.rating.promotionLosses;
+  });
 };
 
 /**
@@ -329,6 +348,7 @@ module.exports = {
   getPlayerTier,
   setPlayerTier,
   updateScore,
+  getRatingsSortedByTier,
   getRatingsByTier,
   setScore,
   setPromotion,
