@@ -8,7 +8,7 @@ const { getCharacters } = require("../api/roles");
 const smashCharacters = require("../params/smashCharacters.json");
 const winston = require("winston");
 
-const PLAYERS_PER_PAGE = 20;
+const PLAYERS_PER_PAGE = 10;
 
 function getStreakEmoji(streak) {
   switch (streak) {
@@ -85,7 +85,7 @@ async function leaderboardEmbedBuilder(guild, role, leaderboardInfo, page = 1) {
 
   if (playerMessage.trim() == "") playerMessage = "No hay nadie en esta tier... ¡de momento!";
 
-  winston.info(`Leaderboard message: ${playerMessage}`);
+  winston.debug(`Leaderboard message: ${playerMessage}`);
 
   return new MessageEmbed()
     .setColor(role.color)
