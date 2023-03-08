@@ -4,8 +4,37 @@ const ratingAPI = require("../api/rating");
 const guildAPI = require("../api/guild");
 const messageAPI = require("../api/message");
 const { WifiLeaderboardError } = require("../errors/wifiLeaderboard");
+const { getCharacters } = require("../api/roles");
+const smashCharacters = require("../params/smashCharacters.json");
 
 const PLAYERS_PER_PAGE = 20;
+
+function getStreakEmoji(streak) {
+  switch (streak) {
+    case 0:
+      return "🏳️";
+    case 1:
+      return "🟢";
+    case 2:
+      return "💚";
+    case 3:
+    case 4:
+      return "🔥";
+    case 5:
+      return "❤️‍🔥";
+    case -1:
+      return "🔴";
+    case -2:
+      return "💔";
+    case -3:
+    case -4:
+      return "💀";
+    case -5:
+      return "☠️";
+    default:
+      return "?";
+  }
+}
 
 /**
  *
@@ -24,7 +53,7 @@ async function leaderboardEmbedBuilder(guild, role, leaderboardInfo, page = 1) {
   if (leaderboardInfo && page > 0) {
     const playersInfo = await Promise.all(
       leaderboardInfo.map(async (row, i) => {
-        let player = guild.members.cache.get(row.displayName);
+        let player = guild.members.cache.get(row.playerDiscordId);
         if (!player) {
           try {
             player = await guild.members.fetch(row.playerDiscordId);
@@ -35,12 +64,18 @@ async function leaderboardEmbedBuilder(guild, role, leaderboardInfo, page = 1) {
         }
         const playerName = player.displayName;
         const rating = row.rating;
+        const streak = await rating.getStreak(true);
+        const { mains } = await getCharacters(row.playerDiscordId);
+
+        const mainEmojis = mains.map((c) => smashCharacters[c.name].emoji).join("");
+        const streakEmoji = getStreakEmoji(streak);
+
         const promotionText = rating.promotion
           ? ` **[${rating.promotionWins} - ${rating.promotionLosses}]**`
           : "";
         const playerIndex = (page - 1) * PLAYERS_PER_PAGE + i + 1;
 
-        return `${playerIndex}. **${playerName}** _(${rating.score})_${promotionText}`;
+        return `${playerIndex}. ${streakEmoji} **${playerName}** ${mainEmojis} _(${rating.score})_${promotionText}`;
       })
     );
 
