@@ -255,7 +255,16 @@ const getRatingsSortedByTier = async (guildDiscordId) => {
 
     leaderboardInfo
       .filter((row) => row.rating.tierId === tierId)
-      .sort((a, b) => b.rating.score - a.rating.score)
+      .sort((a, b) => {
+        const scoreDiff = b.rating.score - a.rating.score;
+        if (scoreDiff != 0) return scoreDiff;
+        if (!a.rating.promotion) return 0;
+
+        const winDiff = b.rating.promotionWins - a.rating.promotionWins;
+        if (winDiff != 0) return winDiff;
+
+        return b.rating.promotionLosses - a.rating.promotionLosses;
+      })
       .forEach((row) => obj[tierId].push(row));
   });
 
@@ -271,7 +280,16 @@ const getRatingsByTier = async (tierRoleId) => {
 
   const leaderboardInfo = await guild.getLeaderboardInfo(tier.id);
 
-  return leaderboardInfo.sort((a, b) => b.rating.score - a.rating.score);
+  return leaderboardInfo.sort((a, b) => {
+    const scoreDiff = b.rating.score - a.rating.score;
+    if (scoreDiff != 0) return scoreDiff;
+    if (!a.rating.promotion) return 0;
+
+    const winDiff = b.rating.promotionWins - a.rating.promotionWins;
+    if (winDiff != 0) return winDiff;
+
+    return b.rating.promotionLosses - a.rating.promotionLosses;
+  });
 };
 
 /**
