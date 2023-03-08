@@ -94,6 +94,15 @@ class Guild {
       INNER JOIN player p
         ON p.id = r.player_id
       WHERE r.guild_id = $1
+      AND EXISTS (
+        SELECT 1 FROM game_player gp
+        INNER JOIN game g
+          ON g.id = gp.game_id
+        INNER JOIN gameset gs
+          ON gs.id = g.gameset_id
+        WHERE gp.player_id = p.id
+        AND gs.ranked
+      )
       ${tierCondition}
       `,
       values: [this.id],
