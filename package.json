@@ -1,6 +1,6 @@
 {
   "name": "smashbotjs",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Ranked bot for Smash Bros. Ultimate",
   "main": "index.js",
   "scripts": {
