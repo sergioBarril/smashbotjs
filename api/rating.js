@@ -271,14 +271,7 @@ const getRatingsByTier = async (tierRoleId) => {
 
   const leaderboardInfo = await guild.getLeaderboardInfo(tier.id);
 
-  return leaderboardInfo.sort((a, b) => {
-    const diffScore = b.rating.score - a.rating.score;
-    if (!b.rating.promotion && !a.rating.promotion) return diffScore;
-
-    const diffPromowins = b.rating.promotionWins - a.rating.promotionWins;
-    if (diffPromowins !== 0) return diffPromowins;
-    else return b.rating.promotionLosses - a.rating.promotionLosses;
-  });
+  return leaderboardInfo.sort((a, b) => b.rating.score - a.rating.score);
 };
 
 /**
