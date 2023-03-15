@@ -54,6 +54,7 @@ const execute = async (interaction) => {
   // Send message
   let messageText =
     `¡Hola, **${player.displayName}**! Voy a hacerte unas pocas preguntas para darte los roles adecuados.\n\n` +
+    `¡Pero antes! Te recuerdo que **si no vives en 🇪🇸España🇪🇸**, este no es tu servidor. Las partidas entre continentes darían lugar a muchísimo lag.\n\n` +
     `**Primera pregunta**: ¿tienes adaptador de cable LAN para conectarte a Internet por cable en la Switch?\n`;
 
   winston.info(`Canal de registro creado para ${player.displayName}`);

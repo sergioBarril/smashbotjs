@@ -30,6 +30,7 @@ const execute = async (interaction) => {
   const pocketCommand = guild.commands.cache.find((command) => command.name === "pocket");
 
   const regionCommand = guild.commands.cache.find((command) => command.name === "region");
+  const profileCommand = guild.commands.cache.find((command) => command.name === "profile");
 
   const messageText =
     `Perfecto. Ahora solo queda esperar a que **un panelista** venga a darte los roles.\n` +
@@ -39,6 +40,7 @@ const execute = async (interaction) => {
     `\t- Usa el comando </pocket:${pocketCommand.id}> para asignarte hasta 5 personajes más. Por ejemplo, /pocket cloud.\n\n` +
     `\t- Usa el comando </region:${regionCommand.id}> para asignarte tu región (máximo 2). Por ejemplo, /region madrid\n\n` +
     `No hace falta que lo respondáis todo, lo normal sería que jugarais 1, 2 o 3 personajes.\n` +
+    `Usa el comando </profile:${profileCommand.id}> para ver el perfil con los datos que hayas ido rellenando.\n` +
     `_(Ignora los botones que verás a continuación, los usará el panelista para asignarte más fácilmente la tier)_`;
 
   const message = interaction.message;
@@ -49,9 +51,32 @@ const execute = async (interaction) => {
     components: message.components,
   });
 
+  // TIER BUTTONS
+  const rows = [];
+  let i = 0;
+  let row;
+
+  for (let tierButton of tierButtons) {
+    if (i % 5 === 0) {
+      if (row) rows.push(row);
+      row = new MessageActionRow();
+    }
+    row.addComponents(tierButton);
+    i++;
+  }
+
+  if (i % 5 === 0) {
+    if (row) rows.push(row);
+    row = new MessageActionRow();
+  }
+  row.addComponents(wifiButton);
+
+  if (row) rows.push(row);
+  const components = [...rows];
+
   await interaction.reply({
     content: messageText,
-    components: [new MessageActionRow().addComponents(...tierButtons, wifiButton)],
+    components,
   });
 
   const guildInfo = await guildAPI.getGuild(guild.id);
