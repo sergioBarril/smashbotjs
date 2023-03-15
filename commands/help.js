@@ -28,8 +28,8 @@ const data = new SlashCommandBuilder()
   );
 
 const SCORE_HELP =
-  `Hay 4 tiers, siendo **Tier 1** la mejor y **Tier 4** la peor. En cada tier se empieza con una puntuación diferente:\n` +
-  `- **Tier 1**: 2100 puntos\n- **Tier 2**: 1800 puntos\n- **Tier 3**: 1500 puntos\n- **Tier 4**: 1200 puntos.\n` +
+  `Hay 5 tiers, siendo **Tier 1** la mejor y **Tier 4** la peor. En cada tier se empieza con una puntuación diferente:\n` +
+  `- **Tier 1**: 2100 puntos\n- **Tier 2**: 1800 puntos\n- **Tier 3**: 1500 puntos\n- **Tier 4**: 1200 puntos.\n- **Tier 5**: 900 puntos.\n` +
   `Las rankeds se pueden jugar contra gente de **tu tier**, gente de **1 tier por encima** y **1 tier por debajo**.\n` +
   `**__Ranked con gente de tu tier__**\nSi juegas contra gente de tu tier, el ganador se llevará entre **25 y 35 puntos** según la racha de wins que lleve,` +
   ` y el perdedor perderá entre **25 y 35 puntos** según la racha de derrotas que lleve.\n` +
