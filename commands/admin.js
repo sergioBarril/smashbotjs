@@ -34,10 +34,10 @@ const data = new SlashCommandBuilder()
               .setName("type")
               .setDescription("Type of roles to be imported")
               .setRequired(true)
-              .setChoices([
-                ["Characters", "CHARACTERS"],
-                ["Regions", "REGIONS"],
-              ])
+              .addChoices(
+                { name: "Characters", value: "CHARACTERS" },
+                { name: "Regions", value: "REGIONS" }
+              )
           )
       )
       .addSubcommand((subcommand) =>
@@ -198,13 +198,13 @@ const data = new SlashCommandBuilder()
               .setName("type")
               .setDescription("Tipo de lobby a eliminar")
               .setRequired(true)
-              .setChoices([
-                ["Searching", "SEARCHING"],
-                ["Waiting", "WAITING"],
-                ["Confirmation", "CONFIRMATION"],
-                ["Playing", "PLAYING"],
-                ["AFK", "AFK"],
-              ])
+              .addChoices(
+                { name: "Searching", value: "SEARCHING" },
+                { name: "Waiting", value: "WAITING" },
+                { name: "Confirmation", value: "CONFIRMATION" },
+                { name: "Playing", value: "PLAYING" },
+                { name: "AFK", value: "AFK" }
+              )
           )
           .addUserOption((option) =>
             option
