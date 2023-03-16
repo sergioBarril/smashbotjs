@@ -9,14 +9,14 @@ const data = new SlashCommandBuilder()
       .setName("question")
       .setDescription("Pregunta frecuente")
       .setRequired(true)
-      .setChoices([
-        ["Sistema de puntuación", "SCORE"],
-        ["Perfil", "PROFILE"],
-        ["¿Cómo busco partida?", "SEARCH"],
-        ["Rematch: ¡acabamos de jugar!", "REMATCH"],
-        ["No me empareja con alguien", "NO_MATCH"],
-        ["¡Rankeds y Tiers para gente sin cable!", "RANKED_WIFI"],
-      ])
+      .addChoices(
+        { name: "Sistema de puntuación", value: "SCORE" },
+        { name: "Perfil", value: "PROFILE" },
+        { name: "¿Cómo busco partida?", value: "SEARCH" },
+        { name: "Rematch: ¡acabamos de jugar!", value: "REMATCH" },
+        { name: "No me empareja con alguien", value: "NO_MATCH" },
+        { name: "¡Rankeds y Tiers para gente sin cable!", value: "RANKED_WIFI" }
+      )
   )
   .addUserOption((option) =>
     option
