@@ -77,7 +77,7 @@ function makeEmbed(memberId, names, setCount, sets, page, isRanked) {
   const embed = new MessageEmbed()
     .setTitle(`__${names[memberId]}__`)
     .setDescription(descriptionText)
-    .addField(`**${rankedText}Sets**`, setValue.join("\n"), true)
+    .addFields({ name: `**${rankedText}Sets**`, value: setValue.join("\n"), inline: true })
     .setThumbnail(names["AVATAR"])
     .setFooter({ text: `Página ${page}/${maxPages}` })
     .setTimestamp();
