@@ -4,14 +4,25 @@ const db = require("./db");
 const { getMessage, insertMessage, MESSAGE_TYPES, Message } = require("./message");
 
 class LobbyPlayer {
-  constructor({ lobby_id, player_id, status, message_id, new_set, cancel_set, accepted_at }) {
+  constructor({
+    lobby_id,
+    player_id,
+    status,
+    message_id,
+    new_set_bo3,
+    new_set_bo5,
+    cancel_set,
+    accepted_at,
+  }) {
     this.lobbyId = lobby_id;
     this.playerId = player_id;
 
     this.status = status;
     this.messageId = message_id;
 
-    this.newSet = new_set;
+    this.newSetBo3 = new_set_bo3;
+    this.newSetBo5 = new_set_bo5;
+
     this.cancelSet = cancel_set;
 
     this.acceptedAt = accepted_at;
@@ -142,10 +153,18 @@ class LobbyPlayer {
     await db.deleteQuery(deleteQuery, client);
   };
 
-  setNewSet = async (newSet, client = null) => {
+  setNewSet = async (newSet, bestOf = 5, client = null) => {
+    let setValue = {};
+    if (bestOf == 3) {
+      setValue["new_set_bo3"] = newSet;
+      this.newSetBo3 = newSet;
+    } else if (bestOf == 5) {
+      setValue["new_set_bo5"] = newSet;
+      this.newSetBo5 = newSet;
+    }
+
     const whereConditions = { lobby_id: this.lobbyId, player_id: this.playerId };
-    await db.updateBy("lobby_player", { new_set: newSet }, whereConditions, client);
-    this.newSet = newSet;
+    await db.updateBy("lobby_player", setValue, whereConditions, client);
   };
 
   setCancelSet = async (cancelSetVote, client = null) => {

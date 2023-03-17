@@ -235,10 +235,10 @@ const setupGameWinner = async (interaction, gameNum) => {
   });
 };
 
-const setEndButtons = (rematchAvailable = true) => {
+const getRankedButtons = (rematchAvailable) => {
   const newSet = new MessageActionRow().addComponents(
     new MessageButton()
-      .setCustomId("new-set")
+      .setCustomId("new-set-ranked-5")
       .setLabel("Revancha")
       .setStyle("SECONDARY")
       .setDisabled(!rematchAvailable),
@@ -246,6 +246,26 @@ const setEndButtons = (rematchAvailable = true) => {
   );
 
   return [newSet];
+};
+
+const getFriendliesButtons = () => {
+  const newSet = new MessageActionRow().addComponents(
+    new MessageButton()
+      .setCustomId("new-set-friendlies-3")
+      .setLabel("Set BO3")
+      .setStyle("SECONDARY"),
+    new MessageButton()
+      .setCustomId("new-set-friendlies-5")
+      .setLabel("Set BO5")
+      .setStyle("SECONDARY"),
+    new MessageButton().setCustomId("close-lobby").setLabel("Cerrar arena").setStyle("DANGER")
+  );
+
+  return [newSet];
+};
+
+const setEndButtons = (isRanked = false, rematchAvailable = true) => {
+  return isRanked ? getRankedButtons(rematchAvailable) : getFriendliesButtons();
 };
 
 const rankedScoreText = async (member, oldRating, rating, discordGuild) => {
@@ -410,7 +430,7 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
 
   const responseObj = {
     content: `¡**${winner.displayName}**${emoji} ha ganado el set${porAbandono}!${rankedText}${rematchText}`,
-    components: setEndButtons(rematchAvailable),
+    components: setEndButtons(isRanked, rematchAvailable),
   };
 
   if (interaction.isButton()) return await interaction.channel.send(responseObj);
@@ -426,11 +446,15 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
 const setupNextGame = async (interaction) => {
   const score = await setAPI.getScore(interaction.channel.id);
 
-  // Get winner. First check for surrender, else normal BO5
+  // Get winner. First check for surrender, else normal BO5 or BO3
   const isSurrender = score.some((player) => player.surrender);
 
   let winner = isSurrender && score.find((player) => !player.surrender);
-  if (!winner) winner = score.find((ps) => ps.wins >= 3);
+
+  if (!winner) {
+    const firstTo = await setAPI.getFirstTo(interaction.channel.id);
+    winner = score.find((ps) => ps.wins >= firstTo);
+  }
 
   if (winner) {
     const loser = score.find((sc) => sc.player.id !== winner.player.id);

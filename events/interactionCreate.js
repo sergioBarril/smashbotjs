@@ -29,6 +29,8 @@ module.exports = {
           command = interaction.client.buttons.get("historial");
         else if (interaction.customId.startsWith("leaderboard"))
           command = interaction.client.buttons.get("leaderboard");
+        else if (interaction.customId.startsWith("new-set"))
+          command = interaction.client.buttons.get("new-set");
       }
     }
 

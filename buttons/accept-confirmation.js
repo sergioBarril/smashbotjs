@@ -6,7 +6,7 @@ const { Player } = require("../models/player");
 const { Guild } = require("../models/guild");
 const { NotFoundError } = require("../errors/notFound");
 const { Message, MESSAGE_TYPES } = require("../models/message");
-const { setupNextGame, setupCharacter } = require("../utils/discordGameset");
+const { setupNextGame, setupCharacter, setEndButtons } = require("../utils/discordGameset");
 const winston = require("winston");
 
 // Disabled buttons
@@ -101,15 +101,11 @@ const createArena = async (interaction, players, guild, ranked) => {
   });
 
   if (!ranked) {
-    const newSet = new MessageActionRow().addComponents(
-      new MessageButton().setCustomId("new-set").setLabel("Set BO5").setStyle("SECONDARY"),
-      new MessageButton().setCustomId("close-lobby").setLabel("Cerrar arena").setStyle("DANGER")
-    );
-
+    const newSet = setEndButtons(ranked, true);
     const firstMessageText = `¡Bienvenidos! Jugad todo lo que queráis y cerrad la arena cuando acabéis.`;
     await channel.send({
       content: firstMessageText,
-      components: [newSet],
+      components: newSet,
     });
   }
 
@@ -219,7 +215,7 @@ const allAccepted = async (interaction, players, guild, ranked) => {
   const discordGuild = await interaction.client.guilds.fetch(guild.discordId);
 
   if (ranked) {
-    const { players: setPlayers } = await setAPI.newSet(channels.text.id);
+    const { players: setPlayers } = await setAPI.newSet(channels.text.id, 3);
 
     const members = await Promise.all(
       setPlayers.map(async (p) => await discordGuild.members.fetch(p.discordId))

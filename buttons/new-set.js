@@ -7,12 +7,14 @@ const newSetButtons = (message, decided, status) => {
   const newButtons = message.components.map((row) => {
     const newRow = new MessageActionRow();
     row.components.forEach((button) => {
-      if (button.customId === "close-lobby" && decided) button.setDisabled(true);
-      if (button.customId === "new-set") {
-        if (decided) {
+      if (decided && decided != 0) button.setDisabled(true);
+      if (button.customId.startsWith("new-set")) {
+        const bestOf = Number(button.customId.split("-").at(-1));
+        const boStatus = status[bestOf];
+
+        if (boStatus.every((playerVote) => playerVote)) {
           button.setStyle("SUCCESS");
-          button.setDisabled(true);
-        } else if (status) button.setStyle("PRIMARY");
+        } else if (boStatus.some((playerVote) => playerVote)) button.setStyle("PRIMARY");
         else button.setStyle("SECONDARY");
       }
       newRow.addComponents(button);
@@ -28,19 +30,20 @@ const newSetButtons = (message, decided, status) => {
  * @param {Interaction} interaction DiscordJS interaction
  * @param {boolean} status True if requested a new set, False if cancelling the request
  * @param {string} opponentDiscordId Discord ID of the opponent
+ * @param {int} bestOf Whether this is BO3, BO5...
  */
-const firstVote = async (interaction, status, opponentDiscordId) => {
+const firstVote = async (interaction, status, opponentDiscordId, bestOf) => {
   const player = interaction.member;
   const opponent = await interaction.guild.members.fetch(opponentDiscordId);
 
-  if (status) {
-    winston.info(`${player.displayName} quiere jugar un set BO5.`);
-    await interaction.reply(
-      `${player.displayName} quiere jugar un set BO5. ${opponent}, ¡dale tú también al botón si quieres jugar!`
+  if (status[bestOf].some((playerVote) => playerVote)) {
+    winston.info(`${player.displayName} quiere jugar un set BO${bestOf}.`);
+    await interaction.editReply(
+      `${player.displayName} quiere jugar un set BO${bestOf}. ${opponent}, ¡dale tú también al botón si quieres jugar!`
     );
   } else {
-    winston.info(`${player.displayName} ya no quiere jugar un set BO5.`);
-    await interaction.reply(`**${player.displayName}** ya no quiere jugar un set BO5.`);
+    winston.info(`${player.displayName} ya no quiere jugar un set BO${bestOf}.`);
+    await interaction.editReply(`**${player.displayName}** ya no quiere jugar un set BO${bestOf}.`);
   }
 };
 
@@ -56,16 +59,23 @@ module.exports = {
   data: { name: "new-set" },
   async execute(interaction) {
     const channel = interaction.channel;
+    const customId = interaction.customId.split("-");
 
-    const { decided, status, opponent } = await setAPI.voteNewSet(interaction.user.id);
+    const bestOf = Number(customId.at(-1));
+    const isRanked = customId.at(-2) === "ranked";
 
+    const { decided, status, opponent } = await setAPI.voteNewSet(interaction.user.id, bestOf);
+
+    await interaction.deferReply();
     await interaction.message.edit({
       components: newSetButtons(interaction.message, decided, status),
     });
 
-    if (!decided) return await firstVote(interaction, status, opponent.discordId);
+    if (!decided || decided == 0)
+      return await firstVote(interaction, status, opponent.discordId, bestOf);
 
-    const { players } = await setAPI.newSet(interaction.channel.id);
+    const firstTo = Math.ceil(bestOf / 2);
+    const { players } = await setAPI.newSet(interaction.channel.id, firstTo);
 
     const members = await Promise.all(
       players.map(async (p) => await interaction.guild.members.fetch(p.discordId))
@@ -78,8 +88,8 @@ module.exports = {
 
     winston.info(`Empieza un set entre ${memberNames}.`);
 
-    await interaction.reply({
-      content: `¡Marchando un set BO5 entre ${memberNames}! Si hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón:`,
+    await interaction.editReply({
+      content: `¡Marchando un set BO${bestOf} entre ${memberNames}! Si hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón:`,
       components: cancelSetButtons(),
     });
 
