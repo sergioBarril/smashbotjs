@@ -54,7 +54,7 @@ describe("test Lobby Player methods", () => {
     expect(lobbyPlayer.playerId).toEqual(secondPlayer.id);
     expect(lobbyPlayer.status).toEqual(lobbyPlayerStatus);
 
-    expect(lobbyPlayer.newSet).toBe(false);
+    expect(lobbyPlayer.newSetBo5).toBe(false);
     expect(lobbyPlayer.cancelSet).toBe(false);
   });
 
@@ -145,12 +145,12 @@ describe("test Lobby Player methods", () => {
   });
 
   it("can set the newSet bool of a lobbyPlayer", async () => {
-    expect(lobbyPlayer.newSet).toBe(false);
+    expect(lobbyPlayer.newSetBo5).toBe(false);
     await lobbyPlayer.setNewSet(true);
 
-    expect(lobbyPlayer.newSet).toBe(true);
+    expect(lobbyPlayer.newSetBo5).toBe(true);
     lobbyPlayer = await lobby.getLobbyPlayer(secondPlayer.id);
-    expect(lobbyPlayer.newSet).toBe(true);
+    expect(lobbyPlayer.newSetBo5).toBe(true);
   });
 
   it("can set the cancelSet bool of a lobbyPlayer", async () => {
