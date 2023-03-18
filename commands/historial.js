@@ -72,14 +72,14 @@ function makeEmbed(memberId, names, setCount, groupedSets, page, isRanked) {
       return `${circle} ${p1CharEmojis} **${names[memberId]}** ${p1Score.wins} - ${p2Wins}  **${p2DisplayName}** ${p2CharEmojis}`;
     });
 
-    objects.push({ name: `**${date}**`, value: setValue.join("\n"), inline: true });
+    objects.push({ name: `**${date}**`, value: setValue.join("\n"), inline: false });
   }
 
   if (objects.length == 0)
     objects.push({
       name: `**No ${rankedText}sets**`,
       value: `_No hay ${rankedText}sets disponibles_`,
-      inline: true,
+      inline: false,
     });
 
   const maxPages = Math.ceil(setCount.sets / 10);
