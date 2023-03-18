@@ -602,7 +602,19 @@ const getHistory = async (playerDiscordId, guildDiscordId, page, isRanked) => {
       const characters = await gs.getCharacters();
       const score = await gs.getScore();
 
+      const gsDay = gs.createdAt
+        .getDate()
+        .toLocaleString("en-US", { minimumIntegerDigits: 2, useGrouping: false });
+
+      const gsMonth = (gs.createdAt.getMonth() + 1).toLocaleString("en-US", {
+        minimumIntegerDigits: 2,
+        useGrouping: false,
+      });
+
+      const gsDate = `${gsDay}/${gsMonth}/${gs.createdAt.getFullYear()}`;
+
       return {
+        date: gsDate,
         win: gs.winnerId == player.id,
         scores: score.map((sc) => {
           return {
@@ -617,10 +629,16 @@ const getHistory = async (playerDiscordId, guildDiscordId, page, isRanked) => {
     })
   );
 
+  const groupedSets = {};
+  sets.forEach((gs) => {
+    if (gs.date in groupedSets) groupedSets[gs.date].push(gs);
+    else groupedSets[gs.date] = [gs];
+  });
+
   return {
     page,
     setCount,
-    sets,
+    sets: groupedSets,
   };
 };
 
