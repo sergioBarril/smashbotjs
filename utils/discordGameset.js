@@ -228,6 +228,17 @@ const setupGameWinner = async (interaction, gameNum) => {
         .setEmoji(emoji)
     );
   }
+
+  const isRanked = await setAPI.isRankedSet(interaction.user.id);
+  if (!isRanked && gameNum != 1)
+    buttons.push(
+      new MessageButton()
+        .setCustomId(`character-set-menu-${gameNum}`)
+        .setLabel("Cambiar personaje")
+        .setStyle("SECONDARY")
+        .setEmoji("♻️")
+    );
+
   const playersText = new Intl.ListFormat("es").format(playersTextArr);
   await interaction.channel.send({
     content: `¡Que empiece el **Game ${gameNum}** entre ${playersText}! Pulsad el nombre del ganador cuando acabéis.`,

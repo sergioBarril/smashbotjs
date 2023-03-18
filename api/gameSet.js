@@ -336,6 +336,16 @@ const pickWinner = async (playerDiscordId, isWinner, gameNum) => {
   return { winner, opponent, winnerCharacter };
 };
 
+const resetGameWinnerVotes = async (channelDiscordId) => {
+  const { gameset } = await getObjectsByTextChannel(channelDiscordId);
+  const currentGame = await gameset.getCurrentGame();
+  const gps = await currentGame.getGamePlayers();
+
+  for (let gp of gps) {
+    await gp.setWinner(null);
+  }
+};
+
 /**
  * Get the score
  * @param {string} channelDiscordId DiscordID of the text channel of the lobby
@@ -459,7 +469,11 @@ const canPickCharacter = async (playerDiscordId, channelDiscordId, gameNum) => {
 
   const isFirstGame = gameNum == 1;
 
-  return charMessage && notYetPicked && (isFirstGame || opponentHasPicked || !opponentMessage);
+  return (
+    charMessage &&
+    (notYetPicked || !gameset.ranked) &&
+    (isFirstGame || opponentHasPicked || !opponentMessage)
+  );
 };
 
 /**
@@ -629,6 +643,7 @@ module.exports = {
   getScore,
   getGameWinner,
   setWinner,
+  resetGameWinnerVotes,
   unlinkLobby,
   getGameNumber,
   canPickCharacter,
