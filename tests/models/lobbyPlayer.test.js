@@ -54,7 +54,7 @@ describe("test Lobby Player methods", () => {
     expect(lobbyPlayer.playerId).toEqual(secondPlayer.id);
     expect(lobbyPlayer.status).toEqual(lobbyPlayerStatus);
 
-    expect(lobbyPlayer.newSet).toBe(false);
+    expect(lobbyPlayer.newSetBo5).toBe(false);
     expect(lobbyPlayer.cancelSet).toBe(false);
   });
 
@@ -145,12 +145,12 @@ describe("test Lobby Player methods", () => {
   });
 
   it("can set the newSet bool of a lobbyPlayer", async () => {
-    expect(lobbyPlayer.newSet).toBe(false);
+    expect(lobbyPlayer.newSetBo5).toBe(false);
     await lobbyPlayer.setNewSet(true);
 
-    expect(lobbyPlayer.newSet).toBe(true);
+    expect(lobbyPlayer.newSetBo5).toBe(true);
     lobbyPlayer = await lobby.getLobbyPlayer(secondPlayer.id);
-    expect(lobbyPlayer.newSet).toBe(true);
+    expect(lobbyPlayer.newSetBo5).toBe(true);
   });
 
   it("can set the cancelSet bool of a lobbyPlayer", async () => {
@@ -178,19 +178,19 @@ describe("test Lobby Player methods", () => {
 
   it("can check if all players have asked for a new set", async () => {
     let isNewSetDecided = await lobby.isNewSetDecided();
-    expect(isNewSetDecided).toBe(false);
+    expect(isNewSetDecided).toBe(0);
 
     let lp1 = await lobby.getLobbyPlayer(player.id);
     await lp1.setNewSet(true);
 
     isNewSetDecided = await lobby.isNewSetDecided();
-    expect(isNewSetDecided).toBe(false);
+    expect(isNewSetDecided).toBe(0);
 
     let lp2 = await lobby.getLobbyPlayer(secondPlayer.id);
     await lp2.setNewSet(true);
 
     isNewSetDecided = await lobby.isNewSetDecided();
-    expect(isNewSetDecided).toBe(true);
+    expect(isNewSetDecided).toBe(5);
   });
 
   it("can check if all players have asked to cancel set", async () => {

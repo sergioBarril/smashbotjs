@@ -438,19 +438,25 @@ class Lobby {
 
   isNewSetDecided = async (client = null) => {
     const getQuery = {
-      text: `SELECT 1 FROM lobby_player
-    WHERE lobby_id = $1
-    AND new_set
-    AND NOT EXISTS (
-      SELECT 1 FROM lobby_player
+      text: `
+      SELECT CASE
+        WHEN new_set_bo5 
+          AND NOT EXISTS (SELECT 1 FROM lobby_player WHERE lobby_id = $1 AND NOT new_set_bo5 )
+        THEN 5
+        WHEN new_set_bo3
+          AND NOT EXISTS (SELECT 1 FROM lobby_player WHERE lobby_id = $1 AND NOT new_set_bo3 )
+        THEN 3
+        ELSE 0
+      END as new_set
+      FROM lobby_player
       WHERE lobby_id = $1
-      AND NOT new_set
-    )`,
+      LIMIT 1
+    `,
       values: [this.id],
     };
 
     const getResult = await db.getQuery(getQuery, client, false);
-    return getResult != null;
+    return getResult ? getResult.new_set : "0";
   };
 
   isCancelSetDecided = async (client = null) => {

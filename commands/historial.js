@@ -36,7 +36,7 @@ const data = new SlashCommandBuilder()
       .setRequired(false)
   );
 
-function makeEmbed(memberId, names, setCount, sets, page, isRanked) {
+function makeEmbed(memberId, names, setCount, groupedSets, page, isRanked) {
   const losses = setCount.sets - setCount.wins;
   const winrate = setCount.sets > 0 ? Math.round((setCount.wins * 100) / setCount.sets) : "?";
 
@@ -44,40 +44,50 @@ function makeEmbed(memberId, names, setCount, sets, page, isRanked) {
 
   const descriptionText = `**${rankedText}Sets:** ${setCount.sets}\n**Set Count:** ${setCount.wins}-${losses} (${winrate}%)`;
 
-  let setValue = sets.map((s) => {
-    const isWin = Boolean(s.win);
+  const objects = [];
+  for (const [date, sets] of Object.entries(groupedSets)) {
+    const setValue = sets.map((s) => {
+      const isWin = Boolean(s.win);
 
-    // Member is always player 1
-    let [p1Score, p2Score] = s.scores;
-    if (!p1Score || p1Score.playerDiscordId != memberId) {
-      const aux = p1Score;
-      p1Score = p2Score;
-      p2Score = aux;
-    }
+      // Member is always player 1
+      let [p1Score, p2Score] = s.scores;
+      if (!p1Score || p1Score.playerDiscordId != memberId) {
+        const aux = p1Score;
+        p1Score = p2Score;
+        p2Score = aux;
+      }
 
-    const p1Chars = p1Score.characters.slice(0, 1);
-    let p2Chars = [];
-    if (p2Score) p2Chars = p2Score.characters.slice(0, 1);
+      const p1Chars = p1Score.characters.slice(0, 1);
+      let p2Chars = [];
+      if (p2Score) p2Chars = p2Score.characters.slice(0, 1);
 
-    const p1CharEmojis = p1Chars.map((c) => smashCharacters[c].emoji).join("");
-    const p2CharEmojis = p2Chars.map((c) => smashCharacters[c].emoji).join("");
+      const p1CharEmojis = p1Chars.map((c) => smashCharacters[c].emoji).join("");
+      const p2CharEmojis = p2Chars.map((c) => smashCharacters[c].emoji).join("");
 
-    const p2DisplayName = p2Score ? names[p2Score.playerDiscordId] : "????";
-    const p2Wins = p2Score ? p2Score.wins : "?";
+      const p2DisplayName = p2Score ? names[p2Score.playerDiscordId] : "????";
+      const p2Wins = p2Score ? p2Score.wins : "?";
 
-    const circle = isWin ? "🟢" : "🔴";
+      const circle = isWin ? "🟢" : "🔴";
 
-    return `${circle} ${p1CharEmojis} **${names[memberId]}** ${p1Score.wins} - ${p2Wins}  **${p2DisplayName}** ${p2CharEmojis}`;
-  });
+      return `${circle} ${p1CharEmojis} **${names[memberId]}** ${p1Score.wins} - ${p2Wins}  **${p2DisplayName}** ${p2CharEmojis}`;
+    });
 
-  if (setValue.length == 0) setValue.push("_No hay sets disponibles_");
+    objects.push({ name: `**${date}**`, value: setValue.join("\n"), inline: true });
+  }
+
+  if (objects.length == 0)
+    objects.push({
+      name: `**No ${rankedText}sets**`,
+      value: `_No hay ${rankedText}sets disponibles_`,
+      inline: true,
+    });
 
   const maxPages = Math.ceil(setCount.sets / 10);
 
   const embed = new MessageEmbed()
     .setTitle(`__${names[memberId]}__`)
     .setDescription(descriptionText)
-    .addField(`**${rankedText}Sets**`, setValue.join("\n"), true)
+    .addFields(...objects)
     .setThumbnail(names["AVATAR"])
     .setFooter({ text: `Página ${page}/${maxPages}` })
     .setTimestamp();
@@ -85,7 +95,7 @@ function makeEmbed(memberId, names, setCount, sets, page, isRanked) {
   return embed;
 }
 
-async function getDisplayNames(guild, playerId, sets) {
+async function getDisplayNames(guild, playerId, groupedSets) {
   const displayNames = {};
 
   let displayName;
@@ -104,25 +114,27 @@ async function getDisplayNames(guild, playerId, sets) {
 
   displayNames[playerId] = displayName;
 
-  for (let set of sets) {
-    const opponentScore = set.scores.find((sc) => sc.playerDiscordId != playerId);
-    if (!opponentScore) continue;
+  for (let sets of Object.values(groupedSets)) {
+    for (let set of sets) {
+      const opponentScore = set.scores.find((sc) => sc.playerDiscordId != playerId);
+      if (!opponentScore) continue;
 
-    const opponentDiscordId = opponentScore.playerDiscordId;
+      const opponentDiscordId = opponentScore.playerDiscordId;
 
-    if (opponentDiscordId in displayNames) continue;
+      if (opponentDiscordId in displayNames) continue;
 
-    let displayName = "";
+      let displayName = "";
 
-    try {
-      const opponent = await guild.members.fetch(opponentDiscordId);
-      displayName = opponent.displayName;
-    } catch (e) {
-      if (e instanceof DiscordAPIError) {
-        displayName = "??????";
-      } else throw e;
+      try {
+        const opponent = await guild.members.fetch(opponentDiscordId);
+        displayName = opponent.displayName;
+      } catch (e) {
+        if (e instanceof DiscordAPIError) {
+          displayName = "??????";
+        } else throw e;
+      }
+      displayNames[opponentDiscordId] = displayName;
     }
-    displayNames[opponentDiscordId] = displayName;
   }
 
   return displayNames;

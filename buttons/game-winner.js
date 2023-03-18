@@ -10,15 +10,21 @@ const pickWinnerButtons = (message, votedPlayerId, isOpponentVoted, isDone) => {
     const newRow = new MessageActionRow();
     row.components.forEach((button) => {
       const isVoted = button.customId.includes(votedPlayerId);
+      const isCharSelect = button.customId.startsWith("character-set-menu");
 
       let style = "SECONDARY";
       if (isVoted && isDone) style = "SUCCESS";
       else if (isDone) style = "DANGER";
       else if (isVoted || isOpponentVoted) style = "PRIMARY";
 
+      if (isCharSelect) {
+        style = "SECONDARY";
+      }
+
       button.setStyle(style);
       button.setDisabled(isDone);
-      newRow.addComponents(button);
+
+      if (!isDone || !isCharSelect) newRow.addComponents(button);
     });
     return newRow;
   });

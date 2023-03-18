@@ -228,6 +228,17 @@ const setupGameWinner = async (interaction, gameNum) => {
         .setEmoji(emoji)
     );
   }
+
+  const isRanked = await setAPI.isRankedSet(interaction.user.id);
+  if (!isRanked && gameNum != 1)
+    buttons.push(
+      new MessageButton()
+        .setCustomId(`character-set-menu-${gameNum}`)
+        .setLabel("Cambiar personaje")
+        .setStyle("SECONDARY")
+        .setEmoji("♻️")
+    );
+
   const playersText = new Intl.ListFormat("es").format(playersTextArr);
   await interaction.channel.send({
     content: `¡Que empiece el **Game ${gameNum}** entre ${playersText}! Pulsad el nombre del ganador cuando acabéis.`,
@@ -235,10 +246,10 @@ const setupGameWinner = async (interaction, gameNum) => {
   });
 };
 
-const setEndButtons = (rematchAvailable = true) => {
+const getRankedButtons = (rematchAvailable) => {
   const newSet = new MessageActionRow().addComponents(
     new MessageButton()
-      .setCustomId("new-set")
+      .setCustomId("new-set-ranked-5")
       .setLabel("Revancha")
       .setStyle("SECONDARY")
       .setDisabled(!rematchAvailable),
@@ -246,6 +257,26 @@ const setEndButtons = (rematchAvailable = true) => {
   );
 
   return [newSet];
+};
+
+const getFriendliesButtons = () => {
+  const newSet = new MessageActionRow().addComponents(
+    new MessageButton()
+      .setCustomId("new-set-friendlies-3")
+      .setLabel("Set BO3")
+      .setStyle("SECONDARY"),
+    new MessageButton()
+      .setCustomId("new-set-friendlies-5")
+      .setLabel("Set BO5")
+      .setStyle("SECONDARY"),
+    new MessageButton().setCustomId("close-lobby").setLabel("Cerrar arena").setStyle("DANGER")
+  );
+
+  return [newSet];
+};
+
+const setEndButtons = (isRanked = false, rematchAvailable = true) => {
+  return isRanked ? getRankedButtons(rematchAvailable) : getFriendliesButtons();
 };
 
 const rankedScoreText = async (member, oldRating, rating, discordGuild) => {
@@ -410,7 +441,7 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
 
   const responseObj = {
     content: `¡**${winner.displayName}**${emoji} ha ganado el set${porAbandono}!${rankedText}${rematchText}`,
-    components: setEndButtons(rematchAvailable),
+    components: setEndButtons(isRanked, rematchAvailable),
   };
 
   if (interaction.isButton()) return await interaction.channel.send(responseObj);
@@ -426,11 +457,15 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
 const setupNextGame = async (interaction) => {
   const score = await setAPI.getScore(interaction.channel.id);
 
-  // Get winner. First check for surrender, else normal BO5
+  // Get winner. First check for surrender, else normal BO5 or BO3
   const isSurrender = score.some((player) => player.surrender);
 
   let winner = isSurrender && score.find((player) => !player.surrender);
-  if (!winner) winner = score.find((ps) => ps.wins >= 3);
+
+  if (!winner) {
+    const firstTo = await setAPI.getFirstTo(interaction.channel.id);
+    winner = score.find((ps) => ps.wins >= firstTo);
+  }
 
   if (winner) {
     const loser = score.find((sc) => sc.player.id !== winner.player.id);
@@ -459,7 +494,14 @@ const setupNextGame = async (interaction) => {
 
     const lastWinner = await setAPI.getGameWinner(interaction.channel.id, newGame.num - 1);
     const player = members.find((m) => m.id == lastWinner.discordId);
-    return await setupCharacter(interaction.channel, player, newGame.num, interaction.guild);
+
+    const isRanked = await setAPI.isRankedSet(player.id);
+    if (isRanked)
+      return await setupCharacter(interaction.channel, player, newGame.num, interaction.guild);
+    else {
+      await setAPI.pickLastGameCharacters(interaction.channel.id, newGame.num);
+      return await setupGameWinner(interaction, newGame.num);
+    }
   }
 };
 
@@ -499,7 +541,9 @@ const allHavePicked = async (interaction, playerDiscordId, gameNum) => {
     content: `El **Game ${gameNum}** será entre ${playersText}.`,
   });
 
-  return await setupBans(interaction, gameNum);
+  const isRanked = await setAPI.isRankedSet(playerDiscordId);
+  if (isRanked) return await setupBans(interaction, gameNum);
+  else return await setupGameWinner(interaction, gameNum);
 };
 
 const disableAllButtons = (message) => {

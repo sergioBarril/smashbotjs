@@ -65,7 +65,7 @@ async function getObjectsByTextChannel(textChannelId) {
  * @param {string} textChannelId DiscordID of the textChannel of the lobby
  * @returns
  */
-const newSet = async (textChannelId) => {
+const newSet = async (textChannelId, firstTo) => {
   const lobby = await getLobbyByTextChannel(textChannelId);
   if (!lobby) throw new NotFoundError("Lobby", "GAMESET");
 
@@ -74,7 +74,7 @@ const newSet = async (textChannelId) => {
   if (oldGameset) throw new InGamesetError();
 
   // NEW SET
-  await lobby.newGameset(3, lobby.mode == "RANKED");
+  await lobby.newGameset(firstTo, lobby.mode == "RANKED");
   const gameset = await lobby.getGamesetOrThrow();
   const game = await gameset.newGame();
 
@@ -108,8 +108,12 @@ const newGame = async (lobbyChannelId) => {
 const cancelSet = async (lobbyChannelId) => {
   const { gameset } = await getObjectsByTextChannel(lobbyChannelId);
 
+  const isRanked = gameset.ranked;
+
   if (gameset.winnerId) throw new AlreadyFinishedError();
   await gameset.remove();
+
+  return isRanked;
 };
 
 /**
@@ -127,6 +131,11 @@ const getRankedCountToday = async (playerDiscordId, opponentDiscordId) => {
   const opponent = await getPlayerOrThrow(opponentDiscordId, true);
 
   return player.getRankedCountToday(opponent.id);
+};
+
+const getFirstTo = async (channelDiscordId) => {
+  const { gameset } = await getObjectsByTextChannel(channelDiscordId);
+  return gameset.firstTo;
 };
 
 /**
@@ -327,6 +336,16 @@ const pickWinner = async (playerDiscordId, isWinner, gameNum) => {
   return { winner, opponent, winnerCharacter };
 };
 
+const resetGameWinnerVotes = async (channelDiscordId) => {
+  const { gameset } = await getObjectsByTextChannel(channelDiscordId);
+  const currentGame = await gameset.getCurrentGame();
+  const gps = await currentGame.getGamePlayers();
+
+  for (let gp of gps) {
+    await gp.setWinner(null);
+  }
+};
+
 /**
  * Get the score
  * @param {string} channelDiscordId DiscordID of the text channel of the lobby
@@ -372,6 +391,23 @@ const setWinner = async (winnerDiscordId) => {
 
   await gameset.setWinner(player.id);
   await gameset.setFinish();
+};
+
+const pickLastGameCharacters = async (channelDiscordId, gameNum) => {
+  const { gameset } = await getObjectsByTextChannel(channelDiscordId);
+
+  if (gameNum == 1) return;
+  const lastGame = await gameset.getGameByNum(gameNum - 1);
+  const currentGame = await gameset.getCurrentGame();
+
+  const lastGameGps = await lastGame.getGamePlayers();
+  const currentGps = await currentGame.getGamePlayers();
+
+  for (let gp of currentGps) {
+    const lastGameCharacterId = lastGameGps.find((lgp) => lgp.playerId === gp.playerId).characterId;
+    await gp.setCharacter(lastGameCharacterId);
+  }
+  return;
 };
 
 /**
@@ -433,7 +469,11 @@ const canPickCharacter = async (playerDiscordId, channelDiscordId, gameNum) => {
 
   const isFirstGame = gameNum == 1;
 
-  return charMessage && notYetPicked && (isFirstGame || opponentHasPicked || !opponentMessage);
+  return (
+    charMessage &&
+    (notYetPicked || !gameset.ranked) &&
+    (isFirstGame || opponentHasPicked || !opponentMessage)
+  );
 };
 
 /**
@@ -497,11 +537,11 @@ const removeCurrentGame = async (channelDiscordId) => {
 };
 
 /**
- * Vote to play a new set BO5
+ * Vote to play a new set BO3 or BO5
  * @param {string} playerDiscordId DiscordID of the player voting
  * @returns
  */
-const voteNewSet = async (playerDiscordId) => {
+const voteNewSet = async (playerDiscordId, bestOf) => {
   const player = await getPlayerOrThrow(playerDiscordId, true);
   const lobby = await player.getLobbyOrThrow("PLAYING", "GAMESET");
 
@@ -509,21 +549,28 @@ const voteNewSet = async (playerDiscordId) => {
   if (currentGameset) throw new InGamesetError();
 
   const lp = await lobby.getLobbyPlayer(player.id);
-  await lp.setNewSet(!lp.newSet);
 
-  const newStatus = lp.newSet;
+  const oldStatus = bestOf == 3 ? lp.newSetBo3 : lp.newSetBo5;
 
-  const decided = await lobby.isNewSetDecided();
+  await lp.setNewSet(!oldStatus, bestOf);
 
   const opponentLp = await lp.getOpponent();
+  const decided = await lobby.isNewSetDecided();
 
-  if (decided) {
-    await opponentLp.setNewSet(false);
-    await lp.setNewSet(false);
+  const status = {
+    3: [lp.newSetBo3, opponentLp.newSetBo3],
+    5: [lp.newSetBo5, opponentLp.newSetBo5],
+  };
+
+  if (decided && decided != 0) {
+    await opponentLp.setNewSet(false, 3);
+    await opponentLp.setNewSet(false, 5);
+    await lp.setNewSet(false, 3);
+    await lp.setNewSet(false, 5);
   }
 
   const opponent = await opponentLp.getPlayer();
-  return { decided, status: newStatus, opponent };
+  return { decided, status, opponent };
 };
 
 const getHistory = async (playerDiscordId, guildDiscordId, page, isRanked) => {
@@ -555,7 +602,19 @@ const getHistory = async (playerDiscordId, guildDiscordId, page, isRanked) => {
       const characters = await gs.getCharacters();
       const score = await gs.getScore();
 
+      const gsDay = gs.createdAt
+        .getDate()
+        .toLocaleString("en-US", { minimumIntegerDigits: 2, useGrouping: false });
+
+      const gsMonth = (gs.createdAt.getMonth() + 1).toLocaleString("en-US", {
+        minimumIntegerDigits: 2,
+        useGrouping: false,
+      });
+
+      const gsDate = `${gsDay}/${gsMonth}/${gs.createdAt.getFullYear()}`;
+
       return {
+        date: gsDate,
         win: gs.winnerId == player.id,
         scores: score.map((sc) => {
           return {
@@ -570,10 +629,16 @@ const getHistory = async (playerDiscordId, guildDiscordId, page, isRanked) => {
     })
   );
 
+  const groupedSets = {};
+  sets.forEach((gs) => {
+    if (gs.date in groupedSets) groupedSets[gs.date].push(gs);
+    else groupedSets[gs.date] = [gs];
+  });
+
   return {
     page,
     setCount,
-    sets,
+    sets: groupedSets,
   };
 };
 
@@ -596,11 +661,14 @@ module.exports = {
   getScore,
   getGameWinner,
   setWinner,
+  resetGameWinnerVotes,
   unlinkLobby,
   getGameNumber,
   canPickCharacter,
+  pickLastGameCharacters,
   surrender,
   surrenderOpponent,
   removeCurrentGame,
   voteNewSet,
+  getFirstTo,
 };
