@@ -483,7 +483,14 @@ const setupNextGame = async (interaction) => {
 
     const lastWinner = await setAPI.getGameWinner(interaction.channel.id, newGame.num - 1);
     const player = members.find((m) => m.id == lastWinner.discordId);
-    return await setupCharacter(interaction.channel, player, newGame.num, interaction.guild);
+
+    const isRanked = await setAPI.isRankedSet(player.id);
+    if (isRanked)
+      return await setupCharacter(interaction.channel, player, newGame.num, interaction.guild);
+    else {
+      await setAPI.pickLastGameCharacters(interaction.channel.id, newGame.num);
+      return await setupGameWinner(interaction, newGame.num);
+    }
   }
 };
 
@@ -523,7 +530,9 @@ const allHavePicked = async (interaction, playerDiscordId, gameNum) => {
     content: `El **Game ${gameNum}** será entre ${playersText}.`,
   });
 
-  return await setupBans(interaction, gameNum);
+  const isRanked = await setAPI.isRankedSet(playerDiscordId);
+  if (isRanked) return await setupBans(interaction, gameNum);
+  else return await setupGameWinner(interaction, gameNum);
 };
 
 const disableAllButtons = (message) => {

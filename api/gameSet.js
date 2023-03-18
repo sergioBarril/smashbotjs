@@ -383,6 +383,23 @@ const setWinner = async (winnerDiscordId) => {
   await gameset.setFinish();
 };
 
+const pickLastGameCharacters = async (channelDiscordId, gameNum) => {
+  const { gameset } = await getObjectsByTextChannel(channelDiscordId);
+
+  if (gameNum == 1) return;
+  const lastGame = await gameset.getGameByNum(gameNum - 1);
+  const currentGame = await gameset.getCurrentGame();
+
+  const lastGameGps = await lastGame.getGamePlayers();
+  const currentGps = await currentGame.getGamePlayers();
+
+  for (let gp of currentGps) {
+    const lastGameCharacterId = lastGameGps.find((lgp) => lgp.playerId === gp.playerId).characterId;
+    await gp.setCharacter(lastGameCharacterId);
+  }
+  return;
+};
+
 /**
  * Unlink the gameset and the lobby
  * @param {string} channelDiscordId
@@ -615,6 +632,7 @@ module.exports = {
   unlinkLobby,
   getGameNumber,
   canPickCharacter,
+  pickLastGameCharacters,
   surrender,
   surrenderOpponent,
   removeCurrentGame,
