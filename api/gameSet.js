@@ -582,7 +582,7 @@ const getHistory = async (playerDiscordId, guildDiscordId, page, isRanked) => {
   if (!rating) throw new NotFoundError("Rating");
 
   const tier = await getTier(rating.tierId);
-  if (tier.wifi) isRanked = false;
+  if (!tier || tier.wifi) isRanked = false;
 
   const setCount = await rating.getSetCount(isRanked);
   if (setCount.sets == 0) {
