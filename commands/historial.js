@@ -208,17 +208,18 @@ module.exports = {
       page: actualPage,
       setCount,
       sets,
+      isRanked: actualIsRanked,
     } = await getHistory(memberId, guild.id, page, isRanked);
     const displayNames = await getDisplayNames(guild, memberId, sets);
 
-    const embed = makeEmbed(memberId, displayNames, setCount, sets, actualPage, isRanked);
+    const embed = makeEmbed(memberId, displayNames, setCount, sets, actualPage, actualIsRanked);
 
     const historyButtons = getHistoryButtons(
       actualPage,
       setCount.sets,
       memberId,
       isShare,
-      isRanked
+      actualIsRanked
     );
 
     if (isShare) {
