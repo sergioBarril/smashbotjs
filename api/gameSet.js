@@ -9,6 +9,7 @@ const { CustomError } = require("../errors/customError");
 const { AlreadyFinishedError } = require("../errors/alreadyFinished");
 const { getGuildOrThrow } = require("../models/guild");
 const { AlreadyWinnerError } = require("../errors/alreadyWinner");
+const { getTier } = require("../models/tier");
 
 /**
  * -------------
@@ -580,6 +581,9 @@ const getHistory = async (playerDiscordId, guildDiscordId, page, isRanked) => {
   const rating = await player.getRating(guild.id);
   if (!rating) throw new NotFoundError("Rating");
 
+  const tier = await getTier(rating.tierId);
+  if (tier.wifi) isRanked = false;
+
   const setCount = await rating.getSetCount(isRanked);
   if (setCount.sets == 0) {
     return { page: 0, setCount, sets: [] };
@@ -639,6 +643,7 @@ const getHistory = async (playerDiscordId, guildDiscordId, page, isRanked) => {
     page,
     setCount,
     sets: groupedSets,
+    isRanked,
   };
 };
 
