@@ -1,5 +1,6 @@
 const lobbyAPI = require("../api/lobby");
 const setAPI = require("../api/gameSet");
+const ratingAPI = require("../api/rating");
 
 const { MessageActionRow, MessageButton, Permissions } = require("discord.js");
 const { Player } = require("../models/player");
@@ -226,8 +227,33 @@ const allAccepted = async (interaction, players, guild, ranked) => {
       members.map((member) => `**${member.displayName}**`)
     );
 
+    const dps = members.map((m) => m.id);
+    const [dp1, dp2] = dps;
+    const bonus = await ratingAPI.isBonusMatch(dp1, dp2, guild.discordId);
+
+    let bonusText = "";
+
+    if (bonus.isBonus) {
+      bonusText = " Esta ranked es **Bonus**: no contará como victoria/derrota de promoción";
+      if (bonus.reason === "BOTH_PROMO") {
+        bonusText += " ya que ambos estáis en promo.";
+      } else {
+        const promoPlayerIndex = members.findIndex((m) => m.id == bonus.promoPlayer);
+        const promoName = `**${members[promoPlayerIndex].displayName}**`;
+        const normalName = `**${members[1 - promoPlayerIndex].displayName}**`;
+
+        bonusText += ` para ${promoName} ya que`;
+
+        if (bonus.reason === "TIER_DIFF") {
+          bonusText += ` ${normalName} no es de una tier superior.`;
+        } else if (bonus.reason === "ALREADY_BEAT") {
+          bonusText += ` ha ganado a ${normalName} durante su promo.`;
+        }
+      }
+    }
+
     await channels.text.send({
-      content: `¡Marchando un set ranked BO5 entre ${memberNames}! Si hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón.`,
+      content: `¡Marchando un set ranked BO5 entre ${memberNames}!${bonusText}\nSi hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón.`,
       components: cancelSetButtons(),
     });
 

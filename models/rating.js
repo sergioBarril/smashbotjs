@@ -136,6 +136,20 @@ class Rating {
   };
 
   /**
+   *
+   */
+  checkPromoTiers = async (opponentRating, client = null) => {
+    if (!this.isPromotion) return false;
+
+    const tier = await getTier(this.tierId, client);
+    const opponentTier = await getTier(opponentRating.tierId, client);
+
+    if (!tier || !opponentTier) return false;
+
+    return opponentTier.weight === tier.weight - 1;
+  };
+
+  /**
    * Returns true if during this player's promo, they have already won against the Opponent
    * @param {int} opponentId Player.id of the opponent
    * @param {Client} client Optional PG Client
