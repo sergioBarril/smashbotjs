@@ -220,6 +220,60 @@ const updateScore = async (
   return { oldRating, rating };
 };
 
+const isBonusMatch = async (player1DiscordId, player2DiscordId, guildDiscordId) => {
+  const player1 = await getPlayerOrThrow(player1DiscordId, true);
+  const player2 = await getPlayerOrThrow(player2DiscordId, true);
+  const guild = await getGuildOrThrow(guildDiscordId, true);
+
+  const rating1 = await player1.getRating(guild.id);
+  const rating2 = await player2.getRating(guild.id);
+
+  const result = {
+    isBonus: false,
+    reason: null,
+    promoPlayer: null,
+    normalPlayer: null,
+  };
+
+  if (!rating1 || !rating2) return result;
+  if (!rating1.promotion && !rating2.promotion) return result;
+  if (rating1.promotion && rating2.promotion) {
+    result.isBonus = true;
+    result.reason = "BOTH_PROMO";
+    return result;
+  }
+
+  const checkTruePromo = async (r1, r2, p1, p2) => {
+    if (!r1.promotion) return false;
+
+    result.promoPlayer = p1.discordId;
+    result.normalPlayer = p2.discordId;
+
+    const tierRule = await r1.checkPromoTiers(r2);
+
+    if (!tierRule) {
+      result.isBonus = true;
+      result.reason = "TIER_DIFF";
+      return false;
+    }
+
+    const alreadyBeat = await r1.wonAgainstInPromo(p2.id);
+
+    if (alreadyBeat) {
+      result.isBonus = true;
+      result.reason = "ALREADY_BEAT";
+      return false;
+    }
+
+    return true;
+  };
+
+  if (rating1.promotion) await checkTruePromo(rating1, rating2, player1, player2);
+  else await checkTruePromo(rating2, rating1, player2, player1);
+
+  return result;
+};
+
 /**
  * Returns true if promoPlayer is promo AND has already beat opponent during the promo
  * @param {*} promoPlayerDiscordId
@@ -364,4 +418,5 @@ module.exports = {
   setScore,
   setPromotion,
   wonAgainstInPromo,
+  isBonusMatch,
 };
