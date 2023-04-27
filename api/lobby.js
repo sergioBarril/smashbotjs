@@ -290,6 +290,19 @@ const matchmaking = async (playerDiscordId) => {
     );
     searchedRanked = true;
     foundRanked = rivalPlayer != null;
+
+    /** Allow for bonus in promo too */
+    if (!rivalPlayer) {
+      rivalPlayer = await lobby.rankedMatchmaking(
+        playerTier.weight,
+        rating.promotion,
+        rating.promotionWins,
+        rating.promotionLosses,
+        false
+      );
+
+      foundRanked = rivalPlayer != null;
+    }
   }
 
   if (!rivalPlayer) rivalPlayer = await lobby.matchmaking();

@@ -124,23 +124,20 @@ class Lobby {
    * @param {int} promotionLosses Number of losses so far in promotion -- null if not in promo
    * @returns
    */
-  rankedMatchmaking = async (playerTierWeight, isPromotion, promotionWins, promotionLosses) => {
+  rankedMatchmaking = async (
+    playerTierWeight,
+    isPromotion,
+    promotionWins,
+    promotionLosses,
+    promotionBonusSets,
+    realRankedOnly = true
+  ) => {
     let weightCondition = `
-      AND (
-        ( t.weight <= $4 + 1
-          AND t.weight >= $4 - 1
-          AND NOT r.promotion
-        )
-        OR
-        (
-          t.weight = $4 + 1
-          AND r.promotion
-        )
-      )
-      `;
+      AND ( t.weight <= $4 + 1 AND t.weight >= $4 - 1 )`;
 
     let promoBeatCondition = `AND NOT (
       r.promotion AND
+      ( t.weight <> $4 + 1 OR
       EXISTS (
         SELECT 1 FROM (
           SELECT gset.id as id, gset.winner_id FROM gameset gset
@@ -152,7 +149,7 @@ class Lobby {
           AND gplayer.player_id = p.id
           GROUP BY gset.id, gset.winner_id
           ORDER BY gset.created_at DESC
-          LIMIT r.promotion_wins + r.promotion_losses
+          LIMIT r.promotion_wins + r.promotion_losses + r.promotion_bonus_sets
         ) gs
         INNER JOIN game g
           ON g.gameset_id = gs.id
@@ -164,9 +161,12 @@ class Lobby {
         AND gp2.player_id = $3
         AND gs.winner_id = p.id
       )
+    )
     )`;
 
-    if (isPromotion) {
+    if (realRankedOnly) {
+      promoBeatCondition = "";
+    } else if (isPromotion) {
       weightCondition = `AND t.weight = $4 - 1 AND NOT r.promotion`;
       promoBeatCondition = `AND NOT EXISTS (
         SELECT 1 FROM (
@@ -179,7 +179,7 @@ class Lobby {
           AND gplayer.player_id = $3
           GROUP BY gset.id, gset.winner_id
           ORDER BY gset.created_at DESC
-          LIMIT ${promotionWins + promotionLosses}
+          LIMIT ${promotionWins + promotionLosses + promotionBonusSets}
         ) gs 
         INNER JOIN game g
           ON g.gameset_id = gs.id
@@ -189,7 +189,7 @@ class Lobby {
           ON g.id = gp2.game_id
         WHERE gp1.player_id = $3
         AND gp2.player_id = p.id
-        AND gs.winner_id = $3
+        AND gs.winner_id = $3        
       )`;
     }
     const today = new Date();
