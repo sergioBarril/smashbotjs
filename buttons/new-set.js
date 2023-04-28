@@ -1,7 +1,7 @@
 const { MessageActionRow, MessageButton, Interaction } = require("discord.js");
 const winston = require("winston");
 const setAPI = require("../api/gameSet");
-const { setupCharacter } = require("../utils/discordGameset");
+const { setupCharacter, bonusSetText } = require("../utils/discordGameset");
 
 const newSetButtons = (message, decided, status) => {
   const newButtons = message.components.map((row) => {
@@ -88,8 +88,18 @@ module.exports = {
 
     winston.info(`Empieza un set entre ${memberNames}.`);
 
+    let bonusText = "";
+    if (isRanked) {
+      bonusText = await bonusSetText(
+        interaction.user.id,
+        opponent.discordId,
+        interaction.guild.id,
+        members
+      );
+    }
+
     await interaction.editReply({
-      content: `¡Marchando un set BO${bestOf} entre ${memberNames}! Si hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón:`,
+      content: `¡Marchando un set BO${bestOf} entre ${memberNames}! ${bonusText}\nSi hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón:`,
       components: cancelSetButtons(),
     });
 

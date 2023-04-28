@@ -84,6 +84,32 @@ const stageButtons = (nextPlayerId, gameNum, stages, bannedStages, isBan) => {
   return rows;
 };
 
+const bonusSetText = async (playerDiscordId1, playerDiscordId2, guildDiscordId, members) => {
+  const bonus = await ratingAPI.isBonusMatch(playerDiscordId1, playerDiscordId2, guildDiscordId);
+  let bonusText = "";
+
+  if (bonus.isBonus) {
+    bonusText = " Esta ranked es **Bonus**: no contará como victoria/derrota de promoción";
+    if (bonus.reason === "BOTH_PROMO") {
+      bonusText += " ya que ambos estáis en promo.";
+    } else {
+      const promoPlayerIndex = members.findIndex((m) => m.id == bonus.promoPlayer);
+      const promoName = `**${members[promoPlayerIndex].displayName}**`;
+      const normalName = `**${members[1 - promoPlayerIndex].displayName}**`;
+
+      bonusText += ` para ${promoName} ya que`;
+
+      if (bonus.reason === "TIER_DIFF") {
+        bonusText += ` ${normalName} no es de una tier superior.`;
+      } else if (bonus.reason === "ALREADY_BEAT") {
+        bonusText += ` ha ganado a ${normalName} durante su promo.`;
+      }
+    }
+  }
+
+  return bonusText;
+};
+
 /**
  * Final state for stage buttons
  * @param {Stage[]} stages All stages
@@ -246,13 +272,12 @@ const setupGameWinner = async (interaction, gameNum) => {
   });
 };
 
-const getRankedButtons = (rematchAvailable) => {
+const getRankedButtons = (isRematchBonus) => {
+  let buttonLabel = "Revancha";
+  if (isRematchBonus) buttonLabel += " (bonus)";
+
   const newSet = new MessageActionRow().addComponents(
-    new MessageButton()
-      .setCustomId("new-set-ranked-5")
-      .setLabel("Revancha")
-      .setStyle("SECONDARY")
-      .setDisabled(!rematchAvailable),
+    new MessageButton().setCustomId("new-set-ranked-5").setLabel(buttonLabel).setStyle("SECONDARY"),
     new MessageButton().setCustomId("close-lobby").setLabel("Cerrar arena").setStyle("DANGER")
   );
 
@@ -275,8 +300,8 @@ const getFriendliesButtons = () => {
   return [newSet];
 };
 
-const setEndButtons = (isRanked = false, rematchAvailable = true) => {
-  return isRanked ? getRankedButtons(rematchAvailable) : getFriendliesButtons();
+const setEndButtons = (isRanked = false, isRematchBonus = false) => {
+  return isRanked ? getRankedButtons(isRematchBonus) : getFriendliesButtons();
 };
 
 const rankedScoreText = async (member, oldRating, rating, discordGuild) => {
@@ -388,7 +413,7 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
 
   const isRanked = await setAPI.isRankedSet(winnerDiscordId);
   let rankedText = " ";
-  let rematchAvailable = true;
+  let isRematchBonus = false;
 
   if (isRanked) {
     const winnerRoles = winner.roles.cache;
@@ -430,7 +455,13 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
       interaction.guild.id
     );
 
-    rematchAvailable = !winnerRating.promotion && !alreadyBeat;
+    const rematchInfo = await ratingAPI.isBonusMatch(
+      winnerDiscordId,
+      loserDiscordId,
+      interaction.guild.id
+    );
+
+    isRematchBonus = rematchInfo.isBonus;
   }
 
   await setAPI.unlinkLobby(interaction.channel.id);
@@ -439,12 +470,12 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
   winston.info(rankedText);
 
   let rematchText = `Puedes pedir la revancha, o cerrar la arena.`;
-  if (!rematchAvailable)
-    rematchText = `No podéis jugar más ranked juntos de momento. Volved a probar después de la promoción.`;
+  if (isRematchBonus)
+    rematchText = `Pese a estar en promoción, la revancha será Bonus (las wins/losses darán puntos bonus en vez de avanzar la promoción).`;
 
   const responseObj = {
     content: `¡**${winner.displayName}**${emoji} ha ganado el set${porAbandono}!${rankedText}${rematchText}`,
-    components: setEndButtons(isRanked, rematchAvailable),
+    components: setEndButtons(isRanked, isRematchBonus),
   };
 
   if (interaction.isButton()) return await interaction.channel.send(responseObj);
@@ -652,4 +683,5 @@ module.exports = {
   stageFinalButtons,
   setEndButtons,
   pickCharacter,
+  bonusSetText,
 };
