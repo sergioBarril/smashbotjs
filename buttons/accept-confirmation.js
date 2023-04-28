@@ -7,7 +7,12 @@ const { Player } = require("../models/player");
 const { Guild } = require("../models/guild");
 const { NotFoundError } = require("../errors/notFound");
 const { Message, MESSAGE_TYPES } = require("../models/message");
-const { setupNextGame, setupCharacter, setEndButtons } = require("../utils/discordGameset");
+const {
+  setupNextGame,
+  setupCharacter,
+  setEndButtons,
+  bonusSetText,
+} = require("../utils/discordGameset");
 const winston = require("winston");
 
 // Disabled buttons
@@ -229,28 +234,8 @@ const allAccepted = async (interaction, players, guild, ranked) => {
 
     const dps = members.map((m) => m.id);
     const [dp1, dp2] = dps;
-    const bonus = await ratingAPI.isBonusMatch(dp1, dp2, guild.discordId);
 
-    let bonusText = "";
-
-    if (bonus.isBonus) {
-      bonusText = " Esta ranked es **Bonus**: no contará como victoria/derrota de promoción";
-      if (bonus.reason === "BOTH_PROMO") {
-        bonusText += " ya que ambos estáis en promo.";
-      } else {
-        const promoPlayerIndex = members.findIndex((m) => m.id == bonus.promoPlayer);
-        const promoName = `**${members[promoPlayerIndex].displayName}**`;
-        const normalName = `**${members[1 - promoPlayerIndex].displayName}**`;
-
-        bonusText += ` para ${promoName} ya que`;
-
-        if (bonus.reason === "TIER_DIFF") {
-          bonusText += ` ${normalName} no es de una tier superior.`;
-        } else if (bonus.reason === "ALREADY_BEAT") {
-          bonusText += ` ha ganado a ${normalName} durante su promo.`;
-        }
-      }
-    }
+    const bonusText = await bonusSetText(dp1, dp2, guild.discordId, members);
 
     await channels.text.send({
       content: `¡Marchando un set ranked BO5 entre ${memberNames}!${bonusText}\nSi hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón.`,
