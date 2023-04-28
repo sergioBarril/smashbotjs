@@ -449,12 +449,6 @@ const setupSetEnd = async (interaction, winnerDiscordId, loserDiscordId, isSurre
     await changeTier(loserDiscordId, loserOldRating, loserRating, interaction.guild);
     updateLeaderboard(interaction.guild);
 
-    let alreadyBeat = await ratingAPI.wonAgainstInPromo(
-      loserDiscordId,
-      winnerDiscordId,
-      interaction.guild.id
-    );
-
     const rematchInfo = await ratingAPI.isBonusMatch(
       winnerDiscordId,
       loserDiscordId,
