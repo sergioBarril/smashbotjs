@@ -213,8 +213,8 @@ class Lobby {
       AND l.ranked
       AND NOT EXISTS ( 
         SELECT 1 FROM player_reject pr 
-        WHERE (pr.rejected_player_id = $3 AND pr.rejecter_player_id = p.id)
-        OR (pr.rejected_player_id = p.id AND pr.rejecter_player_id = $3)
+        WHERE (pr.rejected_player_id = $3 AND pr.rejecter_player_id = p.id AND pr.rejected_at < (CURRENT_TIMESTAMP - pr.time_margin * interval '1 minute'))
+        OR (pr.rejected_player_id = p.id AND pr.rejecter_player_id = $3 AND pr.rejected_at < (CURRENT_TIMESTAMP - pr.time_margin * interval '1 minute'))
       )
       AND NOT EXISTS (
         SELECT COUNT(1) FROM (
@@ -313,8 +313,8 @@ class Lobby {
       AND (NOT tier.yuzu OR yuzu_player.parsec = $4 OR yuzu_player.yuzu = $5)
       AND NOT EXISTS ( 
         SELECT 1 FROM player_reject pr 
-        WHERE (pr.rejected_player_id = $3 AND pr.rejecter_player_id = player.id)
-        OR (pr.rejected_player_id = player.id AND pr.rejecter_player_id = $3)
+        WHERE (pr.rejected_player_id = $3 AND pr.rejecter_player_id = player.id AND pr.rejected_at < (CURRENT_TIMESTAMP - pr.time_margin * interval '1 minute'))
+        OR (pr.rejected_player_id = player.id AND pr.rejecter_player_id = $3 AND pr.rejected_at < (CURRENT_TIMESTAMP - pr.time_margin * interval '1 minute'))
       )
       ${tierCondition}
       ORDER BY tier.yuzu DESC, tier.weight ASC, lobby_tier.created_at ASC
