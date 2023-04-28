@@ -192,8 +192,16 @@ class Lobby {
         AND gs.winner_id = $3        
       )`;
     }
+
     const today = new Date();
-    const formattedToday = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+
+    if (today.getHours() < 6) {
+      today.setDate(today.getDate() - 1);
+    }
+
+    const formattedToday = `${today.getFullYear()}-${
+      today.getMonth() + 1
+    }-${today.getDate()} 06:00:00`;
 
     const SET_LIMIT_PER_DAY = 2;
 
