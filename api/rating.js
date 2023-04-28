@@ -77,6 +77,8 @@ const getRating = async (playerDiscordId, guildDiscordId) => {
 
 const rankUp = async (rating, nextTier) => {
   await rating.setTier(nextTier.id);
+  if (rating.promotionBonusScore > 0)
+    await rating.setScore(rating.score + rating.promotionBonusScore);
   await rating.endPromotion();
 };
 
@@ -95,6 +97,19 @@ const getProbability = (p1Score, p2Score) => {
   const qa = 10 ** (p1Score / 400);
   const qb = 10 ** (p2Score / 400);
   return qa / (qa + qb);
+};
+
+const updateBonusScore = async (promoRating, weightDiff, isWin) => {
+  let addScore = null;
+  if (weightDiff == 0) addScore = isWin ? 10 : -10;
+  else if (weightDiff < 0) addScore = isWin ? 5 : -10;
+  else if (weightDiff > 0) addScore = isWin ? 15 : -10;
+
+  await promoRating.addPromotionBonusScore(addScore);
+  await promoRating.setPromotionBonusSets(promoRating.promotionBonusSets + 1);
+
+  if (!isWin && promoRating.promotionBonusScore <= -50) return true;
+  else return false;
 };
 
 /**
@@ -135,6 +150,13 @@ const updateScore = async (
   const opponentTier = await getTier(opponentRating.tierId);
   const upset = opponentTier.weight < tier.weight;
 
+  let isBonus = false;
+
+  if (rating.promotion) {
+    const bonus = await isBonusMatch(playerDiscordId, opponentDiscordId, guildDiscordId);
+    isBonus = bonus.isBonus;
+  }
+
   oldRating.tier = tier;
   rating.tier = tier;
 
@@ -164,10 +186,14 @@ const updateScore = async (
         await rating.startPromotion();
       } else await rating.setScore(newScore);
     } else if (rating.promotion) {
-      await rating.setPromotionWins(rating.promotionWins + 1);
-      if (rating.promotionWins >= 3) {
-        await rankUp(rating, nextTier);
-        rating.tier = nextTier;
+      if (isBonus) {
+        await updateBonusScore(rating, tier.weight - opponentTier.weight, true);
+      } else {
+        await rating.setPromotionWins(rating.promotionWins + 1);
+        if (rating.promotionWins >= 3) {
+          await rankUp(rating, nextTier);
+          rating.tier = nextTier;
+        }
       }
     } else {
       // ELO
@@ -209,9 +235,21 @@ const updateScore = async (
         await rating.setScore(tier.threshold - 200);
       else await rating.setScore(newScore);
     } else {
-      await rating.setPromotionLosses(rating.promotionLosses + 1);
-      if (rating.promotionLosses >= 3) {
-        await rating.setScore(rating.score - 50 + 20 * rating.promotionWins);
+      let isPromoStopped = false;
+      if (isBonus)
+        isPromoStopped = await updateBonusScore(rating, tier.weight - opponentTier.weight, false);
+      else {
+        await rating.setPromotionLosses(rating.promotionLosses + 1);
+        isPromoStopped = rating.promotionLosses >= 3;
+      }
+
+      if (isPromoStopped) {
+        let newScoreDiff = -50 + 20 * rating.promotionWins;
+
+        if (rating.promotionBonusScore > 0) newScoreDiff += rating.promotionBonusScore;
+        if (newScoreDiff >= 0) newScoreDiff = -5;
+
+        await rating.setScore(rating.score + newScoreDiff);
         await rating.endPromotion();
       }
     }

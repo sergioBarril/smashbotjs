@@ -222,14 +222,19 @@ class Rating {
   };
 
   addPromotionBonusScore = async (promotionBonusScoreToAdd, client = null) => {
+    let totalBonusScore = this.promotionBonusScore + promotionBonusScoreToAdd;
+
+    // UPPER LIMIT IN BONUS SCORE
+    if (totalBonusScore > 75) totalBonusScore = 75;
+
     await db.updateBy(
       "rating",
-      { promotion_bonus_score: this.promotionBonusScore + promotionBonusScoreToAdd },
+      { promotion_bonus_score: totalBonusScore },
       { id: this.id },
       client
     );
 
-    this.promotionBonusScore += promotionBonusScoreToAdd;
+    this.promotionBonusScore = totalBonusScore;
   };
 
   setPromotionBonusSets = async (promotionBonusSets, client = null) => {

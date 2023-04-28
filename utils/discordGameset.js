@@ -281,9 +281,12 @@ const setEndButtons = (isRanked = false, rematchAvailable = true) => {
 
 const rankedScoreText = async (member, oldRating, rating, discordGuild) => {
   // PROMOTIONS
-  if (oldRating.promotion && rating.promotion)
-    return `La promoción de **${member.displayName}** va ${rating.promotionWins} - ${rating.promotionLosses}.`;
-  else if (oldRating.promotion) {
+  if (oldRating.promotion && rating.promotion) {
+    const bonusScoreDiff = rating.promotionBonusScore - oldRating.promotionBonusScore;
+    const bonusSign = bonusScoreDiff >= 0 ? "+" : "";
+    const bonusDiffText = bonusScoreDiff == 0 ? "" : ` (${bonusSign}${bonusScoreDiff})`;
+    return `La promoción de **${member.displayName}** va ${rating.promotionWins} - ${rating.promotionLosses}. Puntos bonus: ${rating.promotionBonusScore}${bonusDiffText}`;
+  } else if (oldRating.promotion) {
     const promotionWins = oldRating.promotionWins;
     const promotionLosses = oldRating.promotionLosses;
     const newTierRole = await discordGuild.roles.fetch(rating.tier.roleId);
