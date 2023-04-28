@@ -170,7 +170,7 @@ const notMatched = async (playerId, guild, tier = null, isRanked = false, isOnly
   }
 
   if (isRanked) {
-    const assignedTier = await ratingAPI.getPlayerTier(playerId, guild.id);
+    const assignedTier = await ratingAPI.getPlayerTier(playerId, guild.id, true);
     const rankedRole = await guild.roles.fetch(assignedTier.rankedRoleId);
     const rankedChannelId = await guildAPI.getRankedChannel(guild.id);
     const rankedChannel = await guild.channels.fetch(rankedChannelId);

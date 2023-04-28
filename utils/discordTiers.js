@@ -81,8 +81,8 @@ async function assignTier(
     const nextTierInfo = await tierAPI.getNextTier(guild.id, tierRoleId);
     const nextRankedRole = nextTierInfo ? await guild.roles.fetch(nextTierInfo.rankedRoleId) : null;
 
-    if (!isNewPromotion) await member.roles.add(rankedRole);
-    if (previousRankedRole && !isNewPromotion) await member.roles.add(previousRankedRole);
+    await member.roles.add(rankedRole);
+    if (previousRankedRole) await member.roles.add(previousRankedRole);
     if (nextRankedRole) await member.roles.add(nextRankedRole);
 
     await member.roles.add(cableRole);
