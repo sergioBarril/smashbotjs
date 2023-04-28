@@ -110,8 +110,9 @@ const matchNotAccepted = async (playerDiscordId, isTimeout) => {
 
     // Reject player
     if (!isTimeout) {
+      const REJECT_TIME = 45;
       for (let rejectedPlayer of otherPlayers) {
-        await player.rejectPlayer(rejectedPlayer.id);
+        await player.rejectPlayer(rejectedPlayer.id, REJECT_TIME);
       }
     }
 
