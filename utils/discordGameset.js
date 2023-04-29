@@ -18,6 +18,7 @@ const { Tier } = require("../models/tier");
 const { updateLeaderboard } = require("./discordLeaderboard");
 const winston = require("winston");
 const { assignTier } = require("./discordTiers");
+const { getGuild } = require("../api/guild");
 
 /**
  * Get the text that will be displayed after picking or banning
@@ -362,6 +363,16 @@ const allRankedScoreText = async (
   return `\n${winnerText}\n${loserText}\n`;
 };
 
+const toggleTierX = async (playerDiscordId, discordGuild, isAdd) => {
+  const member = await discordGuild.members.fetch(playerDiscordId);
+
+  const guildInfo = await getGuild(discordGuild.id);
+  const xRole = await discordGuild.roles.fetch(guildInfo.tierXRoleId);
+
+  if (isAdd) await member.roles.add(xRole);
+  else await member.roles.remove(xRole);
+};
+
 /**
  *
  * @param {string} playerDiscordId DiscordId of the player that needs their role changed
@@ -372,6 +383,17 @@ const allRankedScoreText = async (
 const changeTier = async (playerDiscordId, oldRating, newRating, discordGuild) => {
   const newTier = newRating.tier;
   const oldTier = oldRating.tier;
+
+  const newTierNextTier = await newTier.getNextTier();
+
+  if (!newTierNextTier) {
+    const tierXThreshold = newTier.threshold + 200;
+    if (oldRating.score < tierXThreshold && newRating.score >= tierXThreshold)
+      await toggleTierX(playerDiscordId, discordGuild, true);
+    else if (oldRating.score >= tierXThreshold && newRating.score < tierXThreshold) {
+      await toggleTierX(playerDiscordId, discordGuild, false);
+    }
+  }
 
   if (oldTier.id === newTier.id && oldRating.promotion === newRating.promotion) return;
   const enterNewPromo = !oldRating.promotion && newRating.promotion;
