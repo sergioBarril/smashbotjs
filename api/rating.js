@@ -195,14 +195,19 @@ const updateScore = async (
           rating.tier = nextTier;
         }
       }
+    } else if (rating.score < tier.threshold + 200) {
+      scoreToAdd = 15;
+      if (rankedCountToday == 3) scoreToAdd = 10;
+      if (rankedCountToday > 3) scoreToAdd = 5;
+      await rating.setScore(rating.score + scoreToAdd);
     } else {
-      // ELO
+      // ELO FOR TIER X
       const probability = getProbability(rating.score, opponentOldScore || opponentRating.score);
       let scoreToAdd = 42 * (1 - probability);
       scoreToAdd = scoreToAdd * (1 + 0.05 * streak);
 
-      if (scoreToAdd < 5) {
-        scoreToAdd = 5;
+      if (scoreToAdd < 10) {
+        scoreToAdd = 10;
       }
 
       if (rankedCountToday == 3 && scoreToAdd > 10) scoreToAdd = 10;
@@ -216,11 +221,15 @@ const updateScore = async (
     if (!rating.promotion) {
       let scoreToSubstract = 20 + 5 * -streak;
       if (!isSameTier) scoreToSubstract = 15;
-      else if (!nextTier) {
+      else if (!nextTier && rating.score < tier.threshold + 200) {
+        scoreToSubstract = 10;
+      } else if (!nextTier && rating.score >= tier.threshold + 200) {
         //ELO
         const probability = getProbability(rating.score, opponentOldScore || opponentRating.score);
         scoreToSubstract = 42 * probability;
         scoreToSubstract = scoreToSubstract * (1 - 0.05 * streak); // streak is negative: ;
+
+        if (scoreToSubstract > 10) scoreToSubstract = 10;
       }
 
       if (rankedCountToday == 3 && scoreToSubstract > 10) scoreToSubstract = 10;

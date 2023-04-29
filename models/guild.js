@@ -31,6 +31,7 @@ class Guild {
     grind_supporter_role_id,
     tryhard_supporter_role_id,
     pro_supporter_role_id,
+    tier_x_role_id,
   }) {
     this.id = id;
     this.discordId = discord_id;
@@ -58,6 +59,8 @@ class Guild {
     this.grindSupporterRoleId = grind_supporter_role_id;
     this.tryhardSupporterRoleId = tryhard_supporter_role_id;
     this.proSupporterRoleId = pro_supporter_role_id;
+
+    this.tierXRoleId = tier_x_role_id;
   }
 
   // **********
