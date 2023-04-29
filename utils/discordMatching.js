@@ -34,7 +34,7 @@ async function sendConfirmation(player, opponent, isRanked, guild) {
   let messageText = `¡Match encontrado! ${player}, te toca contra **${opponent.displayName}**`;
 
   if (isRanked) {
-    const opponentTier = await ratingAPI.getPlayerTier(opponent.id, guild.id);
+    const opponentTier = await ratingAPI.getPlayerTier(opponent.id, guild.id, true);
     const discordTier = await guild.roles.fetch(opponentTier.roleId);
     messageText = `¡Match ranked encontrado! ${player}, te toca contra alguien de **${discordTier.name}**`;
   }
