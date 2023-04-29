@@ -8,6 +8,7 @@ const { CustomError } = require("../errors/customError");
 const { MESSAGE_TYPES } = require("../models/message");
 const { AlreadyFinishedError } = require("../errors/alreadyFinished");
 const { NotFoundError } = require("../errors/notFound");
+const { removeAllRejects } = require("../models/playerReject");
 
 async function deleteMessage(guild, message) {
   let channel;
@@ -92,6 +93,8 @@ function dailyCleanup(client) {
         }
       }
 
+      await removeAllRejects();
+      winston.info(`[Cleanup job] Rejects removed`);
       winston.info(`[Cleanup job] End`);
     } catch (e) {
       winston.error(e);

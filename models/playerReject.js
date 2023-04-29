@@ -54,6 +54,14 @@ const removeOldRejects = async (client = null) => {
   await db.deleteQuery(queryString, client);
 };
 
+const removeAllRejects = async (client = null) => {
+  const queryString = {
+    text: `DELETE FROM player_reject`,
+  };
+
+  await db.deleteQuery(queryString, client);
+};
+
 const countOldRejects = async (client = null) => {
   const queryString = {
     text: `SELECT COUNT(1) AS num_old FROM player_reject
@@ -64,4 +72,4 @@ const countOldRejects = async (client = null) => {
   return result.num_old;
 };
 
-module.exports = { PlayerReject, removeOldRejects, countOldRejects };
+module.exports = { PlayerReject, removeOldRejects, removeAllRejects, countOldRejects };
