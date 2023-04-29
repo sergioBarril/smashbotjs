@@ -13,7 +13,7 @@ class PlayerReject {
       {
         text: `UPDATE player_reject SET time_margin = $1 
       WHERE rejected_player_id = $2
-      AND rejecter_player = $3`,
+      AND rejecter_player_id = $3`,
         values: [timeMargin, this.rejectedPlayerId, this.rejecterPlayerId],
       },
       client

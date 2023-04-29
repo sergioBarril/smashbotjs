@@ -33,6 +33,8 @@ module.exports = {
           command = interaction.client.buttons.get("new-set");
         else if (interaction.customId.startsWith("character-set-menu"))
           command = interaction.client.buttons.get("character-set-menu");
+        else if (interaction.customId.startsWith("avoid"))
+          command = interaction.client.buttons.get("avoid");
       }
     }
 

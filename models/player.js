@@ -215,7 +215,14 @@ class Player {
    */
   hasRejected = async (rejectedPlayerId, client = null) => {
     const pr = await this.getRejected(rejectedPlayerId, client);
-    return pr != null;
+
+    if (pr) {
+      const blockLimit = new Date(pr.rejectedAt.getTime() + pr.timeMargin * 60 * 1000);
+      const now = new Date();
+      return now < blockLimit;
+    }
+
+    return false;
   };
 
   /**
