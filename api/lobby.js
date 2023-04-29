@@ -700,6 +700,7 @@ const closeArena = async (playerDiscordId) => {
   const messages = await lobby.getMessagesFromEveryone();
   const lobbyPlayers = await lobby.getLobbyPlayers();
   const players = await Promise.all(lobbyPlayers.map(async (lp) => await lp.getPlayer()));
+  const playersDiscordIds = players.map((p) => p.discordId);
 
   for (let message of messages)
     message.playerDiscordId = players.find((p) => p.id === message.playerId).discordId;
@@ -712,7 +713,19 @@ const closeArena = async (playerDiscordId) => {
     },
     guild,
     messages,
+    playersDiscordIds,
   };
+};
+
+const avoidPlayer = async (playerDiscordId, playerDiscordId2, timeMargin) => {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const rejectedPlayer = await getPlayerOrThrow(playerDiscordId2, true);
+
+  if (timeMargin == 0) {
+    const pr = await player.getRejected(rejectedPlayer.id);
+    if (pr) await pr.remove();
+    return;
+  } else await player.rejectPlayer(rejectedPlayer.id, timeMargin);
 };
 
 /**
@@ -848,4 +861,5 @@ module.exports = {
   removeAfkLobby,
   deleteLobbies,
   isInAnyLobby,
+  avoidPlayer,
 };
