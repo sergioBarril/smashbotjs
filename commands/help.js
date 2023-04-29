@@ -36,7 +36,9 @@ const SCORE_HELP =
   ` y el perdedor perderá entre **25 y 35 puntos** según la racha de derrotas que lleve.\n` +
   `**__Ranked con gente de tier diferente__**\nPerder te quita 15 puntos. Ganar te da **15 puntos** si eres el que tiene más tier y **25** si eres el que menos tier tenías.\n` +
   `__**Rankeds de Tier 1**__\n` +
-  `Para evitar que sus puntos lleguen hasta el infinito, la Tier 1 calcula sus puntos mediante el **algoritmo del ELO** normal y corriente.\n` +
+  `Para evitar que sus puntos lleguen hasta el infinito, la Tier 1 calcula sus puntos de forma diferente.\n` +
+  `__**Tier X**__\n` +
+  `Los que lleguen a 2300 puntos tendrán un reconocimiento especial: **la tier X**.\n` +
   `__**Promoción**__\n` +
   `Cuando llegas al **límite de tu tier** (por ejemplo, a 1500 puntos siendo Tier 4), entrarás en promoción.` +
   ` A partir de entonces, tendrás que jugar con gente de la tier a la que quieres subir (en el ejemplo, Tier 3).` +
