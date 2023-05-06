@@ -334,6 +334,18 @@ class Guild {
     this.noCableRoleId = noCableRoleId;
   };
 
+  setSmashHour = async (isSmashHour, hourStart, hourEnd, client = null) => {
+    await db.updateBy(
+      "guild",
+      { smash_hour: isSmashHour, smash_hour_start: hourStart, smash_hour_end: hourEnd },
+      { id: this.id },
+      client
+    );
+    this.smashHour = isSmashHour;
+    this.smashHourStart = hourStart;
+    this.smashHourEnd = hourEnd;
+  };
+
   remove = async (client = null) => await db.basicRemove("guild", this.id, false, client);
 }
 
