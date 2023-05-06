@@ -119,6 +119,13 @@ const setLeaderboardChannel = async (guildDiscordId, leaderboardChannelId) => {
   await guild.setLeaderboardChannel(leaderboardChannelId);
 };
 
+const setSmashHour = async (guildDiscordId, isSmashHour, smashHourStart, smashHourEnd) => {
+  const guild = await getGuild(guildDiscordId);
+  if (!guild) throw NotFoundError("Guild");
+
+  await guild.setSmashHour(isSmashHour, smashHourStart, smashHourEnd);
+};
+
 /**
  * Get the message that shows the current state of the queues
  * @param {string} guildDiscordId DiscordID of the guild
@@ -293,6 +300,7 @@ module.exports = {
   setRankedChannel,
   getLeaderboardChannel,
   setLeaderboardChannel,
+  setSmashHour,
   getCurrentList,
   getWifiTier,
   getCableRole,
