@@ -99,11 +99,13 @@ const getProbability = (p1Score, p2Score) => {
   return qa / (qa + qb);
 };
 
-const updateBonusScore = async (promoRating, weightDiff, isWin) => {
+const updateBonusScore = async (promoRating, weightDiff, isWin, isSmashHour) => {
   let addScore = null;
   if (weightDiff == 0) addScore = isWin ? 10 : -10;
   else if (weightDiff < 0) addScore = isWin ? 5 : -10;
   else if (weightDiff > 0) addScore = isWin ? 15 : -10;
+
+  if (isWin && isSmashHour) addScore *= 1.2;
 
   await promoRating.addPromotionBonusScore(addScore);
   await promoRating.setPromotionBonusSets(promoRating.promotionBonusSets + 1);
@@ -170,6 +172,18 @@ const updateScore = async (
   if (!hasStreakBoost && streak < -3) streak = -3;
   if (!hasStreakBoost && streak > 3) streak = 3;
 
+  // Smash Hour
+  let smashHour = false;
+  if (guild.smashHour) {
+    if (!guild.smashHourStart && !guild.smashHourEnd) smashHour = true;
+    else if (guild.smashHourStart) {
+      const now = new Date();
+      smashHour =
+        now.getHours() >= guild.smashHourStart &&
+        (!guild.smashHourEnd || now.getHours() < guild.smashHourEnd);
+    }
+  }
+
   const rankedCountToday = await player.getRankedCountToday(opponent.id);
 
   if (streak > 0) {
@@ -180,6 +194,8 @@ const updateScore = async (
       if (rankedCountToday == 3) scoreToAdd = 10;
       if (rankedCountToday > 3) scoreToAdd = 5;
 
+      if (smashHour) scoreToAdd *= 1.2;
+
       let newScore = rating.score + scoreToAdd;
       if (newScore >= nextTier.threshold) {
         await rating.setScore(nextTier.threshold);
@@ -187,7 +203,7 @@ const updateScore = async (
       } else await rating.setScore(newScore);
     } else if (rating.promotion) {
       if (isBonus) {
-        await updateBonusScore(rating, tier.weight - opponentTier.weight, true);
+        await updateBonusScore(rating, tier.weight - opponentTier.weight, true, smashHour);
       } else {
         await rating.setPromotionWins(rating.promotionWins + 1);
         if (rating.promotionWins >= 3) {
@@ -199,6 +215,7 @@ const updateScore = async (
       scoreToAdd = 15;
       if (rankedCountToday == 3) scoreToAdd = 10;
       if (rankedCountToday > 3) scoreToAdd = 5;
+      if (smashHour) scoreToAdd *= 1.2;
       await rating.setScore(rating.score + scoreToAdd);
     } else {
       // ELO FOR TIER X
@@ -213,6 +230,7 @@ const updateScore = async (
       if (rankedCountToday == 3 && scoreToAdd > 10) scoreToAdd = 10;
       if (rankedCountToday > 3 && scoreToAdd > 5) scoreToAdd = 5;
 
+      if (smashHour) scoreToAdd *= 1.2;
       const newScore = Number.parseInt(rating.score + scoreToAdd);
 
       await rating.setScore(newScore);
