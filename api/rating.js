@@ -99,7 +99,7 @@ const getProbability = (p1Score, p2Score) => {
   return qa / (qa + qb);
 };
 
-const updateBonusScore = async (promoRating, weightDiff, isWin, isSmashHour) => {
+const updateBonusScore = async (promoRating, weightDiff, isWin, isSmashHour = false) => {
   let addScore = null;
   if (weightDiff == 0) addScore = isWin ? 10 : -10;
   else if (weightDiff < 0) addScore = isWin ? 5 : -10;
