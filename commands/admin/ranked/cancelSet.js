@@ -12,7 +12,7 @@ const cancelSet = async (interaction) => {
     content:
       `El set ha sido **cancelado**. ¿Qué set? Yo no he visto ningún set... ` +
       `Si queréis hacer otro dadle al botón. Si no, cerrad la arena cuando queráis.`,
-    components: setEndButtons(isRanked, true),
+    components: setEndButtons(isRanked, false),
   });
 };
 
