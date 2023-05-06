@@ -50,7 +50,8 @@ const firstVote = async (interaction, status, opponentDiscordId, bestOf) => {
 const cancelSetButtons = () => {
   return [
     new MessageActionRow().addComponents(
-      new MessageButton().setCustomId("cancel-set").setStyle("SECONDARY").setLabel("Anular set")
+      new MessageButton().setCustomId("cancel-set").setStyle("SECONDARY").setLabel("Anular set"),
+      new MessageButton().setCustomId("afk-set").setStyle("SECONDARY").setLabel("Mi rival está AFK")
     ),
   ];
 };

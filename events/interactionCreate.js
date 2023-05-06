@@ -35,6 +35,8 @@ module.exports = {
           command = interaction.client.buttons.get("character-set-menu");
         else if (interaction.customId.startsWith("avoid"))
           command = interaction.client.buttons.get("avoid");
+        else if (interaction.customId.startsWith("afk-set"))
+          command = interaction.client.buttons.get("afk-set");
       }
     }
 
