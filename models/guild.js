@@ -32,6 +32,9 @@ class Guild {
     tryhard_supporter_role_id,
     pro_supporter_role_id,
     tier_x_role_id,
+    smash_hour,
+    smash_hour_start,
+    smash_hour_end,
   }) {
     this.id = id;
     this.discordId = discord_id;
@@ -61,6 +64,10 @@ class Guild {
     this.proSupporterRoleId = pro_supporter_role_id;
 
     this.tierXRoleId = tier_x_role_id;
+
+    this.smashHour = smash_hour;
+    this.smashHourStart = smash_hour_start;
+    this.smashHourEnd = smash_hour_end;
   }
 
   // **********
