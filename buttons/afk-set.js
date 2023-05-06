@@ -1,6 +1,6 @@
 const { MessageActionRow, MessageButton } = require("discord.js");
 const { isRankedSet, getGameNumber, cancelSet, surrender } = require("../api/gameSet");
-const { getPlayingPlayers } = require("../api/lobby");
+const { getPlayingPlayers, resetVoteCancel } = require("../api/lobby");
 const { setEndButtons, setupNextGame } = require("../utils/discordGameset");
 const winston = require("winston");
 
@@ -59,7 +59,7 @@ const afkSetCancelledButtons = (afkButton, afkBackButton) => {
 
 async function startAfkTimer(interaction, opponent) {
   // Get AFK time
-  const AFK_TIME_LIMIT = 15;
+  const AFK_TIME_LIMIT = 600;
   const now = new Date();
   const afkTimeLimit = new Date(now.getTime() + 1000 * AFK_TIME_LIMIT);
   const hoursText = String(afkTimeLimit.getHours()).padStart(2, "0");
@@ -131,6 +131,9 @@ async function cancelSetAfk(interaction, opponent, customId, isRanked) {
   }
 
   const gameNum = await getGameNumber(interaction.channel.id);
+
+  // Reset vote cancel
+  await resetVoteCancel(interaction.user.id, interaction.channel.id);
 
   // If no game has finished, the set is cancelled
   if (gameNum == 1) {

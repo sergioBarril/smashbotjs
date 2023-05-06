@@ -17,7 +17,11 @@ const { IncomaptibleYuzuError } = require("../errors/incompatibleYuzu");
 const { CustomError } = require("../errors/customError");
 const { InGamesetError } = require("../errors/inGameset");
 const { RejectedPlayerError } = require("../errors/rejectedPlayer");
-const { getLobbyByTextChannel, getLobby } = require("../models/lobby");
+const {
+  getLobbyByTextChannel,
+  getLobby,
+  getLobbyByTextChannelOrThrow,
+} = require("../models/lobby");
 const { getTier } = require("../models/tier");
 
 const winston = require("winston");
@@ -776,6 +780,17 @@ const voteCancelSet = async (playerDiscordId, textChannelId) => {
   return { decided, status: lp.cancelSet, opponent };
 };
 
+const resetVoteCancel = async (playerDiscordId, textChannelId) => {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const lobby = await getLobbyByTextChannelOrThrow(textChannelId);
+
+  const lp = await lobby.getLobbyPlayer(player.id);
+  const opponentLp = await lp.getOpponent();
+
+  await lp.setCancelSet(false);
+  await opponentLp.setCancelSet(false);
+};
+
 /**
  * Checks if the passed channel is being used for the player's lobby
  * @param {string} playerDiscordId DiscordID of the player
@@ -857,6 +872,7 @@ module.exports = {
   closeArena,
   timeOutCheck,
   voteCancelSet,
+  resetVoteCancel,
   isInCurrentLobby,
   removeAfkLobby,
   deleteLobbies,
