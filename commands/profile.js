@@ -101,7 +101,7 @@ module.exports = {
     const guildInfo = await getGuild(guild.id);
     let tier = await getPlayerTier(member.id, guild.id, true);
     if (!tier) tier = await getWifiTier(guild.id);
-    let roleId = tier.id;
+    let roleId = tier.roleId;
 
     if (member.roles.cache.has(guildInfo.tierXRoleId)) {
       roleId = guildInfo.tierXRoleId;
