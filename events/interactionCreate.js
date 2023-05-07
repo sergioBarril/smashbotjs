@@ -55,7 +55,10 @@ module.exports = {
 
       if (error instanceof CustomError) {
         content = error.message;
-      } else content = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+      } else {
+        content = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+        winston.error(error.stack);
+      }
 
       winston.error(content);
       winston.debug(error.stack);
