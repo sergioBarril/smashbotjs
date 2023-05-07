@@ -110,8 +110,15 @@ class Player {
    * @returns
    */
   getRankedCountToday = async (opponentPlayerId, client = null) => {
-    const today = new Date();
-    const formattedToday = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+    let today = new Date();
+
+    if (today.getHours() < 6) {
+      today.setDate(today.getDate() - 1);
+    }
+
+    const formattedToday = `${today.getFullYear()}-${
+      today.getMonth() + 1
+    }-${today.getDate()} 06:00:00`;
 
     const getQuery = {
       text: `SELECT COUNT(1) as count FROM (
@@ -208,7 +215,14 @@ class Player {
    */
   hasRejected = async (rejectedPlayerId, client = null) => {
     const pr = await this.getRejected(rejectedPlayerId, client);
-    return pr != null;
+
+    if (pr) {
+      const blockLimit = new Date(pr.rejectedAt.getTime() + pr.timeMargin * 60 * 1000);
+      const now = new Date();
+      return now < blockLimit;
+    }
+
+    return false;
   };
 
   /**
@@ -231,18 +245,20 @@ class Player {
   /**
    * Rejects the player
    * @param {int} rejectedPlayerId PlayerID of the rejected player
+   * @param {int} time Time in minutes to reject for
    * @param {Client} client Optional PG client
    */
-  rejectPlayer = async (rejectedPlayerId, client = null) => {
+  rejectPlayer = async (rejectedPlayerId, time = 45, client = null) => {
     const pr = await this.getRejected(rejectedPlayerId, client);
     if (pr) {
-      return await pr.setRejectedAt();
+      await pr.setTimeMargin(time, client);
+      return await pr.setRejectedAt(client);
     }
 
     const queryString = {
-      text: `INSERT INTO player_reject(rejected_player_id, rejecter_player_id)
-      VALUES ($1, $2)`,
-      values: [rejectedPlayerId, this.id],
+      text: `INSERT INTO player_reject(rejected_player_id, rejecter_player_id, time_margin)
+      VALUES ($1, $2, $3)`,
+      values: [rejectedPlayerId, this.id, time],
     };
 
     await db.insertQuery(queryString, client);

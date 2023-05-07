@@ -8,11 +8,9 @@ const { removeOldRejects, countOldRejects } = require("../models/playerReject");
 function clearRejectsJob() {
   cron.schedule("*/20 * * * *", async () => {
     try {
-      const timeMargin = 45;
-
-      const count = await countOldRejects(timeMargin);
+      const count = await countOldRejects();
       if (count > 0) {
-        await removeOldRejects(timeMargin);
+        await removeOldRejects();
         winston.info(`Removed ${count} PlayerRejects.`);
       }
     } catch (e) {

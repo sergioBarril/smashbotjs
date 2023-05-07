@@ -15,6 +15,12 @@ const execute = async (interaction) => {
   await interaction.editReply({
     content: "GGs, ¡gracias por jugar!",
   });
+
+  // Avoid rematch buttons
+  const count = await getRankedCountToday(playerDiscordId, playerDiscordId2);
+  if (count === 1) {
+    await avoidRematchMessage(interaction, playerDiscordId, playerDiscordId2);
+  }
 };
 
 module.exports = {

@@ -1,5 +1,5 @@
 const lobbyAPI = require("../api/lobby");
-const { Guild } = require("discord.js");
+const { Guild, MessageActionRow, MessageButton } = require("discord.js");
 const { Message, MESSAGE_TYPES } = require("../models/message");
 const winston = require("winston");
 const { getGuild } = require("../api/guild");
@@ -102,15 +102,50 @@ const channelsRemoval = async (guild, channels) => {
  * @param {Guild} guild DiscordJS Guild
  */
 const cancelLobby = async (player, guild) => {
-  const { channels, messages } = await lobbyAPI.closeArena(player.id);
+  const { channels, messages, playersDiscordIds } = await lobbyAPI.closeArena(player.id);
   channelsRemoval(guild, channels);
 
   const playerNames = await editDirectMessages(guild, messages);
   await editTierMessages(guild, messages, playerNames);
 
   winston.info(`Se ha cerrado la arena de ${playerNames}`);
+
+  return playersDiscordIds;
+};
+
+const getAvoidButtons = (pd1, pd2) => [
+  new MessageActionRow().addComponents(
+    new MessageButton()
+      .setCustomId(`avoid-0-${pd1}-${pd2}`)
+      .setLabel("No evitar")
+      .setStyle("SECONDARY"),
+    new MessageButton()
+      .setCustomId(`avoid-60-${pd1}-${pd2}`)
+      .setLabel("Evitar 1h")
+      .setStyle("SECONDARY"),
+    new MessageButton()
+      .setCustomId(`avoid-120-${pd1}-${pd2}`)
+      .setLabel("Evitar 2h")
+      .setStyle("SECONDARY"),
+    new MessageButton()
+      .setCustomId(`avoid-240-${pd1}-${pd2}`)
+      .setLabel("Evitar 4h")
+      .setStyle("SECONDARY"),
+    new MessageButton()
+      .setCustomId(`avoid-9999-${pd1}-${pd2}`)
+      .setLabel("Evitar hasta mañana")
+      .setStyle("SECONDARY")
+  ),
+];
+
+const avoidRematchMessage = async (interaction, playerDiscordId, playerDiscordId2) => {
+  const buttonRow = getAvoidButtons(playerDiscordId, playerDiscordId2);
+
+  const messageText = `Si queréis evitar encontraros durante un tiempo, pulsad un botón de los siguientes:`;
+  await interaction.followUp({ content: messageText, components: buttonRow });
 };
 
 module.exports = {
   cancelLobby,
+  avoidRematchMessage,
 };

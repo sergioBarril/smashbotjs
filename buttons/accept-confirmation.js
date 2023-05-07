@@ -1,12 +1,18 @@
 const lobbyAPI = require("../api/lobby");
 const setAPI = require("../api/gameSet");
+const ratingAPI = require("../api/rating");
 
 const { MessageActionRow, MessageButton, Permissions } = require("discord.js");
 const { Player } = require("../models/player");
 const { Guild } = require("../models/guild");
 const { NotFoundError } = require("../errors/notFound");
 const { Message, MESSAGE_TYPES } = require("../models/message");
-const { setupNextGame, setupCharacter, setEndButtons } = require("../utils/discordGameset");
+const {
+  setupNextGame,
+  setupCharacter,
+  setEndButtons,
+  bonusSetText,
+} = require("../utils/discordGameset");
 const winston = require("winston");
 
 // Disabled buttons
@@ -38,7 +44,8 @@ const timeoutButtonBuilder = (playerDiscordId) => {
 const cancelSetButtons = () => {
   return [
     new MessageActionRow().addComponents(
-      new MessageButton().setCustomId("cancel-set").setStyle("SECONDARY").setLabel("Anular set")
+      new MessageButton().setCustomId("cancel-set").setStyle("SECONDARY").setLabel("Anular set"),
+      new MessageButton().setCustomId("afk-set").setStyle("SECONDARY").setLabel("Mi rival está AFK")
     ),
   ];
 };
@@ -226,8 +233,13 @@ const allAccepted = async (interaction, players, guild, ranked) => {
       members.map((member) => `**${member.displayName}**`)
     );
 
+    const dps = members.map((m) => m.id);
+    const [dp1, dp2] = dps;
+
+    const bonusText = await bonusSetText(dp1, dp2, guild.discordId, members);
+
     await channels.text.send({
-      content: `¡Marchando un set ranked BO5 entre ${memberNames}! Si hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón.`,
+      content: `¡Marchando un set ranked BO5 entre ${memberNames}!${bonusText}\nSi hay algún problema y ambos estáis de acuerdo en cancelar el set, pulsad el botón.`,
       components: cancelSetButtons(),
     });
 

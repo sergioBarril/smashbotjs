@@ -8,6 +8,7 @@ const { CustomError } = require("../errors/customError");
 const { MESSAGE_TYPES } = require("../models/message");
 const { AlreadyFinishedError } = require("../errors/alreadyFinished");
 const { NotFoundError } = require("../errors/notFound");
+const { removeAllRejects } = require("../models/playerReject");
 
 async function deleteMessage(guild, message) {
   let channel;
@@ -58,7 +59,7 @@ async function cancelGameset(textChannelId) {
  * Job that checks cleans up all lobbies at 6.30 am
  */
 function dailyCleanup(client) {
-  cron.schedule("30 06 */1 * *", async () => {
+  cron.schedule("0 6 */1 * *", async () => {
     try {
       winston.info(`[Cleanup job] Start`);
       const guildModels = await getAllGuilds();
@@ -92,6 +93,8 @@ function dailyCleanup(client) {
         }
       }
 
+      await removeAllRejects();
+      winston.info(`[Cleanup job] Rejects removed`);
       winston.info(`[Cleanup job] End`);
     } catch (e) {
       winston.error(e);

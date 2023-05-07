@@ -323,18 +323,24 @@ describe("test lobby.matchmaking() and setupMatch()", () => {
 
     let lps = await lobby.getLobbyPlayers();
     expect(lps.length).toEqual(2);
-    expect(lps[0].playerId).toEqual(player.id);
-    expect(lps[0].status).toEqual("CONFIRMATION");
-    expect(lps[1].playerId).toEqual(player2.id);
-    expect(lps[1].status).toEqual("CONFIRMATION");
+
+    let lp1 = lps.find((lp) => lp.playerId === player.id);
+    expect(lp1).toBeTruthy();
+    expect(lp1.status).toEqual("CONFIRMATION");
+
+    let lp2 = lps.find((lp) => lp.playerId === player2.id);
+    expect(lp2).toBeTruthy();
+    expect(lp2.status).toEqual("CONFIRMATION");
 
     lobby2 = await player2.getOwnLobby();
     expect(lobby2.status).toBe("WAITING");
 
     lps = await lobby2.getLobbyPlayers();
     expect(lps.length).toEqual(1);
-    expect(lps[0].playerId).toEqual(player2.id);
-    expect(lps[0].status).toEqual("WAITING");
+
+    lp2 = lps.find((lp) => lp.playerId === player2.id);
+    expect(lp2).toBeTruthy();
+    expect(lp2.status).toEqual("WAITING");
   });
 
   it("the opponent must have a lobby", async () => {

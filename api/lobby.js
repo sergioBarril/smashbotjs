@@ -17,7 +17,11 @@ const { IncomaptibleYuzuError } = require("../errors/incompatibleYuzu");
 const { CustomError } = require("../errors/customError");
 const { InGamesetError } = require("../errors/inGameset");
 const { RejectedPlayerError } = require("../errors/rejectedPlayer");
-const { getLobbyByTextChannel, getLobby } = require("../models/lobby");
+const {
+  getLobbyByTextChannel,
+  getLobby,
+  getLobbyByTextChannelOrThrow,
+} = require("../models/lobby");
 const { getTier } = require("../models/tier");
 
 const winston = require("winston");
@@ -110,8 +114,9 @@ const matchNotAccepted = async (playerDiscordId, isTimeout) => {
 
     // Reject player
     if (!isTimeout) {
+      const REJECT_TIME = 45;
       for (let rejectedPlayer of otherPlayers) {
-        await player.rejectPlayer(rejectedPlayer.id);
+        await player.rejectPlayer(rejectedPlayer.id, REJECT_TIME);
       }
     }
 
@@ -290,6 +295,19 @@ const matchmaking = async (playerDiscordId) => {
     );
     searchedRanked = true;
     foundRanked = rivalPlayer != null;
+
+    /** Allow for bonus in promo too */
+    if (!rivalPlayer) {
+      rivalPlayer = await lobby.rankedMatchmaking(
+        playerTier.weight,
+        rating.promotion,
+        rating.promotionWins,
+        rating.promotionLosses,
+        false
+      );
+
+      foundRanked = rivalPlayer != null;
+    }
   }
 
   if (!rivalPlayer) rivalPlayer = await lobby.matchmaking();
@@ -686,6 +704,7 @@ const closeArena = async (playerDiscordId) => {
   const messages = await lobby.getMessagesFromEveryone();
   const lobbyPlayers = await lobby.getLobbyPlayers();
   const players = await Promise.all(lobbyPlayers.map(async (lp) => await lp.getPlayer()));
+  const playersDiscordIds = players.map((p) => p.discordId);
 
   for (let message of messages)
     message.playerDiscordId = players.find((p) => p.id === message.playerId).discordId;
@@ -698,7 +717,19 @@ const closeArena = async (playerDiscordId) => {
     },
     guild,
     messages,
+    playersDiscordIds,
   };
+};
+
+const avoidPlayer = async (playerDiscordId, playerDiscordId2, timeMargin) => {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const rejectedPlayer = await getPlayerOrThrow(playerDiscordId2, true);
+
+  if (timeMargin == 0) {
+    const pr = await player.getRejected(rejectedPlayer.id);
+    if (pr) await pr.remove();
+    return;
+  } else await player.rejectPlayer(rejectedPlayer.id, timeMargin);
 };
 
 /**
@@ -747,6 +778,17 @@ const voteCancelSet = async (playerDiscordId, textChannelId) => {
   }
 
   return { decided, status: lp.cancelSet, opponent };
+};
+
+const resetVoteCancel = async (playerDiscordId, textChannelId) => {
+  const player = await getPlayerOrThrow(playerDiscordId, true);
+  const lobby = await getLobbyByTextChannelOrThrow(textChannelId);
+
+  const lp = await lobby.getLobbyPlayer(player.id);
+  const opponentLp = await lp.getOpponent();
+
+  await lp.setCancelSet(false);
+  await opponentLp.setCancelSet(false);
 };
 
 /**
@@ -830,8 +872,10 @@ module.exports = {
   closeArena,
   timeOutCheck,
   voteCancelSet,
+  resetVoteCancel,
   isInCurrentLobby,
   removeAfkLobby,
   deleteLobbies,
   isInAnyLobby,
+  avoidPlayer,
 };

@@ -77,6 +77,8 @@ const getRating = async (playerDiscordId, guildDiscordId) => {
 
 const rankUp = async (rating, nextTier) => {
   await rating.setTier(nextTier.id);
+  if (rating.promotionBonusScore > 0)
+    await rating.setScore(rating.score + rating.promotionBonusScore);
   await rating.endPromotion();
 };
 
@@ -95,6 +97,21 @@ const getProbability = (p1Score, p2Score) => {
   const qa = 10 ** (p1Score / 400);
   const qb = 10 ** (p2Score / 400);
   return qa / (qa + qb);
+};
+
+const updateBonusScore = async (promoRating, weightDiff, isWin, isSmashHour = false) => {
+  let addScore = null;
+  if (weightDiff == 0) addScore = isWin ? 10 : -10;
+  else if (weightDiff < 0) addScore = isWin ? 5 : -10;
+  else if (weightDiff > 0) addScore = isWin ? 15 : -10;
+
+  if (isWin && isSmashHour) addScore *= 1.2;
+
+  await promoRating.addPromotionBonusScore(addScore);
+  await promoRating.setPromotionBonusSets(promoRating.promotionBonusSets + 1);
+
+  if (!isWin && promoRating.promotionBonusScore <= -50) return true;
+  else return false;
 };
 
 /**
@@ -135,6 +152,13 @@ const updateScore = async (
   const opponentTier = await getTier(opponentRating.tierId);
   const upset = opponentTier.weight < tier.weight;
 
+  let isBonus = false;
+
+  if (rating.promotion) {
+    const bonus = await isBonusMatch(playerDiscordId, opponentDiscordId, guildDiscordId);
+    isBonus = bonus.isBonus;
+  }
+
   oldRating.tier = tier;
   rating.tier = tier;
 
@@ -148,6 +172,18 @@ const updateScore = async (
   if (!hasStreakBoost && streak < -3) streak = -3;
   if (!hasStreakBoost && streak > 3) streak = 3;
 
+  // Smash Hour
+  let smashHour = false;
+  if (guild.smashHour) {
+    if (!guild.smashHourStart && !guild.smashHourEnd) smashHour = true;
+    else if (guild.smashHourStart) {
+      const now = new Date();
+      smashHour =
+        now.getHours() >= guild.smashHourStart &&
+        (!guild.smashHourEnd || now.getHours() < guild.smashHourEnd);
+    }
+  }
+
   const rankedCountToday = await player.getRankedCountToday(opponent.id);
 
   if (streak > 0) {
@@ -158,30 +194,43 @@ const updateScore = async (
       if (rankedCountToday == 3) scoreToAdd = 10;
       if (rankedCountToday > 3) scoreToAdd = 5;
 
+      if (smashHour) scoreToAdd *= 1.2;
+
       let newScore = rating.score + scoreToAdd;
       if (newScore >= nextTier.threshold) {
         await rating.setScore(nextTier.threshold);
         await rating.startPromotion();
       } else await rating.setScore(newScore);
     } else if (rating.promotion) {
-      await rating.setPromotionWins(rating.promotionWins + 1);
-      if (rating.promotionWins >= 3) {
-        await rankUp(rating, nextTier);
-        rating.tier = nextTier;
+      if (isBonus) {
+        await updateBonusScore(rating, tier.weight - opponentTier.weight, true, smashHour);
+      } else {
+        await rating.setPromotionWins(rating.promotionWins + 1);
+        if (rating.promotionWins >= 3) {
+          await rankUp(rating, nextTier);
+          rating.tier = nextTier;
+        }
       }
+    } else if (rating.score < tier.threshold + 200) {
+      scoreToAdd = 15;
+      if (rankedCountToday == 3) scoreToAdd = 10;
+      if (rankedCountToday > 3) scoreToAdd = 5;
+      if (smashHour) scoreToAdd *= 1.2;
+      await rating.setScore(rating.score + scoreToAdd);
     } else {
-      // ELO
+      // ELO FOR TIER X
       const probability = getProbability(rating.score, opponentOldScore || opponentRating.score);
       let scoreToAdd = 42 * (1 - probability);
       scoreToAdd = scoreToAdd * (1 + 0.05 * streak);
 
-      if (scoreToAdd < 5) {
-        scoreToAdd = 5;
+      if (scoreToAdd < 10) {
+        scoreToAdd = 10;
       }
 
       if (rankedCountToday == 3 && scoreToAdd > 10) scoreToAdd = 10;
       if (rankedCountToday > 3 && scoreToAdd > 5) scoreToAdd = 5;
 
+      if (smashHour) scoreToAdd *= 1.2;
       const newScore = Number.parseInt(rating.score + scoreToAdd);
 
       await rating.setScore(newScore);
@@ -190,11 +239,15 @@ const updateScore = async (
     if (!rating.promotion) {
       let scoreToSubstract = 20 + 5 * -streak;
       if (!isSameTier) scoreToSubstract = 15;
-      else if (!nextTier) {
+      else if (!nextTier && rating.score < tier.threshold + 200) {
+        scoreToSubstract = 10;
+      } else if (!nextTier && rating.score >= tier.threshold + 200) {
         //ELO
         const probability = getProbability(rating.score, opponentOldScore || opponentRating.score);
         scoreToSubstract = 42 * probability;
         scoreToSubstract = scoreToSubstract * (1 - 0.05 * streak); // streak is negative: ;
+
+        if (scoreToSubstract > 10) scoreToSubstract = 10;
       }
 
       if (rankedCountToday == 3 && scoreToSubstract > 10) scoreToSubstract = 10;
@@ -209,9 +262,21 @@ const updateScore = async (
         await rating.setScore(tier.threshold - 200);
       else await rating.setScore(newScore);
     } else {
-      await rating.setPromotionLosses(rating.promotionLosses + 1);
-      if (rating.promotionLosses >= 3) {
-        await rating.setScore(rating.score - 50 + 20 * rating.promotionWins);
+      let isPromoStopped = false;
+      if (isBonus)
+        isPromoStopped = await updateBonusScore(rating, tier.weight - opponentTier.weight, false);
+      else {
+        await rating.setPromotionLosses(rating.promotionLosses + 1);
+        isPromoStopped = rating.promotionLosses >= 3;
+      }
+
+      if (isPromoStopped) {
+        let newScoreDiff = -50 + 20 * rating.promotionWins;
+
+        if (rating.promotionBonusScore > 0) newScoreDiff += rating.promotionBonusScore;
+        if (newScoreDiff >= 0) newScoreDiff = -5;
+
+        await rating.setScore(rating.score + newScoreDiff);
         await rating.endPromotion();
       }
     }
@@ -220,21 +285,58 @@ const updateScore = async (
   return { oldRating, rating };
 };
 
-/**
- * Returns true if promoPlayer is promo AND has already beat opponent during the promo
- * @param {*} promoPlayerDiscordId
- * @param {*} opponentDiscordId
- * @param {*} guildDiscordId
- * @returns
- */
-const wonAgainstInPromo = async (promoPlayerDiscordId, opponentDiscordId, guildDiscordId) => {
-  const promoPlayer = await getPlayerOrThrow(promoPlayerDiscordId, true);
-  const opponent = await getPlayerOrThrow(opponentDiscordId, true);
+const isBonusMatch = async (player1DiscordId, player2DiscordId, guildDiscordId) => {
+  const player1 = await getPlayerOrThrow(player1DiscordId, true);
+  const player2 = await getPlayerOrThrow(player2DiscordId, true);
   const guild = await getGuildOrThrow(guildDiscordId, true);
 
-  const promoRating = await promoPlayer.getRating(guild.id);
-  if (!promoRating || !promoRating.isPromotion) return false;
-  else return promoRating.wonAgainstInPromo(opponent.id);
+  const rating1 = await player1.getRating(guild.id);
+  const rating2 = await player2.getRating(guild.id);
+
+  const result = {
+    isBonus: false,
+    reason: null,
+    promoPlayer: null,
+    normalPlayer: null,
+  };
+
+  if (!rating1 || !rating2) return result;
+  if (!rating1.promotion && !rating2.promotion) return result;
+  if (rating1.promotion && rating2.promotion) {
+    result.isBonus = true;
+    result.reason = "BOTH_PROMO";
+    return result;
+  }
+
+  const checkTruePromo = async (r1, r2, p1, p2) => {
+    if (!r1.promotion) return false;
+
+    result.promoPlayer = p1.discordId;
+    result.normalPlayer = p2.discordId;
+
+    const tierRule = await r1.checkPromoTiers(r2);
+
+    if (!tierRule) {
+      result.isBonus = true;
+      result.reason = "TIER_DIFF";
+      return false;
+    }
+
+    const alreadyBeat = await r1.wonAgainstInPromo(p2.id);
+
+    if (alreadyBeat) {
+      result.isBonus = true;
+      result.reason = "ALREADY_BEAT";
+      return false;
+    }
+
+    return true;
+  };
+
+  if (rating1.promotion) await checkTruePromo(rating1, rating2, player1, player2);
+  else await checkTruePromo(rating2, rating1, player2, player1);
+
+  return result;
 };
 
 /**
@@ -363,5 +465,5 @@ module.exports = {
   getRatingsByTier,
   setScore,
   setPromotion,
-  wonAgainstInPromo,
+  isBonusMatch,
 };

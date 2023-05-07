@@ -8,7 +8,7 @@ const smashCharacters = require("../params/smashCharacters.json");
 
 const { Region } = require("../models/region");
 const { getRating, getPlayerTier } = require("../api/rating");
-const { getWifiTier } = require("../api/guild");
+const { getWifiTier, getGuild } = require("../api/guild");
 const { getRegions, getCharacters } = require("../api/roles");
 const { Character } = require("../models/character");
 
@@ -48,7 +48,13 @@ function makeEmbed(member, tierRole, regions, rating, characters) {
   if (rating && rating.score) {
     const name = `**Ranked:**`;
     let value = `Puntuación: ${rating.score}`;
-    if (rating.promotion) value += ` **[${rating.promotionWins} - ${rating.promotionLosses}]**`;
+    if (rating.promotion) {
+      value += ` **[${rating.promotionWins} - ${rating.promotionLosses}]**`;
+      if (rating.promotionBonusScore !== 0) {
+        const sign = rating.promotionBonusScore > 0 ? "+" : "";
+        value += ` _**(${sign}${rating.promotionBonusScore})**_`;
+      }
+    }
     fields.push({ name, value, inline: false });
 
     tierText = ` (${tierRole.name})`;
@@ -92,10 +98,16 @@ module.exports = {
     const ephemeral = !!interaction.options.getBoolean("personal");
 
     const rating = await getRating(member.id, guild.id);
+    const guildInfo = await getGuild(guild.id);
     let tier = await getPlayerTier(member.id, guild.id, true);
     if (!tier) tier = await getWifiTier(guild.id);
+    let roleId = tier.id;
 
-    const tierRole = await guild.roles.fetch(tier.roleId);
+    if (member.roles.cache.has(guildInfo.tierXRoleId)) {
+      roleId = guildInfo.tierXRoleId;
+    }
+
+    const tierRole = await guild.roles.fetch(roleId);
     const regions = await getRegions(member.id);
     const characters = await getCharacters(member.id);
 

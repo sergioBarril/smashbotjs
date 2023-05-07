@@ -16,6 +16,7 @@ const { addScore } = require("./admin/rating/addScore");
 const { setPromotion } = require("./admin/rating/setPromotion");
 const { deleteLobbies } = require("./admin/bug/deleteLobbies");
 const { cancelSet } = require("./admin/ranked/cancelSet");
+const { setSmashHour } = require("./admin/ranked/smashHour");
 
 const data = new SlashCommandBuilder()
   .setName("admin")
@@ -97,6 +98,29 @@ const data = new SlashCommandBuilder()
       )
       .addSubcommand((subcommand) =>
         subcommand.setName("cancelset").setDescription("Cancela el set en juego en este canal")
+      )
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("smashhour")
+          .setDescription("Modifica los parámetros de la Smash Hour")
+          .addBooleanOption((option) =>
+            option
+              .setName("smashhour")
+              .setRequired(true)
+              .setDescription("True si está la smash hour activa, false si no.")
+          )
+          .addIntegerOption((option) =>
+            option
+              .setName("start")
+              .setDescription("Hora (en formato 24h) a la que empieza la Smash Hour")
+              .setRequired(false)
+          )
+          .addIntegerOption((option) =>
+            option
+              .setName("end")
+              .setDescription("Hora (en formato 24h) a la que acaba la Smash Hour")
+              .setRequired(false)
+          )
       )
   )
   .addSubcommandGroup((leaderboardCommandGroup) =>
@@ -251,6 +275,7 @@ module.exports = {
       if (interaction.options.getSubcommand() === "channel") await rankedChannel(interaction);
       if (interaction.options.getSubcommand() === "setwinner") await setWinner(interaction);
       if (interaction.options.getSubcommand() === "cancelset") await cancelSet(interaction);
+      if (interaction.options.getSubcommand() === "smashhour") await setSmashHour(interaction);
     }
 
     if (interaction.options.getSubcommandGroup() === "welcome") {

@@ -31,6 +31,10 @@ class Guild {
     grind_supporter_role_id,
     tryhard_supporter_role_id,
     pro_supporter_role_id,
+    tier_x_role_id,
+    smash_hour,
+    smash_hour_start,
+    smash_hour_end,
   }) {
     this.id = id;
     this.discordId = discord_id;
@@ -58,6 +62,12 @@ class Guild {
     this.grindSupporterRoleId = grind_supporter_role_id;
     this.tryhardSupporterRoleId = tryhard_supporter_role_id;
     this.proSupporterRoleId = pro_supporter_role_id;
+
+    this.tierXRoleId = tier_x_role_id;
+
+    this.smashHour = smash_hour;
+    this.smashHourStart = smash_hour_start;
+    this.smashHourEnd = smash_hour_end;
   }
 
   // **********
@@ -322,6 +332,18 @@ class Guild {
   setNoCableRole = async (noCableRoleId, client = null) => {
     await db.updateBy("guild", { no_cable_role_id: noCableRoleId }, { id: this.id }, client);
     this.noCableRoleId = noCableRoleId;
+  };
+
+  setSmashHour = async (isSmashHour, hourStart, hourEnd, client = null) => {
+    await db.updateBy(
+      "guild",
+      { smash_hour: isSmashHour, smash_hour_start: hourStart, smash_hour_end: hourEnd },
+      { id: this.id },
+      client
+    );
+    this.smashHour = isSmashHour;
+    this.smashHourStart = hourStart;
+    this.smashHourEnd = hourEnd;
   };
 
   remove = async (client = null) => await db.basicRemove("guild", this.id, false, client);

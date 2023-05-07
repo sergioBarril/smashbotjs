@@ -15,6 +15,7 @@ const data = new SlashCommandBuilder()
         { name: "¿Cómo busco partida?", value: "SEARCH" },
         { name: "Rematch: ¡acabamos de jugar!", value: "REMATCH" },
         { name: "No me empareja con alguien", value: "NO_MATCH" },
+        { name: "Promoción: ranked bonus", value: "BONUS_RANKED" },
         { name: "¡Rankeds y Tiers para gente sin cable!", value: "RANKED_WIFI" }
       )
   )
@@ -28,17 +29,19 @@ const data = new SlashCommandBuilder()
   );
 
 const SCORE_HELP =
-  `Hay 5 tiers, siendo **Tier 1** la mejor y **Tier 4** la peor. En cada tier se empieza con una puntuación diferente:\n` +
+  `Hay 5 tiers, siendo **Tier 1** la mejor y **Tier 5** la peor. En cada tier se empieza con una puntuación diferente:\n` +
   `- **Tier 1**: 2100 puntos\n- **Tier 2**: 1800 puntos\n- **Tier 3**: 1500 puntos\n- **Tier 4**: 1200 puntos.\n- **Tier 5**: 900 puntos.\n` +
   `Las rankeds se pueden jugar contra gente de **tu tier**, gente de **1 tier por encima** y **1 tier por debajo**.\n` +
   `**__Ranked con gente de tu tier__**\nSi juegas contra gente de tu tier, el ganador se llevará entre **25 y 35 puntos** según la racha de wins que lleve,` +
   ` y el perdedor perderá entre **25 y 35 puntos** según la racha de derrotas que lleve.\n` +
   `**__Ranked con gente de tier diferente__**\nPerder te quita 15 puntos. Ganar te da **15 puntos** si eres el que tiene más tier y **25** si eres el que menos tier tenías.\n` +
   `__**Rankeds de Tier 1**__\n` +
-  `Para evitar que sus puntos lleguen hasta el infinito, la Tier 1 calcula sus puntos mediante el **algoritmo del ELO** normal y corriente.\n` +
+  `Para evitar que sus puntos lleguen hasta el infinito, la Tier 1 calcula sus puntos de forma diferente.\n` +
+  `__**Tier X**__\n` +
+  `Los que lleguen a 2300 puntos tendrán un reconocimiento especial: **la tier X**.\n` +
   `__**Promoción**__\n` +
   `Cuando llegas al **límite de tu tier** (por ejemplo, a 1500 puntos siendo Tier 4), entrarás en promoción.` +
-  ` A partir de entonces, solo se te emparejará con gente de la tier a la que quieres subir (en el ejemplo, Tier 3).` +
+  ` A partir de entonces, tendrás que jugar con gente de la tier a la que quieres subir (en el ejemplo, Tier 3).` +
   ` Tendrás que ganar **3 de los próximos 5 sets**, cada win siendo contra una persona diferente. Si lo logras, pasarás a la Tier superior.` +
   ` Si no, te quedarás en la Tier que estabas, con los puntos: \`threshold - 50 + 20 * num wins en promo\`.\n` +
   `__**Descenso**__\n` +
@@ -107,6 +110,16 @@ const RANKED_WIFI_HELP =
   `\t- Es tiempo que preferiría emplear en otras cosas.\n` +
   `En su lugar... ¡compraos vosotros el cable!`;
 
+const BONUS_RANKED_HELP =
+  `Si estáis en promoción, seguiréis matcheando con gente de una tier por encima o por debajo, pero no os servirán para avanzar en la promoción en estos casos:\n` +
+  `\t- Si matcheáis con alguien de vuestra tier o inferior\n` +
+  `\t- Si ya habéis ganado a esa persona durante vuestra promoción\n` +
+  `\t- Si esa persona también está en promoción\n\n` +
+  `En esos casos, estas partidas servirán para modificar vuestra **Puntuación bonus**. Su funcionamiento es:\n` +
+  `\t- Cada derrota serán -10 puntos bonus, y cada victoria serán +5, +10 o +15 según si es de una tier menos, la misma, o una superior.\n` +
+  `\t- El **máximo** de puntos bonus es **+75**. Si ganas la promoción y tus puntos bonus son positivos, cuando pases a la tier siguiente empezarás con esos puntos extra.\n` +
+  `\t- El **mínimo** de puntos bonus es **-50**. Si llegáis a -50 puntos bonus, **perderéis la promoción**.`;
+
 const FAQ_TEXTS = {
   SCORE: async (interaction) => SCORE_HELP,
   PROFILE: getProfileHelp,
@@ -114,6 +127,7 @@ const FAQ_TEXTS = {
   NO_MATCH: async (interaction) => NO_MATCH_HELP,
   RANKED_WIFI: async (interaction) => RANKED_WIFI_HELP,
   SEARCH: getSearchHelp,
+  BONUS_RANKED: async (interaction) => BONUS_RANKED_HELP,
 };
 
 module.exports = {

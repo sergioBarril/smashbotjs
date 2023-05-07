@@ -33,6 +33,10 @@ module.exports = {
           command = interaction.client.buttons.get("new-set");
         else if (interaction.customId.startsWith("character-set-menu"))
           command = interaction.client.buttons.get("character-set-menu");
+        else if (interaction.customId.startsWith("avoid"))
+          command = interaction.client.buttons.get("avoid");
+        else if (interaction.customId.startsWith("afk-set"))
+          command = interaction.client.buttons.get("afk-set");
       }
     }
 
@@ -51,7 +55,10 @@ module.exports = {
 
       if (error instanceof CustomError) {
         content = error.message;
-      } else content = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+      } else {
+        content = "Ha habido un error inesperado. Habla con un admin para que mire los logs.";
+        winston.error(error.stack);
+      }
 
       winston.error(content);
       winston.debug(error.stack);

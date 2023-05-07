@@ -1,6 +1,7 @@
 const { Client } = require("pg");
 const db = require("./db");
 const { Gameset } = require("./gameset");
+const { getTier } = require("./tier");
 
 class Rating {
   constructor({
@@ -12,6 +13,8 @@ class Rating {
     promotion,
     promotion_wins,
     promotion_losses,
+    promotion_bonus_score,
+    promotion_bonus_sets,
   }) {
     this.id = id;
     this.playerId = player_id;
@@ -22,6 +25,8 @@ class Rating {
     this.promotion = promotion;
     this.promotionWins = promotion_wins;
     this.promotionLosses = promotion_losses;
+    this.promotionBonusScore = promotion_bonus_score;
+    this.promotionBonusSets = promotion_bonus_sets;
   }
 
   /**
@@ -131,6 +136,20 @@ class Rating {
   };
 
   /**
+   *
+   */
+  checkPromoTiers = async (opponentRating, client = null) => {
+    if (!this.isPromotion) return false;
+
+    const tier = await getTier(this.tierId, client);
+    const opponentTier = await getTier(opponentRating.tierId, client);
+
+    if (!tier || !opponentTier) return false;
+
+    return opponentTier.weight === tier.weight - 1;
+  };
+
+  /**
    * Returns true if during this player's promo, they have already won against the Opponent
    * @param {int} opponentId Player.id of the opponent
    * @param {Client} client Optional PG Client
@@ -139,7 +158,7 @@ class Rating {
   wonAgainstInPromo = async (opponentId, client = null) => {
     if (!this.isPromotion) return false;
 
-    const gameCount = this.promotionWins + this.promotionLosses;
+    const gameCount = this.promotionWins + this.promotionLosses + this.promotionBonusSets;
 
     const getQuery = {
       text: `
@@ -192,16 +211,56 @@ class Rating {
     this.promotionLosses = promotionLosses;
   };
 
+  setPromotionBonusScore = async (promotionBonusScore, client = null) => {
+    await db.updateBy(
+      "rating",
+      { promotion_bonus_score: promotionBonusScore },
+      { id: this.id },
+      client
+    );
+    this.promotionBonusScore = promotionBonusScore;
+  };
+
+  addPromotionBonusScore = async (promotionBonusScoreToAdd, client = null) => {
+    let totalBonusScore = this.promotionBonusScore + promotionBonusScoreToAdd;
+
+    // UPPER LIMIT IN BONUS SCORE
+    if (totalBonusScore > 75) totalBonusScore = 75;
+
+    await db.updateBy(
+      "rating",
+      { promotion_bonus_score: totalBonusScore },
+      { id: this.id },
+      client
+    );
+
+    this.promotionBonusScore = totalBonusScore;
+  };
+
+  setPromotionBonusSets = async (promotionBonusSets, client = null) => {
+    await db.updateBy(
+      "rating",
+      { promotion_bonus_sets: promotionBonusSets },
+      { id: this.id },
+      client
+    );
+    this.promotionBonusSets = promotionBonusSets;
+  };
+
   startPromotion = async (client = null) => {
     await this.setPromotion(true, client);
     await this.setPromotionWins(0, client);
     await this.setPromotionLosses(0, client);
+    await this.setPromotionBonusScore(0, client);
+    await this.setPromotionBonusSets(0, client);
   };
 
   endPromotion = async (client = null) => {
     await this.setPromotion(false, client);
     await this.setPromotionWins(null, client);
     await this.setPromotionLosses(null, client);
+    await this.setPromotionBonusScore(null, client);
+    await this.setPromotionBonusSets(null, client);
   };
 
   setScore = async (newScore, client = null) => {
