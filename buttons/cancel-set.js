@@ -1,6 +1,8 @@
 const { MessageActionRow, MessageButton } = require("discord.js");
 const setAPI = require("../api/gameSet");
 const lobbyAPI = require("../api/lobby");
+const messageAPI = require("../api/message");
+
 const { setEndButtons } = require("../utils/discordGameset");
 
 const cancelSetButtons = (message, decided, status) => {
@@ -50,6 +52,7 @@ module.exports = {
     if (!decided) return await firstVote(interaction, status, opponent);
 
     const isRanked = await setAPI.cancelSet(channel.id);
+    await messageAPI.deleteCharacterMessages(interaction.user.id);
 
     await interaction.reply({
       content:

@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const winston = require("winston");
 const setAPI = require("../api/gameSet");
+const messageAPI = require("../api/message");
 const { setupNextGame } = require("../utils/discordGameset");
 
 const data = new SlashCommandBuilder()
@@ -13,6 +14,7 @@ const execute = async (interaction) => {
 
   await interaction.deferReply();
   await setAPI.surrender(player.id, channel.id);
+  await messageAPI.deleteCharacterMessages(player.id);
   winston.info(`${player.username} se ha rendido.`);
   await setupNextGame(interaction);
 };
