@@ -643,7 +643,7 @@ const pickingIsNotOver = async (
     components: disabledComponents,
   });
 
-  await interaction.reply({
+  await interaction.editReply({
     content: `Has seleccionado **${characterName}** ${emoji}. Espera a que tu rival acabe de pickear.`,
     ephemeral: true,
   });
@@ -667,10 +667,9 @@ const pickCharacter = async (interaction, playerDiscordId, characterName) => {
   winston.info(`${interaction.user.username} ha pickeado ${characterName}.`);
 
   if (allPicked) {
-    if (interaction.isButton()) await interaction.deferUpdate();
-    else {
+    if (!interaction.isButton()) {
       const emoji = smashCharacters[characterName].emoji;
-      await interaction.reply({
+      await interaction.editReply({
         content: `Has seleccionado **${characterName}** ${emoji}. Espera a que tu rival acabe de pickear.`,
         ephemeral: true,
       });
