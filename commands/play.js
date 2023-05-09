@@ -19,6 +19,7 @@ const data = new SlashCommandBuilder()
   );
 
 const execute = async (interaction) => {
+  await interaction.deferReply({ ephemeral: true });
   const role = interaction.options.getRole("character");
   const charName = role.name;
 
