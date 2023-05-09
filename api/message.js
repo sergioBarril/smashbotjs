@@ -173,6 +173,19 @@ const getGuildFromMessage = async (messageDiscordId) => {
   return await getGuildOrThrow(message.guildId, false);
 };
 
+const deleteCharacterMessages = async (playerDiscordId) => {
+  const player = await getPlayer(playerDiscordId, true);
+  if (!player) throw new NotFoundError("Player");
+
+  const lobby = await player.getLobby("PLAYING");
+  if (!lobby) throw new NotFoundError("Lobby");
+
+  const messages = await lobby.getCharacterMessages();
+  for (let message of messages) {
+    await message.remove();
+  }
+};
+
 module.exports = {
   getSearchTierMessages,
   getLeaderboardMessage,
@@ -184,4 +197,5 @@ module.exports = {
   saveConfirmationGuild,
   saveSearchRankedMessage,
   getGuildFromMessage,
+  deleteCharacterMessages,
 };

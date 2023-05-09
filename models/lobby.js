@@ -509,6 +509,19 @@ class Lobby {
     return getMessagesResult.map((row) => new Message(row));
   };
 
+  getCharacterMessages = async (client = null) => {
+    const getMessagesResult = await db.filterBy(
+      "message",
+      {
+        lobby_id: this.id,
+        type: MESSAGE_TYPES.GAME_CHARACTER_SELECT,
+      },
+      client
+    );
+
+    return getMessagesResult.map((row) => new Message(row));
+  };
+
   /**
    * Returns the Search Tier Messages
    * from all lobby players in this lobby
