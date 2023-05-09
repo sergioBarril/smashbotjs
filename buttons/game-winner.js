@@ -33,6 +33,8 @@ const pickWinnerButtons = (message, votedPlayerId, isOpponentVoted, isDone) => {
 };
 
 const execute = async (interaction) => {
+  await interaction.deferUpdate();
+
   const message = interaction.message;
   const player = interaction.member;
 
@@ -54,7 +56,6 @@ const execute = async (interaction) => {
     `${interaction.user.username} ha votado al jugador con Discord ID ${votedPlayerId} como ganador`
   );
 
-  await interaction.deferUpdate();
   if (winner) {
     const winnerPlayer = await interaction.guild.members.fetch(winner.discordId);
     const characterName = winnerCharacter.name;
