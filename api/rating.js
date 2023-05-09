@@ -155,7 +155,7 @@ const updateScore = async (
   let isBonus = false;
 
   if (rating.promotion) {
-    const bonus = await isBonusMatch(playerDiscordId, opponentDiscordId, guildDiscordId);
+    const bonus = await isBonusMatch(playerDiscordId, opponentDiscordId, guildDiscordId, true);
     isBonus = bonus.isBonus;
   }
 
@@ -285,7 +285,12 @@ const updateScore = async (
   return { oldRating, rating };
 };
 
-const isBonusMatch = async (player1DiscordId, player2DiscordId, guildDiscordId) => {
+const isBonusMatch = async (
+  player1DiscordId,
+  player2DiscordId,
+  guildDiscordId,
+  ignoreLastGame = false
+) => {
   const player1 = await getPlayerOrThrow(player1DiscordId, true);
   const player2 = await getPlayerOrThrow(player2DiscordId, true);
   const guild = await getGuildOrThrow(guildDiscordId, true);
@@ -322,7 +327,7 @@ const isBonusMatch = async (player1DiscordId, player2DiscordId, guildDiscordId) 
       return false;
     }
 
-    const alreadyBeat = await r1.wonAgainstInPromo(p2.id);
+    const alreadyBeat = await r1.wonAgainstInPromo(p2.id, ignoreLastGame);
 
     if (alreadyBeat) {
       result.isBonus = true;
