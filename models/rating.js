@@ -139,7 +139,7 @@ class Rating {
    *
    */
   checkPromoTiers = async (opponentRating, client = null) => {
-    if (!this.isPromotion) return false;
+    if (!this.promotion) return false;
 
     const tier = await getTier(this.tierId, client);
     const opponentTier = await getTier(opponentRating.tierId, client);
@@ -155,10 +155,11 @@ class Rating {
    * @param {Client} client Optional PG Client
    * @returns
    */
-  wonAgainstInPromo = async (opponentId, client = null) => {
-    if (!this.isPromotion) return false;
+  wonAgainstInPromo = async (opponentId, ignoreLastGame, client = null) => {
+    if (!this.promotion) return false;
 
     const gameCount = this.promotionWins + this.promotionLosses + this.promotionBonusSets;
+    const offset = ignoreLastGame ? "OFFSET 1" : "";
 
     const getQuery = {
       text: `
@@ -173,6 +174,7 @@ class Rating {
           GROUP BY gset.id, gset.winner_id
           ORDER BY gset.created_at DESC
           LIMIT $1
+          ${offset}
         ) gs 
         INNER JOIN game g
           ON g.gameset_id = gs.id

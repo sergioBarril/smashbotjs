@@ -28,7 +28,6 @@ const endStageStep = async (interaction, gameNum, stages, pickedStage) => {
     components: banMessageComponents,
   });
 
-  await interaction.deferUpdate();
   return await setupGameWinner(interaction, gameNum);
 };
 
@@ -41,17 +40,16 @@ const nextStep = async (interaction, gameNum, nextPlayerId, stages, bannedStages
     content: stageMessageText,
     components: stageMessageComponents,
   });
-
-  await interaction.deferUpdate();
 };
 
 const execute = async (interaction) => {
+  await interaction.deferUpdate();
   const customId = interaction.customId.split("-");
   const playerId = customId[2];
   const gameNum = Number(customId[3]);
 
   if (interaction.user.id != playerId) {
-    return await interaction.reply({
+    return await interaction.followUp({
       content: `¡No te toca banear aún! Espera a que banee tu rival, y luego le das tú.`,
       ephemeral: true,
     });
