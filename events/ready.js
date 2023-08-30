@@ -10,8 +10,8 @@ module.exports = {
     console.log(`Ready! Logged in as ${client.user.tag}`);
     winston.info("--- Ready ---");
 
-    searchListJob(client);
-    dailyCleanup(client);
-    clearRejectsJob();
+    // searchListJob(client);
+    // dailyCleanup(client);
+    // clearRejectsJob();
   },
 };
