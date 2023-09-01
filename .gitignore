@@ -1,6 +1,6 @@
 node_modules
+coverage/
+dist/
+build/
+
 .env
-*.code-workspace
-config.json
-coverage
-*.log
