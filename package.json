@@ -8,7 +8,8 @@
     "lint": "eslint . --ext .ts",
     "prettier-format": "prettier --config .prettierrc ./src/**/*.ts --write .",
     "start": "npm run build && node build/index.js",
-    "start:dev": "npx nodemon"
+    "start:dev": "npx nodemon",
+    "deploy:commands": "npm run build && node build/scripts/deploy-commands.js"
   },
   "author": "Tropped",
   "license": "ISC",
