@@ -1,5 +1,6 @@
 import axios from "axios";
 import { CommandInteraction } from "discord.js";
+import { Role } from "../types/role";
 
 const { API_URL } = process.env;
 
@@ -29,11 +30,35 @@ function toggleMainMessage(
   return `**${name} ${emoji}** ha dejado de ser tu ${lowerType}.`;
 }
 
+async function toggleRole(
+  interaction: CommandInteraction,
+  roleData: Role,
+  action: MainAction,
+) {
+  if (!interaction.inCachedGuild())
+    throw new Error("No guild found for this interaction");
+
+  const { guild, member } = interaction;
+
+  if (!guild) throw new Error("No guild found for this interaction");
+  if (!member) throw new Error("No member found for this interaction");
+
+  const role = await guild.roles.fetch(roleData.discordId);
+  if (!role) throw new Error("No role found");
+
+  if (action === "CREATED") {
+    await member.roles.add(role);
+  } else if (action === "DELETED") {
+    await member.roles.remove(role);
+  }
+}
+
 export default async function assignCharacter(
   interaction: CommandInteraction,
   type: MainType,
 ) {
-  if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isChatInputCommand()) throw new Error("Not a command");
+  await interaction.deferReply({ ephemeral: true });
 
   const characterName = interaction.options.getString("character");
   const playerId = interaction.user.id;
@@ -46,8 +71,10 @@ export default async function assignCharacter(
     type,
   });
 
-  const { character, action } = response.data;
-  const message = toggleMainMessage(character, action, type);
+  const { role, character, action } = response.data;
 
-  await interaction.reply(message);
+  const message = toggleMainMessage(character, action, type);
+  if (role) await toggleRole(interaction, role, action);
+
+  await interaction.editReply(message);
 }
