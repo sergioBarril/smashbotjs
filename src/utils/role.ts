@@ -65,11 +65,21 @@ export default async function assignCharacter(
   const { guild } = interaction;
   const guildDiscordId = guild?.id;
 
-  const response = await axios.post(`${API_URL}/players/${playerId}/mains`, {
-    characterName,
-    guildDiscordId,
-    type,
-  });
+  const response = await axios
+    .post(`${API_URL}/players/${playerId}/mains`, {
+      characterName,
+      guildDiscordId,
+      type,
+    })
+    .catch((error) => {
+      if(!error.response) throw error;
+      const { status, data } = error.response;
+      if (status === 500) {
+        throw new Error("Internal server error");
+      }
+      
+      const { message,  } = data;
+    });
 
   const { role, character, action } = response.data;
 
