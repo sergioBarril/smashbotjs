@@ -7,9 +7,9 @@
     "build": "rimraf ./build && tsc",
     "lint": "eslint . --ext .ts",
     "prettier-format": "prettier --config .prettierrc ./src/**/*.ts --write .",
-    "start": "npm run build && node build/index.js",
-    "start:dev": "npx nodemon",
-    "deploy:commands": "npm run build && node build/scripts/deploy-commands.js"
+    "start": "doppler run -- npm run build && node build/index.js",
+    "start:dev": "doppler run -- npx nodemon",
+    "deploy:commands": "npm run build && doppler run -- node build/scripts/deploy-commands.js"
   },
   "author": "Tropped",
   "license": "ISC",

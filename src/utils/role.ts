@@ -30,6 +30,7 @@ function toggleMainMessage(
   return `**${name} ${emoji}** ha dejado de ser tu ${lowerType}.`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function toggleRole(
   interaction: CommandInteraction,
   roleData: Role,
@@ -72,19 +73,19 @@ export default async function assignCharacter(
       type,
     })
     .catch((error) => {
-      if(!error.response) throw error;
+      if (!error.response) throw error;
       const { status, data } = error.response;
       if (status === 500) {
         throw new Error("Internal server error");
       }
-      
-      const { message,  } = data;
+
+      throw new Error(data.message);
     });
 
-  const { role, character, action } = response.data;
+  const { character, action, oldType, newType } = response.data;
 
-  const message = toggleMainMessage(character, action, type);
-  if (role) await toggleRole(interaction, role, action);
+  const message = toggleMainMessage(character, action, newType ?? oldType);
+  // if (role) await toggleRole(interaction, role, action);
 
   await interaction.editReply(message);
 }

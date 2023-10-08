@@ -16,3 +16,10 @@ export type Role = {
   color?: string | null;
   regionId?: number | null;
 };
+
+export type CharacterRole = {
+  id: string;
+  type: "CHARACTER";
+  characterId: number;
+  color?: string | null;
+};
