@@ -33,7 +33,7 @@ for (const folder of commandFolders) {
   const folderPath = path.join(commandsPath, folder);
 
   const commandFiles = readdirSync(folderPath).filter(
-    (file) => file.endsWith(".ts") || file.endsWith(".js"),
+    (file) => file.endsWith(".command.ts") || file.endsWith(".command.js"),
   );
 
   for (const file of commandFiles) {
