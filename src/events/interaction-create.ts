@@ -1,6 +1,26 @@
-import { Events, Interaction } from "discord.js";
+import { ChatInputCommandInteraction, Events, Interaction } from "discord.js";
 import CustomClient from "../config/custom-client";
 import { Event } from "../interfaces/event";
+import ApiError from "../errors/api-error.error";
+
+async function errorHandler(
+  interaction: ChatInputCommandInteraction,
+  error: Error,
+) {
+  console.error(error);
+
+  let content = "There was an error while executing this command!";
+  if (error instanceof ApiError && error.statusCode < 500) {
+    content = error.message;
+  }
+
+  const response = { content, ephemeral: true };
+  if (interaction.replied || interaction.deferred) {
+    await interaction.followUp(response);
+  } else {
+    await interaction.reply(response);
+  }
+}
 
 async function execute(interaction: Interaction) {
   if (!interaction.isChatInputCommand()) return;
@@ -17,18 +37,7 @@ async function execute(interaction: Interaction) {
   try {
     await command.execute(interaction);
   } catch (error) {
-    console.error(error);
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({
-        content: "There was an error while executing this command!",
-        ephemeral: true,
-      });
-    } else {
-      await interaction.reply({
-        content: "There was an error while executing this command!",
-        ephemeral: true,
-      });
-    }
+    await errorHandler(interaction, error as Error);
   }
 }
 

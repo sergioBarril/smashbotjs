@@ -7,14 +7,15 @@
     "build": "rimraf ./build && tsc",
     "lint": "eslint . --ext .ts",
     "prettier-format": "prettier --config .prettierrc ./src/**/*.ts --write .",
-    "start": "npm run build && node build/index.js",
-    "start:dev": "npx nodemon",
-    "deploy:commands": "npm run build && node build/scripts/deploy-commands.js"
+    "start": "doppler run -- npm run build && node build/index.js",
+    "start:dev": "doppler run -- npx nodemon",
+    "deploy:commands": "npm run build && doppler run -- node build/scripts/deploy-commands.js"
   },
   "author": "Tropped",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "axios": "^1.5.0",
     "discord.js": "^14.13.0",
     "dotenv": "^16.3.1"
   },

@@ -27,7 +27,9 @@ const commandFileTree = await Promise.all(
     const folderPath = path.join(commandsPath, folder);
     const files = await readdir(folderPath);
     return files
-      .filter((file) => file.endsWith(".ts") || file.endsWith(".js"))
+      .filter(
+        (file) => file.endsWith(".command.ts") || file.endsWith(".command.js"),
+      )
       .map((file) => path.join(folder, file));
   }),
 );
