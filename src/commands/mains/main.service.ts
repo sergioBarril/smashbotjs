@@ -1,6 +1,7 @@
-import axios from "axios";
+import axios, { HttpStatusCode } from "axios";
 import { Character, MainAction, MainType } from "./main";
 import { Role } from "../../types/role";
+import ApiError from "../../errors/api-error.error";
 
 const { API_URL } = process.env;
 
@@ -34,14 +35,18 @@ export default class MainService {
       .catch((error) => {
         if (!error.response) throw error;
         const { status, data } = error.response;
-        if (status === 500) {
-          throw new Error("Internal server error");
+        if (status === HttpStatusCode.NotFound) {
+          this.notFoundHandler(characterName);
         }
-
-        throw new Error(data.message);
+        throw new ApiError(status, data.message);
       });
 
     return response.data;
+  }
+
+  private static notFoundHandler(characterName: string) {
+    const message = `No se pudo encontrar el personaje con el nombre **${characterName}**.`;
+    throw new ApiError(HttpStatusCode.NotFound, message);
   }
 
   /**
