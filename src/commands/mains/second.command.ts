@@ -1,6 +1,6 @@
 import { CommandInteraction, SlashCommandBuilder } from "discord.js";
 import { Command } from "../../interfaces/command";
-import assignCharacter from "../../utils/role.js";
+import toggleCharacter from "./main.discord";
 
 const data = new SlashCommandBuilder()
   .setName("second")
@@ -13,7 +13,7 @@ const data = new SlashCommandBuilder()
   );
 
 async function execute(interaction: CommandInteraction) {
-  await assignCharacter(interaction, "SECONDARY");
+  await toggleCharacter(interaction, "SECOND");
 }
 
 const second: Command = {
