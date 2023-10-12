@@ -2,12 +2,13 @@ import { ChatInputCommandInteraction, Events, Interaction } from "discord.js";
 import CustomClient from "../config/custom-client";
 import { Event } from "../interfaces/event";
 import ApiError from "../errors/api-error.error";
+import logger from "../config/logger";
 
 async function errorHandler(
   interaction: ChatInputCommandInteraction,
   error: Error,
 ) {
-  console.error(error);
+  logger.error(error);
 
   let content = "There was an error while executing this command!";
   if (error instanceof ApiError && error.statusCode < 500) {
@@ -30,7 +31,7 @@ async function execute(interaction: Interaction) {
   );
 
   if (!command) {
-    console.error(`No command matching ${interaction.commandName} was found.`);
+    logger.error(`No command matching ${interaction.commandName} was found.`);
     return;
   }
 

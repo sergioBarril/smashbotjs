@@ -8,6 +8,7 @@ import { Collection, GatewayIntentBits } from "discord.js";
 import CustomClient from "./config/custom-client";
 import "dotenv/config";
 import { Command } from "./interfaces/command";
+import logger from "./config/logger";
 
 // Get ENV variables
 const token = process.env.DISCORD_TOKEN;
@@ -45,7 +46,7 @@ const commands: Command[] = commandUrls
 
 commands.forEach((command) => {
   if (!command.data || !command.execute) return;
-  console.log("Registering command", command.data.name);
+  logger.info("Registering command", command.data.name);
   client.commands.set(command.data.name, command);
 });
 
