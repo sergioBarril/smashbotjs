@@ -1,12 +1,12 @@
 /* eslint-disable global-require */
 /* eslint-disable import/no-dynamic-require */
-/* eslint-disable no-console */
 import { REST, Routes } from "discord.js";
 import "dotenv/config";
 import path from "node:path";
 import { readdirSync } from "node:fs";
 
 import { Command } from "../interfaces/command";
+import logger from "../config/logger";
 
 // Get ENV variables
 const { CLIENT_ID, GUILD_ID, DISCORD_TOKEN } = process.env;
@@ -33,7 +33,7 @@ const commandFiles = commandFileTree.flat();
 
 // Import all command files
 const commandPaths = commandFiles.map((file) => path.join(commandsPath, file));
-console.log(`Importing ${commandPaths.length} command files`);
+logger.info(`Importing ${commandPaths.length} command files`);
 
 const commandList: Command[] = commandPaths
   .map((commandPath) => require(commandPath))
@@ -48,7 +48,7 @@ const commands = commandList
 const rest = new REST().setToken(DISCORD_TOKEN);
 
 // and deploy your commands!
-console.log(`Started refreshing ${commands.length} application (/) commands.`);
+logger.info(`Started refreshing ${commands.length} application (/) commands.`);
 
 // The put method is used to fully refresh all commands in the guild with the current set
 rest
@@ -56,8 +56,8 @@ rest
     body: commands,
   })
   .then((data: any) =>
-    console.log(
+    logger.info(
       `Successfully reloaded ${data.length} application (/) commands.`,
     ),
   )
-  .catch((error) => console.error(error));
+  .catch((error) => logger.error(error));
