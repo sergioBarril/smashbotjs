@@ -1,11 +1,11 @@
+/* eslint-disable global-require */
+/* eslint-disable import/no-dynamic-require */
 /* eslint-disable no-await-in-loop */
 import { readdirSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "url";
-import { dirname } from "path";
 
 import { Collection, GatewayIntentBits } from "discord.js";
-import CustomClient from "./config/custom-client.js";
+import CustomClient from "./config/custom-client";
 import "dotenv/config";
 import { Command } from "./interfaces/command";
 
@@ -19,12 +19,8 @@ const client = new CustomClient({
 
 client.commands = new Collection();
 
-// Define the path to the current directory
-const fileName = fileURLToPath(import.meta.url);
-const dirName = dirname(fileName);
-
 // Read all command files
-const commandsPath = path.join(dirName, "commands");
+const commandsPath = path.join(__dirname, "commands");
 const commandFolders = readdirSync(commandsPath);
 
 const commandUrls: string[] = [];
@@ -38,15 +34,12 @@ for (const folder of commandFolders) {
 
   for (const file of commandFiles) {
     const filePath = path.join(folderPath, file);
-    commandUrls.push(pathToFileURL(filePath).toString());
+    commandUrls.push(filePath);
   }
 }
 
-const commands: Command[] = (
-  await Promise.all(
-    commandUrls.map((commandPath) => import(commandPath.toString())),
-  )
-)
+const commands: Command[] = commandUrls
+  .map((commandPath) => require(commandPath))
   .flat()
   .map((module) => module.default);
 
@@ -57,12 +50,10 @@ commands.forEach((command) => {
 });
 
 // Event handling
-const eventFiles = readdirSync(path.join(dirName, "events"));
+const eventFiles = readdirSync(path.join(__dirname, "events"));
 for (const file of eventFiles) {
-  const module = await import(
-    pathToFileURL(path.join(dirName, "events", file)).toString()
-  );
-  const event = module.default;
+  const filePath = path.join(__dirname, "events", file);
+  const event = require(filePath).default;
 
   if (event.once) {
     client.once(event.name, (...args) => event.execute(...args, client));
