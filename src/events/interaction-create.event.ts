@@ -1,13 +1,17 @@
-import { ChatInputCommandInteraction, Events, Interaction } from "discord.js";
+import {
+  ButtonInteraction,
+  ChatInputCommandInteraction,
+  Events,
+  Interaction,
+} from "discord.js";
 import CustomClient from "../config/custom-client";
 import { Event } from "../interfaces/event";
 import ApiError from "../errors/api-error.error";
 import logger from "../config/logger";
 
-async function errorHandler(
-  interaction: ChatInputCommandInteraction,
-  error: Error,
-) {
+async function errorHandler(interaction: Interaction, error: Error) {
+  if (!interaction.isChatInputCommand() && !interaction.isButton()) return;
+
   let content = "There was an error while executing this command!";
   if (error instanceof ApiError && error.statusCode < 500) {
     logger.warn(error, error.message);
@@ -22,20 +26,36 @@ async function errorHandler(
   }
 }
 
-async function execute(interaction: Interaction) {
-  if (!interaction.isChatInputCommand()) return;
-
+async function commandHandler(interaction: ChatInputCommandInteraction) {
   const command = (interaction.client as CustomClient).commands.get(
     interaction.commandName,
   );
 
-  if (!command) {
-    logger.error(`No command matching ${interaction.commandName} was found.`);
-    return;
+  if (!command)
+    throw new Error(
+      `No command matching ${interaction.commandName} was found.`,
+    );
+
+  await command.execute(interaction);
+}
+
+async function buttonHandler(interaction: ButtonInteraction) {
+  const button = (interaction.client as CustomClient).buttons.get(
+    interaction.customId,
+  );
+
+  if (!button) {
+    throw new Error(`No button matching ${interaction.customId} was found.`);
   }
 
+  await button.execute(interaction);
+}
+
+async function execute(interaction: Interaction) {
   try {
-    await command.execute(interaction);
+    if (interaction.isButton()) await buttonHandler(interaction);
+    else if (interaction.isChatInputCommand())
+      await commandHandler(interaction);
   } catch (error) {
     await errorHandler(interaction, error as Error);
   }

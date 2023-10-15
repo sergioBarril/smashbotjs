@@ -3,8 +3,9 @@ import CustomClient from "./config/custom-client";
 import "dotenv/config";
 import { Command } from "./interfaces/command";
 import logger from "./config/logger";
-import { loadCommands, loadEvents } from "./config/startup";
+import { loadButtons, loadCommands, loadEvents } from "./config/startup";
 import { Event } from "./interfaces/event";
+import { Button } from "./interfaces/button";
 
 // Get ENV variables
 const token = process.env.DISCORD_TOKEN;
@@ -22,6 +23,16 @@ commands.forEach((command) => {
   if (!command.data || !command.execute) return;
   logger.info(`Registering command ${command.data.name}`);
   client.commands.set(command.data.name, command);
+});
+
+// Register buttons
+client.buttons = new Collection();
+
+const buttons: Button[] = loadButtons();
+buttons.forEach((button) => {
+  if (!button.data || !button.execute) return;
+  logger.info(`Registering button ${button.data.name}`);
+  client.buttons.set(button.data.name, button);
 });
 
 // Event handling
