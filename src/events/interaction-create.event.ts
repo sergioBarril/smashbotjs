@@ -8,12 +8,11 @@ async function errorHandler(
   interaction: ChatInputCommandInteraction,
   error: Error,
 ) {
-  logger.error(error);
-
   let content = "There was an error while executing this command!";
   if (error instanceof ApiError && error.statusCode < 500) {
+    logger.warn(error, error.message);
     content = error.message;
-  }
+  } else logger.error(error);
 
   const response = { content, ephemeral: true };
   if (interaction.replied || interaction.deferred) {
